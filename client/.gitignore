@@ -1,0 +1,6 @@
+/target
+**/*.rs.bk
+.vscode/
+.idea/
+.DS_Store
+/bash_learn

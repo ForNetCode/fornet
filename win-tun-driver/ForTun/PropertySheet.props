@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <FOR_TUN_VERSION_MAJOR>0</FOR_TUN_VERSION_MAJOR>
+    <FOR_TUN_VERSION_MINOR>1</FOR_TUN_VERSION_MINOR>
+    <FOR_TUN_VERSION_PATCH>0</FOR_TUN_VERSION_PATCH>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup />
+  <ItemGroup>
+    <BuildMacro Include="FOR_TUN_VERSION_MAJOR">
+      <Value>$(FOR_TUN_VERSION_MAJOR)</Value>
+    </BuildMacro>
+    <BuildMacro Include="FOR_TUN_VERSION_MINOR">
+      <Value>$(FOR_TUN_VERSION_MINOR)</Value>
+    </BuildMacro>
+    <BuildMacro Include="FOR_TUN_VERSION_PATCH">
+      <Value>$(FOR_TUN_VERSION_PATCH)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

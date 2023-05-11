@@ -1,0 +1,16 @@
+.git
+.vscode
+.idea
+/node_modules
+/admin-web
+/app
+/backend
+/command
+/docs
+/java_backend
+/node_modules
+/tmp
+/client/target
+/third/boringtun/target
+/third/rust-tun/target
+

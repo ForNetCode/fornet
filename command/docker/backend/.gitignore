@@ -1,0 +1,6 @@
+app.zip
+app-*.zip
+/app-*
+/app
+/web
+/logs

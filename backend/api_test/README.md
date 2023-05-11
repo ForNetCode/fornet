@@ -1,0 +1,1 @@
+Quick test for restful api, but can only be used in IDEA.

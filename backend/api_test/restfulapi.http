@@ -1,0 +1,29 @@
+### This may be not correct, just for quick test.
+
+
+#@name network invite code
+GET {{host}}/network/1/invite_code
+
+
+###
+#@name node invite code
+GET {{host}}/node/1/1/invite_code
+
+###
+#@name update node status
+PUT {{host}}/node/1/1/status
+Content-Type: application/json
+
+{"status":1}
+
+###
+#@name get sso device config
+GET {{host}}/auth/oauth/device_code
+
+###
+#@name keycloak get device auth
+# curl -X POST  -d "client_id=fornet" http://keycloak_dev.fornet.com/realms/fornet/protocol/openid-connect/auth/device
+POST {{keycloak}}/realms/fornet/protocol/openid-connect/auth/device
+Content-Type: application/x-www-form-urlencoded
+
+client_id=fornet

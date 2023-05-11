@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package config;
+
+import "google/protobuf/empty.proto";
+
+option java_package = "com.timzaak.fornet.protobuf";
+
+message Interface {
+  optional string name = 1;
+  repeated string address = 2;
+  int32 listen_port = 3;
+  optional string private_key = 4;
+  repeated string dns = 5;
+  optional uint32 mtu = 6;
+  optional string pre_up = 7;
+  optional string post_up = 8;
+  optional string pre_down = 9;
+  optional string post_down = 10;
+}
+
+message Peer {
+  optional string endpoint = 1;
+  repeated string allowed_ip = 2;
+  string public_key = 3;
+  uint32 persistence_keep_alive = 4;
+}
+
+
+message PeerChange {
+  optional Peer add_peer = 1;
+  optional string remove_public_key = 2;
+  optional Peer change_peer = 3;
+}
+
+message WRConfig {
+  Interface interface = 1;
+  repeated Peer peers = 2;
+}
+
+enum NodeStatus {
+  NODE_WAITING = 0;
+  NODE_NORMAL = 1;
+  NODE_FORBID = 2;
+}
+
+message ClientMessage {
+  string network_id = 1;
+  oneof info {
+    WRConfig config = 2;
+    NodeStatus status = 3;
+  }
+}
+message NetworkMessage {
+  string network_id = 1;
+  oneof info {
+    PeerChange peer = 2;
+  }
+}

@@ -1,0 +1,8 @@
+.DS_Store
+/node_modules
+/tmp
+/java_backend
+/.metals
+/.vscode
+*.~undo-tree~
+.idea

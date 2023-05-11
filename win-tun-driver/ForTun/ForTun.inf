@@ -1,0 +1,98 @@
+;
+; ForTun.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=Net
+ClassGuid={4d36e972-e325-11ce-bfc1-08002be10318}
+Provider=%ManufacturerName%
+CatalogFile=ForTun.cat
+;DriverVer=0.0.1
+PnpLockdown=1
+
+[DestinationDirs]
+;DefaultDestDir = 12
+Drivers_Dir = 13
+;ForTun_Device_CoInstaller_CopyFiles = 11
+
+[SourceDisksNames]
+1 = %DiskName%
+
+[SourceDisksFiles]
+ForTun.sys  = 1,,
+;WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%ForTun.DeviceDesc%=ForTun_Device, ForTun
+
+[ForTun_Device.NT]
+CopyFiles=Drivers_Dir   ;dirid 13
+AddReg=ForTun_AddReg
+
+Characteristics     = 1  ; NCF_VIRTUAL
+
+*IfType             = 53 ; IF_TYPE_PROP_VIRTUAL
+*MediaType          = 19 ; NdisMediumIP
+*PhysicalMediaType  = 0 ; NdisPhysicalMediumUnspecified
+
+*IfConnectorPresent = 0
+*ConnectionType     = 1 ; NET_IF_CONNECTION_PASSIVE
+*DirectionType      = 0 ; NET_IF_DIRECTION_SENDRECEIVE
+*AccessType         = 2 ; NET_IF_ACCESS_POINT_TO_POINT
+*HardwareLoopback   = 0
+
+[ForTun_AddReg]
+; Note that "ndis5" simply means to bind to TCPIP; it is not a version number.
+HKR, Ndi\Interfaces,    UpperRange, 0, "ndis5"
+HKR, Ndi\Interfaces,    LowerRange, 0, "nolower"
+HKR, Ndi,               Service,    0, %ForTun.Name%
+
+[Drivers_Dir]
+ForTun.sys
+
+;-------------- Service installation
+[ForTun_Device.NT.Services]
+AddService = ForTun,%SPSVCINST_ASSOCSERVICE%, ForTun_Service_Inst
+
+; -------------- ForTun driver install sections
+[ForTun_Service_Inst]
+DisplayName    = %ForTun.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\ForTun.sys
+
+;
+;--- ForTun_Device Coinstaller installation ------
+;
+
+;[ForTun_Device.NT.CoInstallers]
+;AddReg=ForTun_Device_CoInstaller_AddReg
+;CopyFiles=ForTun_Device_CoInstaller_CopyFiles
+
+;[ForTun_Device_CoInstaller_AddReg]
+;HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+
+;[ForTun_Device_CoInstaller_CopyFiles]
+;WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
+
+[ForTun_Device.NT.Wdf]
+KmdfService = ForTun, ForTun_wdfsect
+[ForTun_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName= "Timzaak"
+DiskName = "ForTun Installation Disk"
+ForTun.DeviceDesc = "ForTun Device"
+ForTun.SVCDESC = "ForTun Service"
+ForTun.Name = "ForTun"

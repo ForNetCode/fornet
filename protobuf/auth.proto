@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package auth;
+
+option java_package = "com.timzaak.fornet.protobuf";
+
+import "google/protobuf/empty.proto";
+
+
+message ActionResponse {
+  bool isOk = 1;
+  optional string mqtt_url = 2;
+  optional string message = 3;
+}
+
+message EncryptRequest {
+  string public_key = 1;
+  uint64 timestamp = 2;
+  string nonce = 3;
+  string signature = 4;
+}
+
+message InviteConfirmRequest {
+  string network_id = 1;
+  optional string node_id = 2;
+  EncryptRequest encrypt = 3;
+}
+
+message OAuthDeviceCodeRequest {
+  string access_token = 1;
+  string device_code = 2;
+  string network_id = 3;
+  EncryptRequest encrypt = 4;
+}
+
+message SSOLoginInfoRequest {
+  string network_id = 1;
+}
+
+message SSOLoginInfoResponse {
+  string sso_url = 1;
+  string realm = 2;
+  string client_id = 3;
+}
+
+
+service Auth {
+
+  rpc inviteConfirm(InviteConfirmRequest) returns (ActionResponse);
+
+  rpc oauthDeviceCodeConfirm(OAuthDeviceCodeRequest) returns (ActionResponse);
+
+  rpc getSSOLoginInfo(SSOLoginInfoRequest) returns (SSOLoginInfoResponse);
+}

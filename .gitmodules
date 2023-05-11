@@ -1,0 +1,7 @@
+[submodule "third/boringtun"]
+	path = third/boringtun
+	url = https://github.com/timzaak/boringtun.git
+
+[submodule "third/rust-tun"]
+	path = third/rust-tun
+	url = https://github.com/timzaak/rust-tun.git

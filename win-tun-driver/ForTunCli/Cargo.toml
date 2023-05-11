@@ -1,0 +1,23 @@
+[package]
+name = "fortun-cli"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+#[lib]
+#name = "fortun-cli"
+#path = "src/lib.rs"
+#crate-type = ["staticlib", "cdylib", "lib"]
+
+[dependencies]
+
+windows = { version = "0.44", features = ["Win32_System_IO", "Win32_Storage_FileSystem", "Win32_Devices_Enumeration_Pnp", "Win32_System_Threading" ,"Win32_Devices_Properties", "Win32_Foundation", "Win32_Security", "Win32_Devices_DeviceAndDriverInstallation", "Win32_System_Registry", "Win32_NetworkManagement_IpHelper"] }
+anyhow = "1"
+scopeguard = "1"
+local-encoding = "*"
+tokio = {version = "1", features = ["full"]}
+packet = "0.1"
+cidr-utils = "0.5"
+
+tracing-subscriber = "0.3"
+tracing = "0.1"
