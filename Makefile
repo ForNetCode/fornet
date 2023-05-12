@@ -28,15 +28,15 @@ release-mac-aarch_64:
 	tar -C ./target/release/ -czvf ../release/fornet-mac-aarch_64.tar.gz ./fornet ./fornet-cli
 	ls -lisah ../release/fornet-mac-aarch_64.tar.gz
 
-release-linux:
-	mkdir /protoc && cd /protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-$(uname -m).zip && unzip protoc-21.9-linux-$(uname -m).zip && cp bin/* /usr/bin/
+release-linux:	
+	mkdir /protoc && cd /protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip && unzip protoc-21.9-linux-x86_64.zip && cp bin/* /usr/bin/
 	apt-get install -y build-essential libssl-dev cmake
 	mkdir -p release
 	cd client
 	cargo build --release
 	strip target/release/fornet
 	strip target/release/fornet-cli
-	tar -C ./target/release/ -czvf ../release/fornet-linux-$(uname -m).tar.gz ./fornet ./fornet-cli
+	tar -C ./target/release/ -czvf ../release/fornet-linux-x86_64.tar.gz ./fornet ./fornet-cli
 
 release-backend:
 	cd admin-web && npm ci && npm run build:prod && cd ../
