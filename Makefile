@@ -1,7 +1,7 @@
 # This is for .github/workflows.
 .PHONY: release-mac-x86_64, release-mac-aarch_64, release-linux, release-backend
 
-base_dir = $(shell pwd)
+base_dir := $(shell pwd)
 	
 release-mac-x86_64: 	
 	mkdir /protoc && cd /protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx.x86_64.zip && unzip protoc-21.9-osx.x86_64.zip && cp bin/* /usr/bin/ && cd $(base_dir)
