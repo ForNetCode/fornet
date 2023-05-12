@@ -5,9 +5,6 @@ on:
       version:
         required: true
         description: "version to release"
-      branch:
-        default: main
-        description: "git branch"
     
 env:
   REGISTRY: ghcr.io
@@ -16,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.branch }}
       - uses: coursier/cache-action@v6
       - uses: coursier/setup-action@v1
         with:
