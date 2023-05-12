@@ -9,9 +9,9 @@ ARG BASE_IMAGE=rust:1.65
 #ARG RUNTIME_IMAGE=alpine
 ARG RUNTIME_IMAGE=rust:1.65
 
-FROM ${BASE_IMAGE} AS builder
+FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} AS builder
 
-RUN apt update && apt install -y cmake bash git
+RUN apt update && apt install -y cmake bash
 
 
 #RUN  apt update &&  apt upgrade -y &&  apt install -y protobuf-compiler libprotobuf-dev
@@ -28,7 +28,7 @@ RUN chmod +x /script.sh && /script.sh
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cd /source/client && cargo build --release
 
-FROM ${RUNTIME_IMAGE}
+FROM --platform=$BUILDPLATFORM  ${RUNTIME_IMAGE}
 
 ENV FORNET_CONFIG=/config
 

@@ -48,4 +48,4 @@ jobs:
           push: true        
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: fornetcode/fornet-backend:${{github.event.inputs.version}}
+          tags: ${{ env.REGISTRY }}/fornetcode/fornet-backend:${{github.event.inputs.version}}
