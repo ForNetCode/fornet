@@ -24,8 +24,9 @@ ADD win-tun-driver /source/win-tun-driver
 ADD command/docker/client/script.sh /script.sh
 RUN chmod +x /script.sh && /script.sh
 #RUN ls -al && cd protobuf && ls -al && cd ../
+RUN cd /source/client
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-     cd /source/client && cargo build --release
+     cargo build --release
 
 FROM ${RUNTIME_IMAGE}
 
