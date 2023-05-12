@@ -39,7 +39,7 @@ release-linux:
 	tar -C ./target/release/ -czvf ../release/fornet-linux-$(uname -m).tar.gz ./fornet ./fornet-cli
 
 release-backend:
-	cd admin-web && npm ci && npm run build:prod
-	cp -r /build/ ../command/docker/backend/web
-	cd ../backend && sbt universal:packageBin
-	cp ./target/universal/app-*.zip ../command/docker/backend/app.zip && cd ../command/docker/backend && unzip app.zip && rm app.zip && mv app-* app
+	cd admin-web && npm ci && npm run build:prod && cd ../
+	cp -r admin-web/build/ command/docker/backend/web
+	cd backend && sbt universal:packageBin && cd ../
+	cp ./target/universal/app-*.zip command/docker/backend/app.zip && cd command/docker/backend && unzip app.zip && rm app.zip && mv app-* app

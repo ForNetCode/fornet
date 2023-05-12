@@ -11,7 +11,7 @@ ARG RUNTIME_IMAGE=rust:1.65
 
 FROM ${BASE_IMAGE} AS builder
 
-RUN apt update && apt install -y cmake bash
+RUN apt update && apt install -y cmake bash git
 
 
 #RUN  apt update &&  apt upgrade -y &&  apt install -y protobuf-compiler libprotobuf-dev
