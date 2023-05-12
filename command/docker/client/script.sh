@@ -5,7 +5,7 @@
 mkdir /protoc && cd /protoc
 
 architecture=$(uname -m)
-if [ $architecture=='aarch64' ];
+if [ $architecture == aarch64 ];
 then
     architecture='aarch_64'
 fi
