@@ -1,9 +1,9 @@
 # This is for .github/workflows.
 .PHONY: release-mac-x86_64, release-mac-aarch_64, release-linux, release-backend
 
+base_dir = $(shell pwd)
 	
-release-mac-x86_64: 
-	base_dir = $(shell pwd)
+release-mac-x86_64: 	
 	mkdir /protoc && cd /protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx.x86_64.zip && unzip protoc-21.9-osx.x86_64.zip && cp bin/* /usr/bin/ && cd $(base_dir)
 	brew install cmake	
 	mkdir -p release
@@ -17,7 +17,6 @@ release-mac-x86_64:
 	ls -lisah ../release/fornet-mac-x86_64.tar.gz
 
 release-mac-aarch_64:
-	base_dir = $(shell pwd)
 	mkdir /protoc && cd /protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx.aarch_64.zip && unzip protoc-21.9-osx.aarch_64.zip && cp bin/* /usr/bin/ && && cd $(base_dir)
 	brew install cmake
 	mkdir -p release
@@ -30,8 +29,7 @@ release-mac-aarch_64:
 	tar -C ./target/release/ -czvf ../release/fornet-mac-aarch_64.tar.gz ./fornet ./fornet-cli
 	ls -lisah ../release/fornet-mac-aarch_64.tar.gz
 
-release-linux:
-	base_dir = $(shell pwd)
+release-linux:	
 	mkdir /protoc && cd /protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip && unzip protoc-21.9-linux-x86_64.zip && cp bin/* /usr/bin/ && cd $(base_dir)
 	apt-get install -y build-essential libssl-dev cmake	
 	mkdir -p release
