@@ -34,7 +34,7 @@ release-mac-aarch_64:
 release-linux:	
 	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip && unzip protoc-21.9-linux-x86_64.zip && cd ../
 	export PATH=$(PWD)/protoc/bin:$$PATH
-	apt-get install -y build-essential libssl-dev cmake	
+	sudo apt-get install -y build-essential libssl-dev cmake	
 	mkdir release
 	pwd
 	cd client
