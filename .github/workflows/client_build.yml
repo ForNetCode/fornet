@@ -47,7 +47,7 @@ jobs:
             build: make release-mac-x86_64
           - host: macos-latest
             target: aarch64-apple-darwin
-            build make release-mac-aarch64 
+            build: make release-mac-aarch64 
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
