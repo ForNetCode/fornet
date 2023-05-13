@@ -7,7 +7,7 @@ ForNet is another Layer3 Virutal Private Network software, built on top of [Bori
 currently, it's in `beta` stage, supports macOS and Linux， Windows is in blocked for tun driver sign.
 
 ## Document
-To check out docs, visit [git page](https://fornetcode.github.io). There's also a [Roadmap](https://fornetcode.github.io/plan) to show you where the project go.
+To check out docs, visit [git page](https://fornetcode.github.io/documentation). There's also a [Roadmap](https://fornetcode.github.io/documentation/plan) to show you where the project go.
 
 
 ## License

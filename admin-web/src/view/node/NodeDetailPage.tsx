@@ -1,5 +1,5 @@
 import {useParams} from "react-router-dom";
-import {Button, Form, Input, InputNumber, message, Row, Col, Space} from "antd";
+import {Button, Form, Input, InputNumber, message, Row, Col} from "antd";
 import {useIntl} from "react-intl";
 import {getNode, NodeType, Node, updateNode} from "../../api/nodeAPI";
 import {enumToDesc} from "../../local/intl";
@@ -78,6 +78,7 @@ export default function NodeDetailPage() {
             })
 
         }
+        // eslint-disable-next-line
     }, [networkId, nodeId])
     if (!network) {
         return <></>

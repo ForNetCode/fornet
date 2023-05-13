@@ -6,6 +6,7 @@
 /app
 /backend
 /command
+!/command/docker/client
 /docs
 /java_backend
 /node_modules

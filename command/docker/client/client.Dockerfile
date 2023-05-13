@@ -9,25 +9,26 @@ ARG BASE_IMAGE=rust:1.65
 #ARG RUNTIME_IMAGE=alpine
 ARG RUNTIME_IMAGE=rust:1.65
 
-FROM ${BASE_IMAGE} AS builder
+FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} AS builder
+
+RUN apt update && apt install -y cmake bash
 
 
-RUN mkdir /protoc && cd /protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-$(uname -m).zip && unzip protoc-21.9-linux-$(uname -m).zip && cp bin/* /usr/bin/
 #RUN  apt update &&  apt upgrade -y &&  apt install -y protobuf-compiler libprotobuf-dev
-RUN apt update && apt install -y cmake
+
 # Add our source code.
 ADD protobuf /source/protobuf
-RUN cp -r /protoc/include/* /source/protobuf/
 ADD third /source/third
 ADD client /source/client
-# This is for windows, But must be in for cargo.
 ADD win-tun-driver /source/win-tun-driver
-
+ADD command/docker/client/script.sh /script.sh
+RUN chmod +x /script.sh && /script.sh
 #RUN ls -al && cd protobuf && ls -al && cd ../
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-     cd /source/client && cargo build --release
 
-FROM ${RUNTIME_IMAGE}
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cd /source/client && cargo build --release
+
+FROM --platform=$BUILDPLATFORM  ${RUNTIME_IMAGE}
 
 ENV FORNET_CONFIG=/config
 

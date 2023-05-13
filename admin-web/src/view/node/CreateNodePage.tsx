@@ -11,7 +11,7 @@ export function CreateNodePage() {
     let {networkId} = useParams<{ networkId: string }>()
     const [network, setNetwork] = useState<Network>()
     const [form] = Form.useForm<CreateNode>()
-    const nodeType = Form.useWatch('nodeType', form);
+    Form.useWatch('nodeType', form);
     const navi = useNavigate()
     const intl = useIntl()
     useEffect(() => {
