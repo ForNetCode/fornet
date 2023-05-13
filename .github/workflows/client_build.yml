@@ -43,30 +43,34 @@ jobs:
             target: x86_64-unknown-linux-gnu
             build: make release-linux
           - host: macos-latest
-            target: aarch64-apple-darwin
-            build: make release-mac-aarch_64  
-          - host: macos-latest
             target: x86_64-apple-darwin
             build: make release-mac-x86_64
+          - host: macos-latest
+            target: aarch64-apple-darwin
+            build make release-mac-aarch64 
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: actions-rs/toolchain@v1        
         with:
           toolchain: stable
-      - name: Cache cargo registry
-        uses: actions/cache@v2
+          target: ${{ matrix.settings.target }}
+          profile: minimal
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
         with:
-          path: ~/.cargo/registry
-          key: ${{ matrix.settings.os }}-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/git
-          key: ${{ matrix.settings.os }}-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/            
+          key: ${{ matrix-settings.host }}-${{matrix-settings.target}}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
       - name: Build
         run: ${{ matrix.settings.build }}
 
