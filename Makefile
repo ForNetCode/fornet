@@ -6,7 +6,7 @@
 #export PROTOC := $(shell pwd)/protoc/bin
 
 release-mac-x86_64: 	
-	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-x86_64.zip && unzip protoc-21.9-osx.x86_64.zip && sudo cp bin/protoc /usr/bin
+	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-x86_64.zip && unzip protoc-21.9-osx-x86_64.zip && sudo cp bin/protoc /usr/bin
 	brew install cmake	
 	mkdir -p release
 	cd client && cargo build --release  --target=x86_64-apple-darwin
@@ -18,7 +18,7 @@ release-mac-x86_64:
 	ls -lisah release/fornet-mac-x86_64.tar.gz
 
 release-mac-aarch64:
-	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-aarch_64.zip && unzip protoc-21.9-osx.aarch_64.zip && sudo cp bin/protoc /usr/bin
+	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-aarch_64.zip && unzip protoc-21.9-osx-aarch_64.zip && sudo cp bin/protoc /usr/bin
 	cp -r protoc/include/* protobuf/
 	brew install cmake
 	mkdir -p release 	

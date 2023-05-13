@@ -41,9 +41,9 @@ jobs:
       fail-fast: true
       matrix:
         settings:
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            build: make release-linux
+          # - host: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   build: make release-linux
           - host: macos-latest
             target: x86_64-apple-darwin
             build: make release-mac-x86_64
@@ -73,8 +73,8 @@ jobs:
             target/            
           key: ${{ matrix.settings.host }}-${{ matrix.settings.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ matrix.settings.host }}-cargo-${{ matrix.settings.target }}
-      # - name: Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       - name: Build
         run: ${{ matrix.settings.build }}
 
