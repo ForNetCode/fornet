@@ -73,13 +73,13 @@ jobs:
             target/            
           key: ${{ matrix.settings.host }}-${{ matrix.settings.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ matrix.settings.host }}-cargo-${{ matrix.settings.target }}
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3          
-      # - name: Build
-      #   run: ${{ matrix.settings.build }}
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      - name: Build
+        run: ${{ matrix.settings.build }}
 
-      # - name: Upload artifact
-      #   uses: actions/upload-artifact@v2
-      #   with:
-      #     path: release/*
-      #     if-no-files-found: error
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          path: release/*
+          if-no-files-found: error
