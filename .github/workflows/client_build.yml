@@ -41,13 +41,13 @@ jobs:
         settings:
           - host: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            build: sudo make release-linux
+            build: make release-linux
           - host: macos-latest
             target: aarch64-apple-darwin
-            build: sudo make release-mac-aarch_64  
+            build: make release-mac-aarch_64  
           - host: macos-latest
             target: x86_64-apple-darwin
-            build: sudo make release-mac-x86_64
+            build: make release-mac-x86_64
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
