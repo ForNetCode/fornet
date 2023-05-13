@@ -9,12 +9,12 @@ release-mac-x86_64:
 	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-x86_64.zip && unzip protoc-21.9-osx.x86_64.zip && sudo cp bin/protoc /usr/bin
 	brew install cmake	
 	mkdir -p release
-	cd client && cargo build --release
-	strip client/target/release/fornet
-	otool -L client/target/release/fornet
-	strip client/target/release/fornet-cli
-	otool -L client/target/release/fornet-cli
-	tar -C client/target/release/ -czvf release/fornet-mac-x86_64.tar.gz ./fornet ./fornet-cli
+	cd client && cargo build --release  --target=x86_64-apple-darwin
+	strip client/target/x86_64-apple-darwin/release/fornet
+	otool -L client/target/x86_64-apple-darwin/release/fornet
+	strip client/target/x86_64-apple-darwin/release/fornet-cli
+	otool -L client/target/x86_64-apple-darwin/release/fornet-cli
+	tar -C client/target/x86_64-apple-darwin/release/ -czvf release/fornet-mac-x86_64.tar.gz ./fornet ./fornet-cli
 	ls -lisah release/fornet-mac-x86_64.tar.gz
 
 release-mac-aarch64:
@@ -22,12 +22,12 @@ release-mac-aarch64:
 	cp -r protoc/include/* protobuf/
 	brew install cmake
 	mkdir -p release 	
-	cd client && cargo build --release
-	strip client/target/release/fornet
-	otool -L client/target/release/fornet
-	strip client/target/release/fornet-cli
-	otool -L client/target/release/fornet-cli	
-	tar -C client/target/release/ -czvf release/fornet-mac-aarch64.tar.gz ./fornet ./fornet-cli
+	cd client && cargo build --release --target=aarch64-apple-darwin
+	strip client/target/aarch64-apple-darwin/release/fornet
+	otool -L client/target/aarch64-apple-darwin/release/fornet
+	strip client/target/aarch64-apple-darwin/release/fornet-cli
+	otool -L client/target/aarch64-apple-darwin/release/fornet-cli	
+	tar -C client/target/aarch64-apple-darwin/release/ -czvf release/fornet-mac-aarch64.tar.gz ./fornet ./fornet-cli
 	ls -lisah release/fornet-mac-aarch64.tar.gz
 
 release-linux:	
@@ -36,9 +36,9 @@ release-linux:
 	sudo apt-get install -y build-essential libssl-dev cmake	
 	mkdir release	
 	cd client && cargo build --release --target=x86_64-unknown-linux-gnu
-	strip client/target/release/fornet
-	strip client/target/release/fornet-cli
-	tar -C client/target/release/ -czvf release/fornet-linux-x86_64.tar.gz ./fornet ./fornet-cli
+	strip client/target/x86_64-unknown-linux-gnu/release/fornet
+	strip client/target/x86_64-unknown-linux-gnu/release/fornet-cli
+	tar -C client/target/x86_64-unknown-linux-gnu/release/ -czvf release/fornet-linux-x86_64.tar.gz ./fornet ./fornet-cli
 
 release-backend:
 	cd admin-web && npm ci && npm run build:prod && cd ../
