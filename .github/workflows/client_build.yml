@@ -70,7 +70,7 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/            
+            client/target/            
           key: ${{ matrix.settings.host }}-${{ matrix.settings.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ matrix.settings.host }}-cargo-${{ matrix.settings.target }}
       # - name: Setup tmate session
