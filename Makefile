@@ -2,10 +2,11 @@
 .PHONY: release-mac-x86_64, release-mac-aarch64, release-linux, release-backend
 
 #base_dir := $(shell pwd)
-	
+
+export PROTOC := $(shell pwd)/protoc/bin
+
 release-mac-x86_64: 	
-	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-x86_64.zip && unzip protoc-21.9-osx.x86_64.zip
-	export PROTOC=$(PWD)/protoc/bin
+	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-x86_64.zip && unzip protoc-21.9-osx.x86_64.zip	
 	brew install cmake	
 	mkdir -p release
 	cd client && cargo build --release
@@ -17,8 +18,7 @@ release-mac-x86_64:
 	ls -lisah release/fornet-mac-x86_64.tar.gz
 
 release-mac-aarch64:
-	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-aarch_64.zip && unzip protoc-21.9-osx.aarch_64.zip	
-	export PROTOC=$(PWD)/protoc/bin
+	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-aarch_64.zip && unzip protoc-21.9-osx.aarch_64.zip		
 	brew install cmake
 	mkdir -p release 	
 	cd client && cargo build --release
@@ -30,8 +30,7 @@ release-mac-aarch64:
 	ls -lisah release/fornet-mac-aarch64.tar.gz
 
 release-linux:	
-	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip && unzip protoc-21.9-linux-x86_64.zip	
-	export PROTOC=$(PWD)/protoc/bin
+	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip && unzip protoc-21.9-linux-x86_64.zip		
 	sudo apt-get install -y build-essential libssl-dev cmake	
 	mkdir release	
 	cd client && cargo build --release --target=x86_64-unknown-linux-gnu
