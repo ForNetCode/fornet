@@ -4,7 +4,7 @@
 #base_dir := $(shell pwd)
 	
 release-mac-x86_64: 	
-	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx.x86_64.zip && unzip protoc-21.9-osx.x86_64.zip
+	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-x86_64.zip && unzip protoc-21.9-osx.x86_64.zip
 	export PATH=$(PWD)/protoc/bin:$$PATH
 	brew install cmake
 	mkdir -p release
@@ -17,7 +17,7 @@ release-mac-x86_64:
 	ls -lisah release/fornet-mac-x86_64.tar.gz
 
 release-mac-aarch64:
-	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx.aarch_64.zip && unzip protoc-21.9-osx.aarch_64.zip
+	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-aarch_64.zip && unzip protoc-21.9-osx.aarch_64.zip
 	export PATH=$(PWD)/protoc/bin:$$PATH
 	brew install cmake
 	mkdir -p release 	

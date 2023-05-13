@@ -37,6 +37,8 @@ jobs:
   #         tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}
   commandLine:
     strategy:
+      max-parallel: 1
+      fail-fast: true
       matrix:
         settings:
           - host: ubuntu-latest
