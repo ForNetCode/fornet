@@ -21,6 +21,21 @@ object NetworkStatus {
     }
   }
 }
+
+enum NetworkProtocol {
+  case TCP, UDP
+}
+object NetworkProtocol {
+  given JsonEncoder[NetworkProtocol] = JsonEncoder[Int].contramap(_.ordinal)
+
+  given JsonDecoder[NetworkProtocol] = JsonDecoder[Int].mapOrFail { e =>
+    Try(NetworkProtocol.fromOrdinal(e)) match {
+      case Success(v) => Right(v)
+      case Failure(_) => Left("no matching NetworkProtocol enum value")
+    }
+  }
+}
+
 case class Network(
   id: Int,
   name: String,
@@ -37,6 +52,7 @@ case class NetworkSetting(
   port: Int = 51820,
   keepAlive: Int = 30,
   mtu: Int = 1420,
+  protocol:NetworkProtocol = NetworkProtocol.UDP,
   dns: Option[Seq[String]] = None,
 ) extends DBSerializer
 
