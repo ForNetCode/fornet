@@ -1,0 +1,39 @@
+version: "3"
+
+services:
+  backend:
+    image: ghcr.io/fornetcode/fornet-backend:latest
+    container_name: fornet-backend
+    ports:
+      - 9000:9000 # grpc
+      - ${BACKEND_PORT}
+    volumes:
+      - ./config/backend:/config
+    depends_on:
+      - postgres
+    networks:
+      - fornet-network  
+
+  mqtt:
+    image: rmqtt/rmqtt:latest
+    container_name: mqtt
+    ports:
+      - 1883:1883
+    volumes:
+      - ./config/mqtt/rmqtt.toml:/app/rmqtt/rmqtt.toml
+      - ./config/mqtt/plugin:/app/rmqtt/plugin
+      - ./log/mqtt:/var/log/rmqtt
+    networks:
+      - fornet-network  
+  
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - fornet-network  
+  
+
+networks:
+  - fornet-network
