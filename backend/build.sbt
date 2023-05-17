@@ -13,6 +13,9 @@ Compile / PB.targets := Seq(
 )
 Compile / PB.protoSources += file("../protobuf")
 
+// zio-json default value needs this
+ThisBuild / scalacOptions ++= Seq("-Yretain-trees")
+
 import Dependencies._
 
 lazy val app = project

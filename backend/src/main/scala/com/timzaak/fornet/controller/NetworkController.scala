@@ -2,7 +2,7 @@ package com.timzaak.fornet.controller
 
 import com.google.common.net.InetAddresses
 import com.timzaak.fornet.controller.auth.AppAuthSupport
-import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NetworkSetting}
+import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NetworkProtocol, NetworkSetting}
 import com.typesafe.config.Config
 import org.hashids.Hashids
 
@@ -19,7 +19,7 @@ import zio.json.{DeriveJsonDecoder, JsonDecoder}
 
 import java.time.OffsetDateTime
 
-case class CreateNetworkReq(name: String, addressRange: String)
+case class CreateNetworkReq(name: String, addressRange: String, protocol:NetworkProtocol)
 given JsonDecoder[CreateNetworkReq] = DeriveJsonDecoder.gen
 case class UpdateNetworkReq(
   name: String,
@@ -66,7 +66,7 @@ trait NetworkController(
             .insert(
               _.name -> lift(req.name),
               _.addressRange -> lift(req.addressRange),
-              _.setting -> lift(NetworkSetting()),
+              _.setting -> lift(NetworkSetting(protocol = req.protocol)),
             )
             .returning(_.id)
         }
@@ -114,6 +114,7 @@ trait NetworkController(
             )
         }
       }
+      //TODO: notify all active nodes in network that config change.
       Accepted()
     }
   }
