@@ -6,6 +6,11 @@ import "google/protobuf/empty.proto";
 
 option java_package = "com.timzaak.fornet.protobuf";
 
+enum Protocol {
+  Protocol_TCP = 0;
+  Protocol_UDP = 1;
+}
+
 message Interface {
   optional string name = 1;
   repeated string address = 2;
@@ -17,6 +22,7 @@ message Interface {
   optional string post_up = 8;
   optional string pre_down = 9;
   optional string post_down = 10;
+  Protocol protocol = 11;
 }
 
 message Peer {

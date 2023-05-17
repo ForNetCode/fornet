@@ -2,6 +2,7 @@ package com.timzaak.fornet.dao
 
 // import io.getquill.{UpdateMeta, updateMeta}
 
+import com.timzaak.fornet.dao.NetworkProtocol.TCP
 import very.util.persistence.quill.DBSerializer
 import zio.json.*
 
@@ -24,6 +25,14 @@ object NetworkStatus {
 
 enum NetworkProtocol {
   case TCP, UDP
+
+  import com.timzaak.fornet.protobuf.config.Protocol as PProtocol
+  def gRPCProtocol:PProtocol = {
+    this match {
+      case TCP => PProtocol.Protocol_TCP
+      case UDP => PProtocol.Protocol_UDP
+    }
+  }
 }
 object NetworkProtocol {
   given JsonEncoder[NetworkProtocol] = JsonEncoder[Int].contramap(_.ordinal)
