@@ -1,6 +1,6 @@
 package com.timzaak.fornet.mqtt
 
-import com.timzaak.fornet.dao.{DB, NetworkDao, NodeDao, NodeStatus}
+import com.timzaak.fornet.dao.{DB, NetworkDao, NodeDao, NodeStatus, Network}
 import com.timzaak.fornet.entity.PublicKey
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
@@ -85,19 +85,21 @@ class MqttCallbackController(
             .toMap
         }
         nodes.foreach { node =>
-          val notifyNodes = nodeService.getAllRelativeNodes(node)
-          val network = networks(node.networkId)
-          mqttConnectionManager.sendMessage(
-            networkId = node.networkId,
-            node.id,
-            clientId,
-            ClientMessage(
-              networkId = hashId.encode(node.networkId),
-              ClientMessage.Info.Config(
-                EntityConvert.nodeToWRConfig(node, network, notifyNodes)
+          val network:Network = networks(node.networkId)
+          if(node.realStatus(network.status) == NodeStatus.Normal) {
+            val notifyNodes = nodeService.getAllRelativeNodes(node)
+            mqttConnectionManager.sendMessage(
+              networkId = node.networkId,
+              node.id,
+              clientId,
+              ClientMessage(
+                networkId = hashId.encode(node.networkId),
+                ClientMessage.Info.Config(
+                  EntityConvert.nodeToWRConfig(node, network, notifyNodes)
+                )
               )
             )
-          )
+          }
         }
       }
     } match {

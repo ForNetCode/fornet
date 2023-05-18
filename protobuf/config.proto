@@ -49,6 +49,9 @@ enum NodeStatus {
   NODE_NORMAL = 1;
   NODE_FORBID = 2;
 }
+enum NetworkStatus {
+  NETWORK_DELETE = 0;
+}
 
 message ClientMessage {
   string network_id = 1;
@@ -61,5 +64,6 @@ message NetworkMessage {
   string network_id = 1;
   oneof info {
     PeerChange peer = 2;
+    NetworkStatus status = 3;
   }
 }

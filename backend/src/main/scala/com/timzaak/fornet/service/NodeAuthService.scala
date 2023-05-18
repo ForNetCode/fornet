@@ -22,40 +22,9 @@ object GRPCAuthRequest {
 
 case class GRPCAuth(publicKey: PublicKey, networkId: Int)
 
+//TODO: This should not be service, change it to object
 class NodeAuthService(using hashId: Hashids) {
-
-  // import quill.{ given, * }
-
-  /* def validate(grpcAuth: GRPCAuth): Either[Status, NodeIdentity] = {
-    if (NodeAuthService.validate(grpcAuth)) {
-      nodeDao
-        .findIdByPublicKey(grpcAuth.publicKey.key, grpcAuth.networkId)
-        .map(NodeIdentity(grpcAuth.networkId, _))
-        .toRight(
-          Status.NOT_FOUND.withDescription("Could not find Node")
-        )
-    } else {
-      Left(Status.INVALID_ARGUMENT.withDescription("Invalid auth"))
-    }
-  } */
-
-  @deprecated
-  def validate(grpcAuth: GRPCAuthRequest): Option[Int] = {
-    import grpcAuth.*
-    val plainText = s"$timestamp-$networkId-$nonce"
-    if (publicKey.validate(plainText, sign)) {
-      val hashIds = hashId.decode(networkId)
-      if (hashIds.size == 1) {
-        Some(hashIds.head.toInt)
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  }
-
-  def validate2(
+  def validate(
     encrypt: EncryptRequest,
     params: Seq[String],
   ): Boolean = {
@@ -67,3 +36,4 @@ class NodeAuthService(using hashId: Hashids) {
     }.getOrElse(false)
   }
 }
+

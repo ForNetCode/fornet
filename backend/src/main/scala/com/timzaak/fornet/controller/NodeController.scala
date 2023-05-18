@@ -96,9 +96,9 @@ trait NodeController(
       }
     }
 
-    if (oldNode.setting != req.setting && oldNode.status == NodeStatus.Normal) {
-      // notify self change
-      nodeChangeNotifyService.nodeInfoChangeNotify(oldNode, req.setting)
+    val network = networkDao.findById(oldNode.networkId).get
+    if (oldNode.setting != req.setting && oldNode.realStatus(network.status) == NodeStatus.Normal) {
+      nodeChangeNotifyService.nodeInfoChangeNotify(oldNode, req.setting, network)
     }
     Accepted()
   }
@@ -124,11 +124,14 @@ trait NodeController(
       }
     }
     if (changeNumber > 0) {
-      nodeChangeNotifyService.nodeStatusChangeNotify(
-        oldNode,
-        oldNode.status,
-        req.status
-      )
+      val network = networkDao.findById(networkId).get
+      if(network.status == NetworkStatus.Normal) {
+        nodeChangeNotifyService.nodeStatusChangeNotify(
+          oldNode,
+          oldNode.status,
+          req.status
+        )
+      }
     }
     Accepted()
   }

@@ -28,5 +28,9 @@ class NodeService(nodeDao: NodeDao)(using quill: DB, hashId: Hashids) {
     })
 
   }
+  def getAllRelativeNodes(node:Node, nodes:List[Node])= {
+    
+    //TODO
+  }
 
 }

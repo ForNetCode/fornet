@@ -2,7 +2,7 @@ package com.timzaak.fornet.pubsub
 
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.grpc.convert.EntityConvert
-import com.timzaak.fornet.protobuf.config.{NodeStatus as PNodeStatus, *}
+import com.timzaak.fornet.protobuf.config.{NodeStatus as PNodeStatus, NetworkStatus as PNetworkStatus, *}
 import com.timzaak.fornet.service.NodeService
 import org.hashids.Hashids
 
@@ -16,10 +16,7 @@ class NodeChangeNotifyService(
 
   import quill.{*, given}
 
-  def nodeInfoChangeNotify(oldNode: Node, setting: NodeSetting) = {
-    // TODO: FIXIT
-
-    val network = networkDao.findById(oldNode.networkId).get
+  def nodeInfoChangeNotify(oldNode: Node, setting: NodeSetting, network:Network) = {
     val networkId = hashid.encode(network.id)
 
     val relativeNodes = nodeService.getAllRelativeNodes(oldNode)
@@ -52,6 +49,25 @@ class NodeChangeNotifyService(
           )
         )
     }
+  }
+
+  def networkSettingChange(oldNetwork:Network, newSetting:NetworkSetting): Unit = {
+    //only care about protocol, others will trigger push in future version.(after solved async push)
+    if(oldNetwork.setting.protocol != newSetting.protocol && oldNetwork.status == NetworkStatus.Normal) {
+      val nodes = nodeDao.getAllAvailableNodes(oldNetwork.id)
+      //TODO:
+    }
+  }
+
+  //PS: Network would never recover from delete status
+  def networkDeleteNotify(networkId:Int): Unit = {
+    connectionManager.sendMessage(
+      networkId,
+      NetworkMessage(
+        networkId =  hashid.encode(networkId),
+        NetworkMessage.Info.Status(PNetworkStatus.NETWORK_DELETE)
+      )
+    )
   }
 
   def nodeStatusChangeNotify(
@@ -117,6 +133,5 @@ class NodeChangeNotifyService(
       case _ =>
       // do nothing.
     }
-
   }
 }

@@ -50,7 +50,7 @@ class AuthGRPCController(
     if (request.nodeId.nonEmpty) {
       params = params.appended(request.nodeId.get)
     }
-    if (request.encrypt.exists(v => nodeAuthService.validate2(v, params))) {
+    if (request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
       val networkId = hashId.decode(request.networkId).head.toInt
       val publicKey = request.encrypt.get.publicKey
 
@@ -108,7 +108,7 @@ class AuthGRPCController(
     request: OAuthDeviceCodeRequest
   ): Future[ActionResponse] = {
     val params = Seq(request.accessToken, request.deviceCode, request.networkId)
-    if (request.encrypt.exists(v => nodeAuthService.validate2(v, params))) {
+    if (request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
 
       if (config.hasPath("auth.keycloak")) {
         val authResult = authStrategyProvider

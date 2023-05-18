@@ -3,6 +3,7 @@ package com.timzaak.fornet.controller
 import com.google.common.net.InetAddresses
 import com.timzaak.fornet.controller.auth.AppAuthSupport
 import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NetworkProtocol, NetworkSetting}
+import com.timzaak.fornet.pubsub.NodeChangeNotifyService
 import com.typesafe.config.Config
 import org.hashids.Hashids
 
@@ -29,6 +30,7 @@ case class UpdateNetworkReq(
 given JsonDecoder[UpdateNetworkReq] = DeriveJsonDecoder.gen
 trait NetworkController(
   networkDao: NetworkDao,
+  nodeChangeNotifyService: NodeChangeNotifyService,
 )(using quill: DB, config: Config, hashId: Hashids)
   extends Controller
   with AppAuthSupport {
@@ -102,20 +104,28 @@ trait NetworkController(
     for {
       _ <- ipV4Range(data.addressRange)
     } yield {
-      quill.run {
-        quote {
-          query[Network]
-            .filter(_.id == lift(id))
-            .update(
-              _.name -> lift(data.name),
-              _.addressRange -> lift(data.addressRange),
-              _.setting -> lift(data.setting),
-              _.updatedAt -> lift(OffsetDateTime.now()),
-            )
-        }
+      networkDao.findById(id) match {
+        case Some(oldNetwork) =>
+          quill.run {
+            quote {
+              query[Network]
+                .filter(_.id == lift(id))
+                .update(
+                  _.name -> lift(data.name),
+                  _.addressRange -> lift(data.addressRange),
+                  _.setting -> lift(data.setting),
+                  _.updatedAt -> lift(OffsetDateTime.now()),
+                )
+            }
+          }
+        nodeChangeNotifyService.networkSettingChange(oldNetwork, data.setting)
+        case _ =>
       }
-      //TODO: notify all active nodes in network that config change.
       Accepted()
+      
+      
+      
+      
     }
   }
 
@@ -134,9 +144,7 @@ trait NetworkController(
       }
     }
     if (changeCount > 0) {
-      // TODO:
-      // kickoff all nodes in the network
-      // change all node status to Deleted
+      nodeChangeNotifyService.networkDeleteNotify(networkId)
     }
     Accepted()
   }

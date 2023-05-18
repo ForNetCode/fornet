@@ -66,7 +66,10 @@ object DI extends DaoDI { di =>
       }
     )
   // web controller
-  object networkController extends NetworkController(networkDao = di.networkDao)
+  object networkController extends NetworkController(
+    networkDao = di.networkDao,
+    nodeChangeNotifyService = di.nodeChangeNotifyService,
+  )
   object nodeController
     extends NodeController(
       nodeDao = di.nodeDao,
