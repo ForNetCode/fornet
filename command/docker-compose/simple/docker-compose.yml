@@ -2,7 +2,7 @@ version: "3"
 
 services:
   backend:
-    image: ghcr.io/fornetcode/fornet-backend:latest
+    image: ghcr.io/fornetcode/fornet-backend:0.0.3
     container_name: fornet-backend
     ports:
       - 9000:9000 # grpc
@@ -36,4 +36,4 @@ services:
   
 
 networks:
-  - fornet-network
+  fornet-network:
