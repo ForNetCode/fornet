@@ -51,11 +51,24 @@ class NodeChangeNotifyService(
     }
   }
 
-  def networkSettingChange(oldNetwork:Network, newSetting:NetworkSetting): Unit = {
+  // network must be in normal status
+  def networkSettingChange(oldNetwork:Network, newNetwork:Network): Unit = {
     //only care about protocol, others will trigger push in future version.(after solved async push)
-    if(oldNetwork.setting.protocol != newSetting.protocol && oldNetwork.status == NetworkStatus.Normal) {
-      val nodes = nodeDao.getAllAvailableNodes(oldNetwork.id)
-      //TODO:
+    if(oldNetwork.setting.protocol != newNetwork.setting.protocol && newNetwork.status == NetworkStatus.Normal) {
+      val nodes = nodeDao.getAllAvailableNodes(oldNetwork.id).toList
+      for ((node, relativeNodes) <-nodeService.getNetworkAllRelativeNodes(nodes)) {
+        val wrConfig = EntityConvert.nodeToWRConfig(node, newNetwork, relativeNodes)
+        // this would trigger all nodes restart.
+        connectionManager.sendMessage(
+          node.networkId,
+          node.id,
+          node.publicKey,
+          ClientMessage(networkId = hashid.encode(newNetwork.id), ClientMessage.Info.Config(wrConfig))
+        )
+
+      }
+
+
     }
   }
 

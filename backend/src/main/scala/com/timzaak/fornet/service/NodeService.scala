@@ -28,9 +28,20 @@ class NodeService(nodeDao: NodeDao)(using quill: DB, hashId: Hashids) {
     })
 
   }
-  def getAllRelativeNodes(node:Node, nodes:List[Node])= {
-    
-    //TODO
+  def getNetworkAllRelativeNodes(nodes:List[Node]):List[(Node,List[Node])] = {
+    val relayNodes = nodes.filter(_.nodeType == NodeType.Relay)
+    val clientNodes = nodes.filter(_.nodeType == NodeType.Client)
+
+    nodes.map{ node =>
+      val nodeIp = IPAddressString(node.ip)
+      node -> ((relayNodes.filter(rNode => IPAddressString(rNode.ip).prefixContains(nodeIp)) ++ (
+      node.nodeType match {
+        case NodeType.Relay =>
+          clientNodes.filter(cNode => nodeIp.prefixContains(IPAddressString(cNode.ip)))
+        case NodeType.Client =>
+          List.empty
+      })).filter(_.id != node.id))
+    }
   }
 
 }

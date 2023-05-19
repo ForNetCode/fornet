@@ -118,7 +118,7 @@ trait NetworkController(
                 )
             }
           }
-        nodeChangeNotifyService.networkSettingChange(oldNetwork, data.setting)
+        nodeChangeNotifyService.networkSettingChange(oldNetwork, networkDao.findById(id).get)
         case _ =>
       }
       Accepted()
