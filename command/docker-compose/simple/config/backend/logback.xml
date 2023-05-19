@@ -1,0 +1,41 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%level] %logger - %message%n%xException{10}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="STDOUT" />
+    </appender>
+    <appender name="SAFE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${application.home:-.}/logs/safe-application.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Daily rollover with compression -->
+            <fileNamePattern>${application.home:-.}/logs/safe-application-log-%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <!-- keep 30 days worth of history -->
+            <maxHistory>186</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date{yyyy-MM-dd HH:mm:ss} [%level] %logger{15} - %message%n%xException{10}</pattern>
+        </encoder>
+    </appender>
+    <appender name="ASYNC_SAFE_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="SAFE_FILE" />
+    </appender>
+    <logger name="org.eclipse.jetty" level="INFO"/>
+    <logger name="org.scalatra.servlet" level="INFO"/>
+    <logger name="io.netty" level="INFO"/>
+    <logger name="com.zaxxer.hikari" level="INFO"/>
+    <logger name="io.grpc.netty" level="INFO" />
+    <logger name="safe" level="INFO" additivity="false">
+        <appender-ref ref="SAFE_FILE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="AYNCSTDOUT" />
+    </root>
+
+    <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook"/>
+
+</configuration>
