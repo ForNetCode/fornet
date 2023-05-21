@@ -1,5 +1,5 @@
 
-some code in device is from `BoringTun`. I reimplement it for Tokio.
+some code in device is from `BoringTun`. I refactor it with Tokio.
 
 
 

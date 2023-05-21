@@ -10,7 +10,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use boringtun::noise::{Tunn, TunnResult};
-use tokio::net::UdpSocket;
+use tokio::net::{TcpSocket, UdpSocket};
 use crate::device::allowed_ips::AllowedIps;
 
 
@@ -18,6 +18,7 @@ use crate::device::allowed_ips::AllowedIps;
 pub struct Endpoint {
     pub addr: Option<SocketAddr>,
     pub conn: Option<Arc<UdpSocket>>,
+    pub tcp_conn: Option<Arc<TcpSocket>>
 }
 
 pub struct Peer {
@@ -74,6 +75,7 @@ impl Peer {
             endpoint: Endpoint {
                 addr: endpoint,
                 conn: None,
+                tcp_conn:None,
             },
             allowed_ips: allowed_ips.iter().map(|ip| (ip, ())).collect(),
             preshared_key,
@@ -105,6 +107,7 @@ impl Peer {
             self.endpoint = Endpoint {
                 addr: Some(addr),
                 conn: None,
+                tcp_conn: None,
             }
         };
     }

@@ -37,6 +37,7 @@ impl Device {
         let (mut iface_reader, iface_writer,pi, name) = create_async_tun(name, mtu, address)?;
         tracing::debug!("finish to create tun");
         let iface_writer = Arc::new(Mutex::new(iface_writer));
+        // create tcp/udp server
         let udp4 = create_udp_socket(port, Domain::IPV4, None)?;
         let port = udp4.local_addr()?.port();
         let udp6 = create_udp_socket(Some(port), Domain::IPV6, None)?;
