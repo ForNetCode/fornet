@@ -12,7 +12,7 @@ use crate::device::{DeviceData, Peers, HANDSHAKE_RATE_LIMIT, MAX_UDP_SIZE};
 use crate::device::peer::AllowedIP;
 use crate::device::script_run::{run_opt_script, Scripts};
 use crate::device::tun::create_async_tun;
-use crate::device::tunnel::create_udp_socket;
+use crate::device::tunnel::{create_tcp_server, create_udp_socket};
 use nix::unistd::Uid;
 use crate::protobuf::config::Protocol;
 
@@ -39,22 +39,26 @@ impl Device {
         let (mut iface_reader, iface_writer,pi, name) = create_async_tun(name, mtu, address)?;
         tracing::debug!("finish to create tun");
         let iface_writer = Arc::new(Mutex::new(iface_writer));
-        // create tcp/udp server
-        let udp4 = create_udp_socket(port, Domain::IPV4, None)?;
-        let port = udp4.local_addr()?.port();
-        let udp6 = create_udp_socket(Some(port), Domain::IPV6, None)?;
+
         let rate_limiter = Arc::new(RateLimiter::new(&key_pair.1, HANDSHAKE_RATE_LIMIT));
         let peers: Arc<RwLock<Peers>> = Arc::new(RwLock::new(Peers::default()));
 
+        // create tcp/udp server
+        let (port,task) = match protocol {
+            Protocol::Udp => {
+                let udp4 = create_udp_socket(port, Domain::IPV4, None)?;
+                let port = udp4.local_addr()?.port();
+                let udp6 = create_udp_socket(Some(port), Domain::IPV6, None)?;
 
-        let mut tun_src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
-        let mut tun_dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
-        let key_pair1 = key_pair.clone();
-        let peers1 = peers.clone();
 
-        let task:JoinHandle<()> = tokio::spawn(async move {
-            loop {
-                tokio::select! {
+                let mut tun_src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+                let mut tun_dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+                let key_pair1 = key_pair.clone();
+                let peers1 = peers.clone();
+
+                let task:JoinHandle<()> = tokio::spawn(async move {
+                    loop {
+                        tokio::select! {
                     _ = device::rate_limiter_timer(&rate_limiter) => {}
                     _ = device::peers_timer(&peers,&udp4, &udp6) => {}
                     // iface listen
@@ -71,9 +75,36 @@ impl Device {
                     _ =  device::udp_handler(&udp6, &key_pair,&rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
 
                 }
-            }
+                    }
 
-        });
+                });
+                (port, task)
+            }
+            Protocol::Tcp => {
+                let tcp4 = create_tcp_server(port, Domain::IPV4, None)?;
+                let port = tcp4.local_addr()?.port();
+                let tcp6 = create_tcp_server(Some(port), Domain::IPV6, None)?;
+                let task:JoinHandle<()> = tokio::spawn(async move {
+                    loop {
+                        tokio::select! {
+                            _ = device::rate_limiter_timer(&rate_limiter) => {}
+                            _ = device::tcp_peers_timer(&peers) => {}
+                            // iface listen
+                            Ok(len) = iface_reader.read(&mut tun_src_buf) => {
+                                let src_buf = if pi {
+                                    &tun_src_buf[4..(len+4)]
+                                } else {
+                                    &tun_src_buf[0..len]
+                                };
+                                device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
+                            }
+                        }
+                    }
+                });
+                (port, task)
+            }
+        };
+
         let device = Device {
             device_data: DeviceData::new(name,peers1, key_pair1, port, scripts),
             task,

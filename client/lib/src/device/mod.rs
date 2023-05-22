@@ -42,6 +42,7 @@ use self::tun::WritePart;
 const HANDSHAKE_RATE_LIMIT: u64 = 100; // The number of handshakes per second we can tolerate before using cookies
 
 const MAX_UDP_SIZE: usize = (1 << 16) - 1;
+const MAX_TCP_SIZE: usize = (1 << 16) -1;
 // const MAX_ITR: usize = 100; // Number of packets to handle per handler call
 
 #[derive(Debug)]
@@ -257,6 +258,36 @@ pub async fn tun_read_handle(peers: &Arc<RwLock<Peers>>, udp4: &UdpSocket, udp6:
     }
 }
 
+pub async fn tun_read_tcp_handle(peers: &Arc<RwLock<Peers>>, src_buf: &[u8], dst_buf: &mut [u8]) {
+    //tracing::debug!("tun read:{:x?},{:?}", Tunn::dst_address(src_buf), src_buf);
+    if let Some(dst_addr) = Tunn::dst_address(src_buf) {
+        if let Some(peer) = peers.read().await.by_ip.find(dst_addr) {
+            let mut peer = peer.lock().await;
+            match peer.tunnel.encapsulate(src_buf, &mut dst_buf[..]) {
+                TunnResult::Done => {
+                    // tracing::debug!("done");
+                }
+                TunnResult::Err(e) => {
+                    tracing::error!(message = "Encapsulate error", error = ?e)
+                }
+                TunnResult::WriteToNetwork(packet) => {
+                    let endpoint = peer.endpoint();
+                    if let Some(addr @ SocketAddr::V4(_)) = endpoint.addr {
+                        //tracing::debug!("send:{}, size:{}",addr,packet.len());
+                        let _ = udp4.send_to(packet, addr).await;
+                    } else if let Some(addr @ SocketAddr::V6(_)) = endpoint.addr {
+                        let _ = udp6.send_to(packet, addr).await;
+                    } else {
+                        tracing::error!("No endpoint");
+                    }
+                    //TODO: get tcp socket from peers and send
+                }
+                _ => panic!("Unexpected result from encapsulate"),
+            };
+        }
+    }
+}
+
 pub async fn rate_limiter_timer(rate_limiter: &Arc<RateLimiter>) {
     let mut interval = time::interval(Duration::from_secs(1));
     loop {
@@ -291,6 +322,35 @@ pub async fn peers_timer(peers: &Arc<RwLock<Peers>>, udp4: &UdpSocket, udp6: &Ud
                         SocketAddr::V4(_) => udp4.send_to(packet, endpoint_addr).await,
                         SocketAddr::V6(_) => udp6.send_to(packet, endpoint_addr).await,
                     };
+                }
+                _ => panic!("Unexpected result from update_timers"),
+            };
+        }
+    }
+}
+
+pub async fn tcp_peers_timer(peers: &Arc<RwLock<Peers>>) {
+    let mut interval = time::interval(Duration::from_millis(250));
+    let mut dst_buf: Vec<u8>= vec![0; MAX_UDP_SIZE];
+
+    loop {
+        interval.tick().await;
+        let peer_map = &peers.read().await.by_key;
+        for peer in peer_map.values() {
+            let mut p = peer.lock().await;
+            //TODO: if needs to create tcp when p.endpoint().addr.is_some()
+            let conn = match &mut p.endpoint().tcp_conn {
+                Some(addr) => addr,
+                None => continue,
+            };
+            match p.update_timers(&mut dst_buf) {
+                TunnResult::Done => {}
+                TunnResult::Err(WireGuardError::ConnectionExpired) => {
+                    p.shutdown_endpoint(); // close open udp socket
+                }
+                TunnResult::Err(e) => tracing::error!(message = "Timer error", error = ?e),
+                TunnResult::WriteToNetwork(packet) => {
+                    let _ = conn.write_all(packet).await;
                 }
                 _ => panic!("Unexpected result from update_timers"),
             };

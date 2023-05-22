@@ -10,7 +10,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use boringtun::noise::{Tunn, TunnResult};
-use tokio::net::{TcpSocket, UdpSocket};
+use tokio::net::{TcpStream, UdpSocket};
 use crate::device::allowed_ips::AllowedIps;
 
 
@@ -18,7 +18,7 @@ use crate::device::allowed_ips::AllowedIps;
 pub struct Endpoint {
     pub addr: Option<SocketAddr>,
     pub udp_conn: Option<Arc<UdpSocket>>,
-    pub tcp_conn: Option<Arc<TcpSocket>>
+    pub tcp_conn: Option<Arc<TcpStream>>
 }
 
 pub struct Peer {
@@ -91,19 +91,19 @@ impl Peer {
     }
 
     pub fn shutdown_endpoint(&mut self) {
-        if let Some(conn) = self.endpoint.udp_conn.take() {
-            tracing::info!("Disconnecting from endpoint");
-            drop(conn)
+        if let Some(_) = self.endpoint.udp_conn.take() {
+            tracing::info!("disconnecting from endpoint");
+            //drop(conn)
+        }
+        if let Some(_) = self.endpoint.tcp_conn.take() {
+            tracing::info!("disconnecting from endpoint");
         }
     }
 
     pub fn set_endpoint(&mut self, addr: SocketAddr) {
         if self.endpoint.addr != Some(addr) {
             // We only need to update the endpoint if it differs from the current one
-            if let Some(conn) = self.endpoint.udp_conn.take() {
-                drop(conn)
-                // conn.shutdown();
-            }
+            self.shutdown_endpoint();
             self.endpoint.addr = Some(addr);
             // self.endpoint = Endpoint {
             //     addr: Some(addr),
