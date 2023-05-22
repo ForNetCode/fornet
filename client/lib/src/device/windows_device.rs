@@ -29,7 +29,7 @@ impl Device {
         key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
         port: Option<u16>,
         mtu: u32,
-        pub_key: String,
+        _pub_key: String,
         scripts:Scripts,
     ) -> anyhow::Result<Self>{
         run_opt_script(&scripts.pre_up)?;

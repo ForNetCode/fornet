@@ -249,6 +249,7 @@ pub async fn tun_read_handle(peers: &Arc<RwLock<Peers>>, udp4: &UdpSocket, udp6:
                     } else {
                         tracing::error!("No endpoint");
                     }
+                    //TODO: get tcp socket from peers and send
                 }
                 _ => panic!("Unexpected result from encapsulate"),
             };
@@ -285,6 +286,7 @@ pub async fn peers_timer(peers: &Arc<RwLock<Peers>>, udp4: &UdpSocket, udp6: &Ud
                 }
                 TunnResult::Err(e) => tracing::error!(message = "Timer error", error = ?e),
                 TunnResult::WriteToNetwork(packet) => {
+
                     let _ = match endpoint_addr {
                         SocketAddr::V4(_) => udp4.send_to(packet, endpoint_addr).await,
                         SocketAddr::V6(_) => udp6.send_to(packet, endpoint_addr).await,
@@ -407,7 +409,7 @@ pub async fn udp_handler(udp: &UdpSocket,
 
             while let TunnResult::WriteToNetwork(packet) =
                 p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
-            {
+             {
                 let _ = udp.send_to(packet, addr).await;
             }
 
