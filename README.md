@@ -15,7 +15,9 @@ currently, it's in `beta` stage
 
 
 ## Document
-To check out docs, visit [git page](https://fornetcode.github.io/documentation). There's also a [Roadmap](https://fornetcode.github.io/documentation/plan) to show you where the project go.
+To check out docs, visit this [Git Page](https://fornetcode.github.io/documentation). There is a [tutorial](https://fornetcode.github.io/documentation/guide/quick-start) for you.
+
+If you are interested with the project future, please refer to [Roadmap](https://fornetcode.github.io/documentation/plan).
 
 
 ## License
