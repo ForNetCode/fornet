@@ -1,6 +1,6 @@
 mod allowed_ips;
 pub mod peer;
-mod udp_network;
+mod tunnel;
 mod tun;
 pub mod auto_launch;
 pub mod script_run;

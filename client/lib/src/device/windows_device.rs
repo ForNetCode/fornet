@@ -11,14 +11,15 @@ use crate::device::{HANDSHAKE_RATE_LIMIT, MAX_UDP_SIZE};
 use crate::device::peer::AllowedIP;
 use crate::device::tun::{create_async_tun, ReadPart, WritePart};
 use crate::device::script_run::{run_opt_script, Scripts};
-use crate::device::udp_network::create_udp_socket;
-
+use crate::device::tunnel::create_udp_socket;
+use crate::protobuf::config::Protocol;
 
 
 pub struct Device {
     pub device_data: DeviceData,
     read_task:JoinHandle<()>,
     write_task:JoinHandle<()>,
+    pub protocol: Protocol,
 }
 
 impl Device {
@@ -29,12 +30,13 @@ impl Device {
         key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
         port: Option<u16>,
         mtu: u32,
-        _pub_key: String,
         scripts:Scripts,
+        protocol: Protocol,
     ) -> anyhow::Result<Self>{
         run_opt_script(&scripts.pre_up)?;
 
         let (mut iface_reader, iface_writer, name) = create_async_tun(name, mtu, address)?;
+
 
         let udp4 = Arc::new(create_udp_socket(port, Domain::IPV4, None)?);
 
@@ -51,6 +53,7 @@ impl Device {
             device_data:DeviceData::new(name, peers, key_pair, port, scripts),
             read_task,
             write_task,
+            protocol,
         };
         run_opt_script(&device.scripts.post_up)?;
         Ok(device)

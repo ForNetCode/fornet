@@ -12,13 +12,15 @@ use crate::device::{DeviceData, Peers, HANDSHAKE_RATE_LIMIT, MAX_UDP_SIZE};
 use crate::device::peer::AllowedIP;
 use crate::device::script_run::{run_opt_script, Scripts};
 use crate::device::tun::create_async_tun;
-use crate::device::udp_network::create_udp_socket;
+use crate::device::tunnel::create_udp_socket;
 use nix::unistd::Uid;
+use crate::protobuf::config::Protocol;
 
 
 pub struct Device {
     pub device_data:DeviceData,
     task:JoinHandle<()>,
+    protocol:Protocol,
 }
 
 impl Device {
@@ -29,8 +31,8 @@ impl Device {
         key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
         port: Option<u16>,
         mtu: u32,
-        pub_key: String,
         scripts:Scripts,
+        protocol: Protocol,
     ) -> anyhow::Result<Device> {
         run_opt_script(&scripts.pre_up)?;
         tracing::debug!("begin to create tun");
@@ -75,6 +77,7 @@ impl Device {
         let device = Device {
             device_data: DeviceData::new(name,peers1, key_pair1, port, scripts),
             task,
+            protocol,
         };
 
         //run_opt_script(&Some("iptables -A FORWARD -i for0 -j ACCEPT".to_owned()))?;

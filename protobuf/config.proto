@@ -15,7 +15,7 @@ message Interface {
   optional string name = 1;
   repeated string address = 2;
   int32 listen_port = 3;
-  optional string private_key = 4;
+  // optional string private_key = 4; // this is no needed now, we may support it in future version
   repeated string dns = 5;
   optional uint32 mtu = 6;
   optional string pre_up = 7;

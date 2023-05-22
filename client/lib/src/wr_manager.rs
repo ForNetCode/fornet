@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use serde_derive::{Deserialize, Serialize};
 use crate::config::{Config, Identity};
 use crate::device::peer::AllowedIP;
-use crate::protobuf::config::WrConfig;
+use crate::protobuf::config::{Protocol, WrConfig};
 use crate::device::Device;
 use crate::device::script_run::Scripts;
 
@@ -64,13 +64,18 @@ impl WRManager {
         self.close().await;
         tracing::info!("close device before restart");
         let tun_name = config.get_tun_name();
+        let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
 
         let scripts = Scripts::load_from_interface(&interface);
         let key_pair = (config.identity.x25519_sk.clone(), config.identity.x25519_pk.clone());
-        let wr_interface = Device::new(&tun_name, &address, key_pair, Some(interface.listen_port as u16),
-                                           interface.mtu.unwrap_or(1420) as u32,
-                                       config.identity.pk_base64.clone(),
-                                       scripts,
+        let wr_interface = Device::new(
+            &tun_name,
+            &address,
+            key_pair,
+            Some(interface.listen_port as u16),
+            interface.mtu.unwrap_or(1420) as u32,
+            scripts,
+            protocol,
         )?;
 
         self.device = Some(wr_interface);
@@ -90,6 +95,7 @@ impl WRManager {
     }
 
     pub fn is_alive(&self) -> bool { self.device.is_some() }
+
     pub async fn close(&mut self) {
         if let Some(ref mut device) = self.device.take() {
             device.close().await
@@ -97,7 +103,6 @@ impl WRManager {
     }
 
     pub fn device_info(&self) -> Vec<DeviceInfoResp> {
-
         self.device.as_ref().map_or(vec![], |device| {
             vec![DeviceInfoResp {
                 name: device.name.clone()
