@@ -1,19 +1,14 @@
-use std::convert::identity;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use paho_mqtt as mqtt;
-use paho_mqtt::SslVersion::Default;
 use prost::Message;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::StreamExt;
-use tonic::metadata::{Ascii, MetadataValue};
-use tonic::Request;
-use tonic::transport::Channel;
 
-use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, PeerChange, WrConfig};
+use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
-use crate::protobuf::config::network_message::Info::Peer;
+use crate::protobuf::config::network_message::Info::{Peer, Status as NStatus};
 use crate::server_manager::ServerMessage;
 
 //Sync Config Manager
@@ -116,8 +111,8 @@ impl SCManager {
                                         Peer(peer_change) => {
                                             let _ = self.sender.send(ServerMessage::SyncPeers(peer_change)).await;
                                         }
-                                        Status(status) => {
-                                            if let Some(NetworkStatus::NetworkDelete) = NetworkStatus.from_i32(status) {
+                                        NStatus(status) => {
+                                            if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
                                                 let _ = self.sender.send(
                                                     ServerMessage::StopWR("network has been delete".to_owned())
                                                 ).await;

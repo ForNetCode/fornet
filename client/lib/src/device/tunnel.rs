@@ -29,7 +29,7 @@ pub fn create_udp_socket(port: Option<u16>, domain: Domain, mark:Option<u32>) ->
     Ok(UdpSocket::from_std(socket.into())?)
 }
 
-pub async fn create_tcp_server<A: ToSocketAddrs>(port: Option<u16>, domain: Domain, mark:Option<u32>) ->anyhow::Result<TcpListener>{
+pub async fn create_tcp_server(port: Option<u16>, domain: Domain, mark:Option<u32>) ->anyhow::Result<TcpListener>{
     let socket = socket2::Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     #[cfg(target_os = "linux")]
     {
@@ -61,6 +61,7 @@ mod test {
 
     #[tokio::test]
     async fn test_tcp_bind() {
+        // macOS support
         let ip4_server = create_tcp_server(None, Domain::IPV4, None).await.unwrap();
         let ip6_server = create_tcp_server(Some(ip4_server.local_addr().unwrap().port()), Domain::IPV6, None).await.unwrap();
 
