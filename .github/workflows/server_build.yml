@@ -44,3 +44,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ env.REGISTRY }}/fornetcode/fornet-backend:${{github.event.inputs.version}}
+      - name: Upload jar to artifact
+        uses: actions/upload-artifact@v2
+        with:
+          path: release/*
+          if-no-files-found: error
