@@ -106,11 +106,6 @@ impl Peer {
             // We only need to update the endpoint if it differs from the current one
             self.shutdown_endpoint();
             self.endpoint.addr = Some(addr);
-            // self.endpoint = Endpoint {
-            //     addr: Some(addr),
-            //     udp_conn: None,
-            //     tcp_conn: None,
-            // }
         };
     }
 

@@ -98,6 +98,7 @@ impl Device {
                                 };
                                 device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
                             }
+                            //_ =  device::tcp_handler(&key_pair,&rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
                         }
                     }
                 });
