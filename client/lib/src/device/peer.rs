@@ -10,7 +10,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use boringtun::noise::{Tunn, TunnResult};
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::{UdpSocket};
+use tokio::net::tcp::OwnedWriteHalf;
 use crate::device::allowed_ips::AllowedIps;
 
 
@@ -18,7 +19,7 @@ use crate::device::allowed_ips::AllowedIps;
 pub struct Endpoint {
     pub addr: Option<SocketAddr>,
     pub udp_conn: Option<Arc<UdpSocket>>,
-    pub tcp_conn: Option<Arc<TcpStream>>
+    pub tcp_conn: Option<OwnedWriteHalf>
 }
 
 pub struct Peer {
@@ -26,7 +27,7 @@ pub struct Peer {
     pub(crate) tunnel: Tunn,
     /// The index the tunnel uses
     index: u32,
-    endpoint: Endpoint,
+    pub endpoint: Endpoint,
     allowed_ips: AllowedIps<()>,
     preshared_key: Option<[u8; 32]>,
 }

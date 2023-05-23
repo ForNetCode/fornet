@@ -28,10 +28,11 @@ use boringtun::noise::rate_limiter::RateLimiter;
 use boringtun::noise::{Packet, Tunn, TunnResult};
 use boringtun::noise::handshake::parse_handshake_anon;
 use prost::bytes::BufMut;
-use tokio::net::UdpSocket;
+use tokio::net::{TcpStream, UdpSocket};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time;
-use tokio::io::AsyncWriteExt;//keep
+use tokio::io::{AsyncReadExt, AsyncWriteExt};//keep
+use tokio::net::tcp::{OwnedReadHalf, ReadHalf, WriteHalf};
 
 use allowed_ips::AllowedIps;
 use peer::{AllowedIP, Peer};
@@ -272,15 +273,11 @@ pub async fn tun_read_tcp_handle(peers: &Arc<RwLock<Peers>>, src_buf: &[u8], dst
                 }
                 TunnResult::WriteToNetwork(packet) => {
                     let endpoint = peer.endpoint();
-                    if let Some(addr @ SocketAddr::V4(_)) = endpoint.addr {
-                        //tracing::debug!("send:{}, size:{}",addr,packet.len());
-                        let _ = udp4.send_to(packet, addr).await;
-                    } else if let Some(addr @ SocketAddr::V6(_)) = endpoint.addr {
-                        let _ = udp6.send_to(packet, addr).await;
+                    if let Some(conn) = &mut endpoint.tcp_conn {
+                        let _ = conn.write_all(packet).await;
                     } else {
-                        tracing::error!("No endpoint");
+                        tracing::info!("no endpoint of {:?}", endpoint.addr);
                     }
-                    //TODO: get tcp socket from peers and send
                 }
                 _ => panic!("Unexpected result from encapsulate"),
             };
@@ -339,10 +336,9 @@ pub async fn tcp_peers_timer(peers: &Arc<RwLock<Peers>>) {
         for peer in peer_map.values() {
             let mut p = peer.lock().await;
             //TODO: if needs to create tcp when p.endpoint().addr.is_some()
-            let conn = match &mut p.endpoint().tcp_conn {
-                Some(addr) => addr,
-                None => continue,
-            };
+            if p.endpoint().tcp_conn.is_none() {
+                continue
+            }
             match p.update_timers(&mut dst_buf) {
                 TunnResult::Done => {}
                 TunnResult::Err(WireGuardError::ConnectionExpired) => {
@@ -350,7 +346,10 @@ pub async fn tcp_peers_timer(peers: &Arc<RwLock<Peers>>) {
                 }
                 TunnResult::Err(e) => tracing::error!(message = "Timer error", error = ?e),
                 TunnResult::WriteToNetwork(packet) => {
-                    let _ = conn.write_all(packet).await;
+                    if let Some(conn) = &mut p.endpoint().tcp_conn {
+                        let _ = conn.write_all(packet).await;
+                    }
+
                 }
                 _ => panic!("Unexpected result from update_timers"),
             };
@@ -470,6 +469,129 @@ pub async fn udp_handler(udp: &UdpSocket,
             while let TunnResult::WriteToNetwork(packet) =
                 p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
              {
+                let _ = udp.send_to(packet, addr).await;
+            }
+
+
+        }
+        p.set_endpoint(addr);
+    }
+}
+
+pub async fn tcp_handler(mut tcp: OwnedReadHalf,
+                         key_pair: &(x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
+                         rate_limiter: &RateLimiter,
+                         peers: Arc<RwLock<Peers>>,
+                         iface: Arc<Mutex<WritePart>>,
+                         pi: bool,
+) {
+
+
+    let mut src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+    let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+    let (private_key, public_key) = key_pair;
+
+    while let Ok(size) = tcp.read(&mut src_buf).await {
+        //tracing::debug!("recv: {addr:?}, {size}");
+        let parsed_packet =
+            match rate_limiter.verify_packet(Some(addr.ip()), &src_buf[..size], &mut dst_buf) {
+                Ok(packet) => packet,
+                Err(TunnResult::WriteToNetwork(cookie)) => {
+                    //TODO: send
+                    continue;
+                }
+                Err(_) => continue,
+            };
+        let peer = match &parsed_packet {
+            Packet::HandshakeInit(p) => {
+                if let Ok(hh) = parse_handshake_anon(private_key, public_key, p) {
+                    let by_key = &peers.read().await.by_key;
+                    by_key.get(&x25519_dalek::PublicKey::from(hh.peer_static_public)).map(Arc::clone)
+                } else {
+                    None
+                }
+            }
+            Packet::HandshakeResponse(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
+            Packet::PacketCookieReply(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
+            Packet::PacketData(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
+        };
+        let peer = match peer {
+            None => continue,
+            Some(peer) => peer,
+        };
+
+        let mut p = peer.lock().await;
+
+        // We found a peer, use it to decapsulate the message+
+        let mut flush = false; // Are there packets to send from the queue?
+        match p
+            .tunnel
+            .handle_verified_packet(parsed_packet, &mut dst_buf[..])
+        {
+            TunnResult::Done => {}
+            TunnResult::Err(_) => continue,
+            TunnResult::WriteToNetwork(packet) => {
+                flush = true;
+                let _ = udp.send_to(packet, addr).await;
+            }
+            TunnResult::WriteToTunnelV4(packet, addr) => {
+                // tracing::debug!("{addr:?}");
+                if p.is_allowed_ip(addr)                                                                                                                                                                          {
+                    if pi {
+                        let mut buf: Vec<u8> = Vec::new();
+                        buf.put_slice(&IP4_HEADER);
+                        buf.put_slice(&packet);
+                        cfg_if! {
+                            if  #[cfg(target_os="windows")]  {
+                                let _ = iface.lock().await.write(&buf);
+                            } else {
+                                let _ = iface.lock().await.write(&buf).await;
+                            }
+                        }
+                    } else {
+                        cfg_if! {
+                            if  #[cfg(target_os="windows")]  {
+                                let _ = iface.lock().await.write(&packet);
+                            } else {
+                                let _ = iface.lock().await.write(&packet).await;
+                            }
+                        }
+                    }
+                } else {}
+            }
+            TunnResult::WriteToTunnelV6(packet, addr) => {
+                if p.is_allowed_ip(addr) {
+                    if pi {
+                        let mut buf: Vec<u8> = Vec::new();
+                        buf.put_slice(&IP6_HEADER);
+                        buf.put_slice(&packet);
+                        cfg_if! {
+                                if  #[cfg(target_os="windows")]  {
+                                    let _ = iface.lock().await.write(&buf);
+                                } else {
+                                    let _ = iface.lock().await.write(&buf).await;
+                                }
+                            }
+                    } else {
+                        cfg_if! {
+                                if  #[cfg(target_os="windows")]  {
+                                    let _ = iface.lock().await.write(packet);
+                                } else {
+                                    let _ = iface.lock().await.write(packet).await;
+                                }
+                            }
+                    };
+
+                }
+            }
+        };
+
+        if flush {
+            // Flush pending queue
+
+            while let TunnResult::WriteToNetwork(packet) =
+                p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
+            {
                 let _ = udp.send_to(packet, addr).await;
             }
 
