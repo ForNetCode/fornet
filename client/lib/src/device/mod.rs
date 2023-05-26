@@ -17,6 +17,7 @@ cfg_if! {
 }
 
 use std::collections::HashMap;
+use std::mem;
 use cfg_if::cfg_if;
 use rand::RngCore;
 use rand::rngs::OsRng;
@@ -547,6 +548,12 @@ pub async fn tcp_handler(
 
                     let mut p = peer.lock().await;
                     if p.endpoint.tcp_conn.is_none() {
+                        if let WriterState::PureWriter(_) = &mut writer {
+                            let pure_writer = mem::replace(&mut writer,WriterState::PeerWriter(peer.clone()));
+                            if let WriterState::PureWriter(_writer) = pure_writer {
+                                p.endpoint.tcp_conn = Some(_writer);
+                            }
+                        }
                     }
                     // We found a peer, use it to decapsulate the message+
                     let mut flush = false; // Are there packets to send from the queue?
