@@ -23,6 +23,7 @@ use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use anyhow::anyhow;
 use boringtun::noise::errors::WireGuardError;
 use boringtun::noise::rate_limiter::RateLimiter;
 use boringtun::noise::{Packet, Tunn, TunnResult};
@@ -32,7 +33,7 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};//keep
-use tokio::net::tcp::{OwnedReadHalf, ReadHalf, WriteHalf};
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf, ReadHalf, WriteHalf};
 
 use allowed_ips::AllowedIps;
 use peer::{AllowedIP, Peer};
@@ -478,28 +479,50 @@ pub async fn udp_handler(udp: &UdpSocket,
     }
 }
 
-pub async fn tcp_handler(listener:TcpListener,
-                         key_pair: &(x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
-                         rate_limiter: &RateLimiter,
-                         peers: Arc<RwLock<Peers>>,
-                         iface: Arc<Mutex<WritePart>>,
-                         pi: bool,
-) {
+enum WriterState {
+    PureWriter(OwnedWriteHalf),
+    PeerWriter(Arc<Mutex<Peer>>),
+}
+pub async fn tcp_handler(
+    listener:TcpListener,
+    key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
+    rate_limiter: Arc<RateLimiter>,
+    peers: Arc<RwLock<Peers>>,
+    iface: Arc<Mutex<WritePart>>,
+    pi: bool,
+)->anyhow::Result<()> {
     //TODO: socket
-    let (private_key, public_key) = key_pair;
     loop {
         let (mut socket, addr) = listener.accept().await?;
+        let key_pair = key_pair.clone();
+        let rate_limiter = rate_limiter.clone();
+        let peers = peers.clone();
+        let iface = iface.clone();
         tokio::spawn(async move {
+            let (private_key, public_key) = key_pair.as_ref();
             let (mut reader, mut writer ) = socket.into_split();
+            let mut writer = WriterState::PureWriter(writer);
             let mut src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
             let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
             while let Ok(size) = reader.read(&mut src_buf).await {
                 if size > 0 {
                     let parsed_packet =
-                        match rate_limiter.verify_packet(Some(addr.ip()), &src_buf[..size], &mut dst_buf) {
+                        match rate_limiter.as_ref().verify_packet(Some(addr.ip()), &src_buf[..size], &mut dst_buf) {
                             Ok(packet) => packet,
                             Err(TunnResult::WriteToNetwork(cookie)) => {
-                                let _ = writer.write_all(cookie).await;
+                                match &mut writer {
+                                    WriterState::PureWriter(writer) => {
+                                        let _ = writer.write_all(cookie).await;
+                                    },
+                                    WriterState::PeerWriter(peer)=> {
+                                        let mut p = peer.lock().await;
+                                        if let Some(w) = &mut p.endpoint.tcp_conn {
+                                            let _ = w.write_all(cookie).await;
+                                        }else {
+                                            tracing::warn!("should not come here");
+                                        }
+                                    }
+                                }
                                 continue;
                             }
                             Err(_) => continue,
@@ -523,7 +546,8 @@ pub async fn tcp_handler(listener:TcpListener,
                     };
 
                     let mut p = peer.lock().await;
-
+                    if p.endpoint.tcp_conn.is_none() {
+                    }
                     // We found a peer, use it to decapsulate the message+
                     let mut flush = false; // Are there packets to send from the queue?
                     match p
@@ -546,20 +570,20 @@ pub async fn tcp_handler(listener:TcpListener,
                                     buf.put_slice(&IP4_HEADER);
                                     buf.put_slice(&packet);
                                     cfg_if! {
-                            if  #[cfg(target_os="windows")]  {
-                                let _ = iface.lock().await.write(&buf);
-                            } else {
-                                let _ = iface.lock().await.write(&buf).await;
-                            }
-                        }
+                                        if  #[cfg(target_os="windows")]  {
+                                            let _ = iface.lock().await.write(&buf);
+                                        } else {
+                                            let _ = iface.lock().await.write(&buf).await;
+                                        }
+                                    }
                                 } else {
                                     cfg_if! {
-                            if  #[cfg(target_os="windows")]  {
-                                let _ = iface.lock().await.write(&packet);
-                            } else {
-                                let _ = iface.lock().await.write(&packet).await;
-                            }
-                        }
+                                        if  #[cfg(target_os="windows")]  {
+                                            let _ = iface.lock().await.write(&packet);
+                                        } else {
+                                            let _ = iface.lock().await.write(&packet).await;
+                                        }
+                                    }
                                 }
                             } else {}
                         }
@@ -570,22 +594,21 @@ pub async fn tcp_handler(listener:TcpListener,
                                     buf.put_slice(&IP6_HEADER);
                                     buf.put_slice(&packet);
                                     cfg_if! {
-                                if  #[cfg(target_os="windows")]  {
-                                    let _ = iface.lock().await.write(&buf);
-                                } else {
-                                    let _ = iface.lock().await.write(&buf).await;
-                                }
-                            }
+                                        if  #[cfg(target_os="windows")]  {
+                                            let _ = iface.lock().await.write(&buf);
+                                        } else {
+                                            let _ = iface.lock().await.write(&buf).await;
+                                        }
+                                    }
                                 } else {
                                     cfg_if! {
-                                if  #[cfg(target_os="windows")]  {
-                                    let _ = iface.lock().await.write(packet);
-                                } else {
-                                    let _ = iface.lock().await.write(packet).await;
-                                }
-                            }
+                                        if  #[cfg(target_os="windows")]  {
+                                            let _ = iface.lock().await.write(packet);
+                                        } else {
+                                            let _ = iface.lock().await.write(packet).await;
+                                        }
+                                    }
                                 };
-
                             }
                         }
                     };
@@ -604,8 +627,9 @@ pub async fn tcp_handler(listener:TcpListener,
 
             }
             tracing::info!("tcp: {addr:?} close");
-        })
+        });
     }
+    Ok(())
 }
 
 
