@@ -53,7 +53,8 @@ object DI extends DaoDI { di =>
         List(
           KeycloakJWTAuthStrategy(
             JWKTokenVerifier(publicKeyLocator.get, keycloakUrl, realm),
-            config.get[String]("auth.keycloak.role"),
+            config.getOptional[String]("auth.keycloak.adminRole"),
+            config.getOptional[String]("auth.keycloak.clientRole"),
           )
         )
       } else {

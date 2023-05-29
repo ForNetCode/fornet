@@ -113,7 +113,7 @@ class AuthGRPCController(
       if (config.hasPath("auth.keycloak")) {
         val authResult = authStrategyProvider
           .getStrategy(KeycloakJWTAuthStrategy.name)
-          .flatMap { auth => auth.auth(request.accessToken) }
+          .flatMap { auth => auth.clientAuth(request.accessToken) }
           .toRight("auth process error, please check server error log")
 
         authResult match {

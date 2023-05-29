@@ -24,6 +24,7 @@ object NetworkStatus {
 case class Network(
   id: Int,
   name: String,
+  groupId: String,
   addressRange: String,
   setting: NetworkSetting,
   status: NetworkStatus,

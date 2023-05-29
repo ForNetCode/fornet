@@ -13,7 +13,7 @@ trait AuthSupport[User](using authStrategyProvider: AuthStrategyProvider[User]) 
         Try {
           val Array(strategy, token) = authorization.split(' ')
           authStrategyProvider.getStrategy(strategy).flatMap { authStrategy =>
-            authStrategy.auth(token)
+            authStrategy.adminAuth(token)
           }
         }.toOption.flatten match {
           case Some(v) => v
