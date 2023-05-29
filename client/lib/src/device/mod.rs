@@ -484,159 +484,170 @@ enum WriterState {
     PureWriter(OwnedWriteHalf),
     PeerWriter(Arc<Mutex<Peer>>),
 }
-pub async fn tcp_handler(
+
+pub async fn tcp_listener_handler(
     listener:TcpListener,
     key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
     rate_limiter: Arc<RateLimiter>,
     peers: Arc<RwLock<Peers>>,
     iface: Arc<Mutex<WritePart>>,
     pi: bool,
-)->anyhow::Result<()> {
-    //TODO: socket
+) ->anyhow::Result<()> {
     loop {
         let (mut socket, addr) = listener.accept().await?;
         let key_pair = key_pair.clone();
         let rate_limiter = rate_limiter.clone();
         let peers = peers.clone();
         let iface = iface.clone();
-        tokio::spawn(async move {
-            let (private_key, public_key) = key_pair.as_ref();
-            let (mut reader, mut writer ) = socket.into_split();
-            let mut writer = WriterState::PureWriter(writer);
-            let mut src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
-            let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
-            while let Ok(size) = reader.read(&mut src_buf).await {
-                if size > 0 {
-                    let parsed_packet =
-                        match rate_limiter.as_ref().verify_packet(Some(addr.ip()), &src_buf[..size], &mut dst_buf) {
-                            Ok(packet) => packet,
-                            Err(TunnResult::WriteToNetwork(cookie)) => {
-                                match &mut writer {
-                                    WriterState::PureWriter(writer) => {
-                                        let _ = writer.write_all(cookie).await;
-                                    },
-                                    WriterState::PeerWriter(peer)=> {
-                                        let mut p = peer.lock().await;
-                                        if let Some(w) = &mut p.endpoint.tcp_conn {
-                                            let _ = w.write_all(cookie).await;
-                                        }else {
-                                            tracing::warn!("should not come here");
-                                        }
+        tcp_handler(socket, addr,key_pair, rate_limiter, peers, iface, pi);
+    }
+    //Ok(())
+}
+pub fn tcp_handler(
+    mut socket: TcpStream,
+    addr: SocketAddr,
+    key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
+    rate_limiter: Arc<RateLimiter>,
+    peers: Arc<RwLock<Peers>>,
+    iface: Arc<Mutex<WritePart>>,
+    pi: bool,
+) {
+    tokio::spawn(async move {
+        let (private_key, public_key) = key_pair.as_ref();
+        let (mut reader, mut writer ) = socket.into_split();
+        let mut writer = WriterState::PureWriter(writer);
+        let mut src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+        let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+        while let Ok(size) = reader.read(&mut src_buf).await {
+            if size > 0 {
+                let parsed_packet =
+                    match rate_limiter.as_ref().verify_packet(Some(addr.ip()), &src_buf[..size], &mut dst_buf) {
+                        Ok(packet) => packet,
+                        Err(TunnResult::WriteToNetwork(cookie)) => {
+                            match &mut writer {
+                                WriterState::PureWriter(writer) => {
+                                    let _ = writer.write_all(cookie).await;
+                                },
+                                WriterState::PeerWriter(peer)=> {
+                                    let mut p = peer.lock().await;
+                                    if let Some(w) = &mut p.endpoint.tcp_conn {
+                                        let _ = w.write_all(cookie).await;
+                                    }else {
+                                        tracing::warn!("should not come here");
                                     }
                                 }
-                                continue;
                             }
-                            Err(_) => continue,
-                        };
-                    let peer = match &parsed_packet {
-                        Packet::HandshakeInit(p) => {
-                            if let Ok(hh) = parse_handshake_anon(private_key, public_key, p) {
-                                let by_key = &peers.read().await.by_key;
-                                by_key.get(&x25519_dalek::PublicKey::from(hh.peer_static_public)).map(Arc::clone)
-                            } else {
-                                None
-                            }
+                            continue;
                         }
-                        Packet::HandshakeResponse(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
-                        Packet::PacketCookieReply(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
-                        Packet::PacketData(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
+                        Err(_) => continue,
                     };
-                    let peer = match peer {
-                        None => continue,
-                        Some(peer) => peer,
-                    };
-
-                    let mut p = peer.lock().await;
-                    if p.endpoint.tcp_conn.is_none() {
-                        if let WriterState::PureWriter(_) = &mut writer {
-                            let pure_writer = mem::replace(&mut writer,WriterState::PeerWriter(peer.clone()));
-                            if let WriterState::PureWriter(_writer) = pure_writer {
-                                p.endpoint.tcp_conn = Some(_writer);
-                            }
+                let peer = match &parsed_packet {
+                    Packet::HandshakeInit(p) => {
+                        if let Ok(hh) = parse_handshake_anon(private_key, public_key, p) {
+                            let by_key = &peers.read().await.by_key;
+                            by_key.get(&x25519_dalek::PublicKey::from(hh.peer_static_public)).map(Arc::clone)
+                        } else {
+                            None
                         }
                     }
-                    // We found a peer, use it to decapsulate the message+
-                    let mut flush = false; // Are there packets to send from the queue?
-                    match p
-                        .tunnel
-                        .handle_verified_packet(parsed_packet, &mut dst_buf[..])
-                    {
-                        TunnResult::Done => {}
-                        TunnResult::Err(_) => continue,
-                        TunnResult::WriteToNetwork(packet) => {
-                            flush = true;
-                            if let Some(conn) = &mut p.endpoint.tcp_conn {
-                                let _ = conn.write_all(packet).await;
-                            }
+                    Packet::HandshakeResponse(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
+                    Packet::PacketCookieReply(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
+                    Packet::PacketData(p) => peers.read().await.by_idx.get(&(p.receiver_idx >> 8)).map(Arc::clone),
+                };
+                let peer = match peer {
+                    None => continue,
+                    Some(peer) => peer,
+                };
+
+                let mut p = peer.lock().await;
+                if p.endpoint.tcp_conn.is_none() {
+                    if let WriterState::PureWriter(_) = &mut writer {
+                        let pure_writer = mem::replace(&mut writer,WriterState::PeerWriter(peer.clone()));
+                        if let WriterState::PureWriter(_writer) = pure_writer {
+                            p.endpoint.tcp_conn = Some(_writer);
                         }
-                        TunnResult::WriteToTunnelV4(packet, addr) => {
-                            // tracing::debug!("{addr:?}");
-                            if p.is_allowed_ip(addr)                                                                                                                                                                          {
-                                if pi {
-                                    let mut buf: Vec<u8> = Vec::new();
-                                    buf.put_slice(&IP4_HEADER);
-                                    buf.put_slice(&packet);
-                                    cfg_if! {
+                    }
+                }
+                // We found a peer, use it to decapsulate the message+
+                let mut flush = false; // Are there packets to send from the queue?
+                match p
+                    .tunnel
+                    .handle_verified_packet(parsed_packet, &mut dst_buf[..])
+                {
+                    TunnResult::Done => {}
+                    TunnResult::Err(_) => continue,
+                    TunnResult::WriteToNetwork(packet) => {
+                        flush = true;
+                        if let Some(conn) = &mut p.endpoint.tcp_conn {
+                            let _ = conn.write_all(packet).await;
+                        }
+                    }
+                    TunnResult::WriteToTunnelV4(packet, addr) => {
+                        // tracing::debug!("{addr:?}");
+                        if p.is_allowed_ip(addr)                                                                                                                                                                          {
+                            if pi {
+                                let mut buf: Vec<u8> = Vec::new();
+                                buf.put_slice(&IP4_HEADER);
+                                buf.put_slice(&packet);
+                                cfg_if! {
                                         if  #[cfg(target_os="windows")]  {
                                             let _ = iface.lock().await.write(&buf);
                                         } else {
                                             let _ = iface.lock().await.write(&buf).await;
                                         }
                                     }
-                                } else {
-                                    cfg_if! {
+                            } else {
+                                cfg_if! {
                                         if  #[cfg(target_os="windows")]  {
                                             let _ = iface.lock().await.write(&packet);
                                         } else {
                                             let _ = iface.lock().await.write(&packet).await;
                                         }
                                     }
-                                }
-                            } else {}
-                        }
-                        TunnResult::WriteToTunnelV6(packet, addr) => {
-                            if p.is_allowed_ip(addr) {
-                                if pi {
-                                    let mut buf: Vec<u8> = Vec::new();
-                                    buf.put_slice(&IP6_HEADER);
-                                    buf.put_slice(&packet);
-                                    cfg_if! {
+                            }
+                        } else {}
+                    }
+                    TunnResult::WriteToTunnelV6(packet, addr) => {
+                        if p.is_allowed_ip(addr) {
+                            if pi {
+                                let mut buf: Vec<u8> = Vec::new();
+                                buf.put_slice(&IP6_HEADER);
+                                buf.put_slice(&packet);
+                                cfg_if! {
                                         if  #[cfg(target_os="windows")]  {
                                             let _ = iface.lock().await.write(&buf);
                                         } else {
                                             let _ = iface.lock().await.write(&buf).await;
                                         }
                                     }
-                                } else {
-                                    cfg_if! {
+                            } else {
+                                cfg_if! {
                                         if  #[cfg(target_os="windows")]  {
                                             let _ = iface.lock().await.write(packet);
                                         } else {
                                             let _ = iface.lock().await.write(packet).await;
                                         }
                                     }
-                                };
-                            }
+                            };
                         }
-                    };
+                    }
+                };
 
-                    if flush {
-                        // Flush pending queue
-                        while let TunnResult::WriteToNetwork(packet) =
-                            p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
-                        {
-                            if let Some(conn) = &mut p.endpoint.tcp_conn {
-                                let _ = conn.write_all(packet).await;
-                            }
+                if flush {
+                    // Flush pending queue
+                    while let TunnResult::WriteToNetwork(packet) =
+                        p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
+                    {
+                        if let Some(conn) = &mut p.endpoint.tcp_conn {
+                            let _ = conn.write_all(packet).await;
                         }
                     }
                 }
-
             }
-            tracing::info!("tcp: {addr:?} close");
-        });
-    }
-    Ok(())
+
+        }
+        tracing::info!("tcp: {addr:?} close");
+    });
 }
 
 
