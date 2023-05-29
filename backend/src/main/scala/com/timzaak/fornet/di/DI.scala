@@ -1,5 +1,6 @@
 package com.timzaak.fornet.di
 
+import com.timzaak.fornet.config.{AppConfig, AppConfigImpl}
 import com.timzaak.fornet.controller.*
 import com.timzaak.fornet.grpc.AuthGRPCController
 import com.timzaak.fornet.mqtt.MqttCallbackController
@@ -12,6 +13,8 @@ import very.util.keycloak.{JWKPublicKeyLocator, JWKTokenVerifier, KeycloakJWTAut
 import very.util.web.auth.{AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy}
 object DI extends DaoDI { di =>
   given config: Config = ConfigFactory.load()
+
+  object appConfig extends AppConfigImpl(config)
 
   object hashId extends Hashids(config.getString("server.hashId"), 5)
   given Hashids = hashId
@@ -67,7 +70,10 @@ object DI extends DaoDI { di =>
       }
     )
   // web controller
-  object networkController extends NetworkController(networkDao = di.networkDao)
+  object networkController extends NetworkController(
+    networkDao = di.networkDao,
+    appConfig = di.appConfig,
+  )
   object nodeController
     extends NodeController(
       nodeDao = di.nodeDao,

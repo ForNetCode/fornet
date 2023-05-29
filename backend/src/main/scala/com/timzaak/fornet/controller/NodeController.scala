@@ -54,8 +54,17 @@ trait NodeController(
   private def _networkId: Int = params("networkId").toInt
   private def _nodeId: Int = params("nodeId").toInt
 
+  def checkAuth = {
+    val groupId = auth
+    val networkId = _networkId
+    if(!networkDao.existGroupNetwork(networkId, groupId)) {
+      halt(org.scalatra.MethodNotAllowed("bad request"))
+    }
+
+  }
+
   jGet("/:networkId") {
-    auth
+    checkAuth
     val result = quill.run {
       quote {
         query[Node]
@@ -66,8 +75,9 @@ trait NodeController(
     }
     result
   }
+
   jGet("/:networkId/:nodeId") {
-    auth
+    checkAuth
     val data = quill.run {
       quote(
         query[Node]
@@ -79,7 +89,7 @@ trait NodeController(
   }
 
   jPut("/:networkId/:nodeId") { (req: UpdateNodeInfoReq) =>
-    auth
+    checkAuth
     val nodeId = _nodeId
     val networkId = _networkId
     val oldNode = nodeDao.findById(networkId, nodeId).get
@@ -104,7 +114,7 @@ trait NodeController(
   }
 
   jPut("/:networkId/:nodeId/status") { (req: UpdateNodeStatusReq) =>
-    auth
+    checkAuth
     val networkId = _networkId
     val nodeId = _nodeId
     val oldNode = nodeDao.findById(networkId, nodeId).get
@@ -149,7 +159,7 @@ trait NodeController(
   }
 
   jPost("/:networkId") { (req: CreateNodeReq) =>
-    auth
+    checkAuth
     val networkId = _networkId
     val ipValidation = networkDao.findById(networkId) match {
       case Some(network) =>

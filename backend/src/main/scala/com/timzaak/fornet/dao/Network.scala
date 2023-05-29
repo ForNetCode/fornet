@@ -58,4 +58,13 @@ class NetworkDao(using quill: DB) {
   def findByIds(ids: List[Int]): List[Network] = {
     quill.run(quote(query[Network]).filter(v => lift(ids).contains(v.id)))
   }
+
+  def countByGroupId(groupId:String):Long = {
+    quill.run(quote(query[Network]).filter(_.groupId == lift(groupId)).size)
+  }
+
+  def existGroupNetwork(networkId:Int, groupId:String):Boolean = {
+    quill.run(quote(query[Network]).filter(n => n.id == lift(networkId) && n.groupId == lift(groupId)).nonEmptyA)
+
+  }
 }
