@@ -71,8 +71,8 @@ impl Device {
                             device::tun_read_handle(&peers, &udp4, &udp6, src_buf, &mut tun_dst_buf).await;
                         }
                     // udp listen
-                    _ =  device::udp_handler(&udp4, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
-                    _ =  device::udp_handler(&udp6, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
+                    _ =  device::udp_handler(&udp4, &key_pair, rate_limiter.as_ref(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
+                    _ =  device::udp_handler(&udp6, &key_pair, rate_limiter.as_ref(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
                 }
                     }
 
@@ -83,6 +83,8 @@ impl Device {
                 let tcp4 = create_tcp_server(port, Domain::IPV4, None)?;
                 let port = tcp4.local_addr()?.port();
                 let tcp6 = create_tcp_server(Some(port), Domain::IPV6, None)?;
+                let key_pair = Arc::new(key_pair);
+
                 let task:JoinHandle<()> = tokio::spawn(async move {
                     loop {
                         tokio::select! {
@@ -97,8 +99,8 @@ impl Device {
                                 };
                                 device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
                             }
-                            _ = device::tcp_handler(&tcp4, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
-                            _ = device::tcp_handler(&tcp6, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
+                            _ = device::tcp_listener_handler(&tcp4, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
+                            _ = device::tcp_listener_handler(&tcp6, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
                         }
                     }
                 });

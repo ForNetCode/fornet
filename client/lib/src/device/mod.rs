@@ -490,7 +490,7 @@ enum WriterState {
 }
 
 pub async fn tcp_listener_handler(
-    listener:TcpListener,
+    listener: &TcpListener,
     key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
     rate_limiter: Arc<RateLimiter>,
     peers: Arc<RwLock<Peers>>,
@@ -648,13 +648,11 @@ pub fn tcp_handler(
                         }
                     }
                 }
-
             }
             tracing::info!("tcp: {addr:?} close");
         });
-    }
-    Ok(())
 }
+
 
 
 pub struct Peers {
