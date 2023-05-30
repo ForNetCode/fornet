@@ -39,9 +39,13 @@ impl Device {
         let (mut iface_reader, iface_writer,pi, name) = create_async_tun(name, mtu, address)?;
         tracing::debug!("finish to create tun");
         let iface_writer = Arc::new(Mutex::new(iface_writer));
-
         let rate_limiter = Arc::new(RateLimiter::new(&key_pair.1, HANDSHAKE_RATE_LIMIT));
         let peers: Arc<RwLock<Peers>> = Arc::new(RwLock::new(Peers::default()));
+
+        let mut tun_src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+        let mut tun_dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+        let key_pair1 = key_pair.clone();
+        let peers1 = peers.clone();
 
         // create tcp/udp server
         let (port,task) = match protocol {
@@ -51,10 +55,6 @@ impl Device {
                 let udp6 = create_udp_socket(Some(port), Domain::IPV6, None)?;
 
 
-                let mut tun_src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
-                let mut tun_dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
-                let key_pair1 = key_pair.clone();
-                let peers1 = peers.clone();
 
                 let task:JoinHandle<()> = tokio::spawn(async move {
                     loop {
@@ -71,9 +71,8 @@ impl Device {
                             device::tun_read_handle(&peers, &udp4, &udp6, src_buf, &mut tun_dst_buf).await;
                         }
                     // udp listen
-                    _ =  device::udp_handler(&udp4, &key_pair,&rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
-                    _ =  device::udp_handler(&udp6, &key_pair,&rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
-
+                    _ =  device::udp_handler(&udp4, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
+                    _ =  device::udp_handler(&udp6, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => break,
                 }
                     }
 
@@ -98,7 +97,8 @@ impl Device {
                                 };
                                 device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
                             }
-                            //_ =  device::tcp_handler(&key_pair,&rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
+                            _ = device::tcp_handler(&tcp4, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
+                            _ = device::tcp_handler(&tcp6, &key_pair, &rate_limiter, Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
                         }
                     }
                 });

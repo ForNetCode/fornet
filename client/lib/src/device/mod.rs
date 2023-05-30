@@ -34,7 +34,7 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};//keep
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf, ReadHalf, WriteHalf};
+use tokio::net::tcp::OwnedWriteHalf;
 
 use allowed_ips::AllowedIps;
 use peer::{AllowedIP, Peer};
@@ -338,7 +338,11 @@ pub async fn tcp_peers_timer(peers: &Arc<RwLock<Peers>>) {
         for peer in peer_map.values() {
             let mut p = peer.lock().await;
             //TODO: if needs to create tcp when p.endpoint().addr.is_some()
-            if p.endpoint().tcp_conn.is_none() {
+            if p.endpoint.tcp_conn.is_none() {
+                if let Some(addr) = &p.endpoint.addr {
+
+
+                }
                 continue
             }
             match p.update_timers(&mut dst_buf) {
@@ -596,58 +600,60 @@ pub fn tcp_handler(
                                             let _ = iface.lock().await.write(&buf).await;
                                         }
                                     }
-                            } else {
-                                cfg_if! {
+                                } else {
+                                    cfg_if! {
                                         if  #[cfg(target_os="windows")]  {
                                             let _ = iface.lock().await.write(&packet);
                                         } else {
                                             let _ = iface.lock().await.write(&packet).await;
                                         }
                                     }
-                            }
-                        } else {}
-                    }
-                    TunnResult::WriteToTunnelV6(packet, addr) => {
-                        if p.is_allowed_ip(addr) {
-                            if pi {
-                                let mut buf: Vec<u8> = Vec::new();
-                                buf.put_slice(&IP6_HEADER);
-                                buf.put_slice(&packet);
-                                cfg_if! {
+                                }
+                            } else {}
+                        }
+                        TunnResult::WriteToTunnelV6(packet, addr) => {
+                            if p.is_allowed_ip(addr) {
+                                if pi {
+                                    let mut buf: Vec<u8> = Vec::new();
+                                    buf.put_slice(&IP6_HEADER);
+                                    buf.put_slice(&packet);
+                                    cfg_if! {
                                         if  #[cfg(target_os="windows")]  {
                                             let _ = iface.lock().await.write(&buf);
                                         } else {
                                             let _ = iface.lock().await.write(&buf).await;
                                         }
                                     }
-                            } else {
-                                cfg_if! {
+                                } else {
+                                    cfg_if! {
                                         if  #[cfg(target_os="windows")]  {
                                             let _ = iface.lock().await.write(packet);
                                         } else {
                                             let _ = iface.lock().await.write(packet).await;
                                         }
                                     }
-                            };
+                                };
+                            }
                         }
-                    }
-                };
+                    };
 
-                if flush {
-                    // Flush pending queue
-                    while let TunnResult::WriteToNetwork(packet) =
-                        p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
-                    {
-                        if let Some(conn) = &mut p.endpoint.tcp_conn {
-                            let _ = conn.write_all(packet).await;
+                    if flush {
+                        // Flush pending queue
+                        while let TunnResult::WriteToNetwork(packet) =
+                            p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
+                        {
+                            if let Some(conn) = &mut p.endpoint.tcp_conn {
+                                let _ = conn.write_all(packet).await;
+                            }
                         }
                     }
                 }
-            }
 
-        }
-        tracing::info!("tcp: {addr:?} close");
-    });
+            }
+            tracing::info!("tcp: {addr:?} close");
+        });
+    }
+    Ok(())
 }
 
 
