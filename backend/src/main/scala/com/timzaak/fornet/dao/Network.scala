@@ -64,7 +64,7 @@ class NetworkDao(using quill: DB) {
   }
 
   def existGroupNetwork(networkId:Int, groupId:String):Boolean = {
-    quill.run(quote(query[Network]).filter(n => n.id == lift(networkId) && n.groupId == lift(groupId)).nonEmptyA)
+    quill.run(quote(query[Network]).filter(n => n.id == lift(networkId) && n.groupId == lift(groupId)).nonEmpty)
 
   }
 }

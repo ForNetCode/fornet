@@ -1,11 +1,4 @@
 import http from "./http";
-import {KeycloakConfig} from "keycloak-js";
-
-type AuthTypeResponse = { type: 'ST' } | (KeycloakConfig & { type: 'Bearer' })
-
-export function getAuthType() {
-    return http.get<AuthTypeResponse>('/auth/type')
-}
 
 export function checkSampleTokenCorrect(token: string) {
     return http.post('/auth/st/check', {

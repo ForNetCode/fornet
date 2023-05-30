@@ -26,19 +26,6 @@ trait AuthController(networkDao: NetworkDao)(using
 ) extends Controller
   with AppAuthSupport {
 
-  jGet("/type") {
-    if (config.hasPath("auth.keycloak")) {
-      Map(
-        "type" -> "Bearer",
-        "url" -> config.get[String]("auth.keycloak.authServerUrl"),
-        "realm" -> config.get[String]("auth.keycloak.realm"),
-        "clientId" -> config.get[String]("auth.keycloak.frontClientId"),
-      )
-    } else {
-      Map("type" -> "ST")
-    }
-  }
-
   jPost("/st/check") { (req: SimpleTokenCheckReq) =>
     if (config.hasPath("auth.simple")) {
       if (config.get[String]("auth.simple.token") == req.token) {
@@ -53,11 +40,11 @@ trait AuthController(networkDao: NetworkDao)(using
   }
 
   get("/oauth/:network_id/device_code") {
-    auth
+    val groupId = auth
     val networkId = params("network_id").toInt
     networkDao
       .findById(networkId)
-      .filter(_.status == NetworkStatus.Normal)
+      .filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
       .map { _ =>
         val nId =
           URLEncoder.encode(hashId.encode(networkId.toLong), Charsets.UTF_8)
@@ -69,17 +56,4 @@ trait AuthController(networkDao: NetworkDao)(using
         )
       }
   }
-
-  /*
-  jGet("/oauth/device_code") {
-    //val nId = params("n_id")
-    //val networkId = hashId.decode(nId).head.toInt
-    Map(
-      "grpc_url" -> config.get[String]("server.grpc.endpoint"),
-      "sso_url" -> config.get[String]("auth.keycloak.authServerUrl"),
-      "realm" -> config.get[String]("auth.keycloak.realm"),
-      "client_id" -> config.get[String]("auth.keycloak.frontClientId"),
-    )
-  }
-   */
 }
