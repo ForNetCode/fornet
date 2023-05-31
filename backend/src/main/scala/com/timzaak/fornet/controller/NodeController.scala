@@ -1,6 +1,7 @@
 package com.timzaak.fornet.controller
 
-import com.timzaak.fornet.controller.auth.AppAuthSupport
+import com.timzaak.fornet.config.AppConfig
+import com.timzaak.fornet.controller.auth.{ AppAuthSupport, User }
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
@@ -46,29 +47,31 @@ trait NodeController(
   nodeDao: NodeDao,
   networkDao: NetworkDao,
   nodeChangeNotifyService: NodeChangeNotifyService,
+  appConfig: AppConfig,
 )(using quill: DB, hashId: Hashids, config: Config)
   extends Controller
   with AppAuthSupport {
-  import quill.{*, given}
+  import quill.{ *, given }
 
   private def _networkId: Int = params("networkId").toInt
   private def _nodeId: Int = params("nodeId").toInt
 
-  def checkAuth = {
+  def checkAuth: (User, Int) = {
     val groupId = auth
     val networkId = _networkId
-    if(!networkDao.existGroupNetwork(networkId, groupId)) {
+    if (!networkDao.existGroupNetwork(networkId, groupId)) {
       halt(org.scalatra.MethodNotAllowed("bad request"))
     }
+    (groupId, networkId)
 
   }
 
   jGet("/:networkId") {
-    checkAuth
+    val (_, networkId) = checkAuth
     val result = quill.run {
       quote {
         query[Node]
-          .filter(_.networkId == lift(_networkId))
+          .filter(_.networkId == lift(networkId))
           .sortBy(_.id)(Ord.desc)
           .page
       }
@@ -77,11 +80,11 @@ trait NodeController(
   }
 
   jGet("/:networkId/:nodeId") {
-    checkAuth
+    val (_, networkId) = checkAuth
     val data = quill.run {
       quote(
         query[Node]
-          .filter(n => n.id == lift(_nodeId) && n.networkId == lift(_networkId))
+          .filter(n => n.id == lift(_nodeId) && n.networkId == lift(networkId))
           .single
       )
     }.headOption
@@ -89,9 +92,8 @@ trait NodeController(
   }
 
   jPut("/:networkId/:nodeId") { (req: UpdateNodeInfoReq) =>
-    checkAuth
+    val (_, networkId) = checkAuth
     val nodeId = _nodeId
-    val networkId = _networkId
     val oldNode = nodeDao.findById(networkId, nodeId).get
 
     quill.run {
@@ -114,33 +116,36 @@ trait NodeController(
   }
 
   jPut("/:networkId/:nodeId/status") { (req: UpdateNodeStatusReq) =>
-    checkAuth
-    val networkId = _networkId
+    val (groupId, networkId) = checkAuth
     val nodeId = _nodeId
     val oldNode = nodeDao.findById(networkId, nodeId).get
-    val changeNumber = quill.run {
-      quote {
-        query[Node]
-          .filter(n =>
-            n.id == lift(nodeId) && n.networkId == lift(
-              networkId
-            ) && n.status != lift(req.status)
-              && n.status != lift(NodeStatus.Delete)
-          )
-          .update(
-            _.updatedAt -> lift(OffsetDateTime.now()),
-            _.status -> lift(req.status),
-          )
+    if (appConfig.enableSAAS && nodeDao.countByNetwork(networkId) > 50) {
+      badResponse("a network only allow 50 active nodes")
+    } else {
+      val changeNumber = quill.run {
+        quote {
+          query[Node]
+            .filter(n =>
+              n.id == lift(nodeId) && n.networkId == lift(
+                networkId
+              ) && n.status != lift(req.status)
+                && n.status != lift(NodeStatus.Delete)
+            )
+            .update(
+              _.updatedAt -> lift(OffsetDateTime.now()),
+              _.status -> lift(req.status),
+            )
+        }
       }
+      if (changeNumber > 0) {
+        nodeChangeNotifyService.nodeStatusChangeNotify(
+          oldNode,
+          oldNode.status,
+          req.status
+        )
+      }
+      Accepted()
     }
-    if (changeNumber > 0) {
-      nodeChangeNotifyService.nodeStatusChangeNotify(
-        oldNode,
-        oldNode.status,
-        req.status
-      )
-    }
-    Accepted()
   }
 
   get("/:networkId/:nodeId/active_code") {
@@ -159,8 +164,7 @@ trait NodeController(
   }
 
   jPost("/:networkId") { (req: CreateNodeReq) =>
-    checkAuth
-    val networkId = _networkId
+    val (_, networkId) = checkAuth
     val ipValidation = networkDao.findById(networkId) match {
       case Some(network) =>
         val usedIp = nodeDao

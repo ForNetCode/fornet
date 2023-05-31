@@ -173,4 +173,8 @@ class NodeDao(using quill: DB) {
       )
     }
   }
+
+  def countByNetwork(networkId:Int): Long = quill.run {
+    query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal)).size
+  }
 }
