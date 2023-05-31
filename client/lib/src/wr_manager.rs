@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Duration;
 use anyhow::anyhow;
@@ -34,6 +34,7 @@ impl WRManager {
                           pub_key: x25519_dalek::PublicKey,
                           endpoint: Option<SocketAddr>,
                           allowed_ips: &[AllowedIP],
+                          ip:IpAddr,
                           keepalive: Option<u16>) {
         if let Some(device) = &mut self.device {
             device.update_peer(
@@ -42,6 +43,7 @@ impl WRManager {
                 endpoint,
                 allowed_ips,
                 keepalive,
+                ip,
                 None,
             ).await;
         } else {
@@ -83,10 +85,12 @@ impl WRManager {
             let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key)?;
             let endpoint = peer.endpoint.map(|v| SocketAddr::from_str(&v).unwrap());
             let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+            let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
             self.add_peer(
                 x_pub_key,
                 endpoint,
                 allowed_ip.as_slice(),
+                ip,
                 Some(peer.persistence_keep_alive as u16),
             ).await;
             tracing::debug!("peer: {} join network", peer.public_key);

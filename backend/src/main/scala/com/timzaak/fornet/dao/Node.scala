@@ -5,7 +5,7 @@ import very.util.persistence.quill.DBSerializer
 import zio.json.*
 
 import java.time.OffsetDateTime
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 enum NodeType {
   // Normal: Fornet Client
@@ -75,19 +75,26 @@ case class Node(
       case NodeType.Client => s"$ip/${network.addressRange.split('/').last}"
     }
   }
-  
-  def realStatus(networkStatus:NetworkStatus):NodeStatus = {
-    if(networkStatus == NetworkStatus.Delete) {
+
+  def realStatus(networkStatus: NetworkStatus): NodeStatus = {
+    if (networkStatus == NetworkStatus.Delete) {
       NodeStatus.Delete
     } else {
       status
     }
   }
 
-  def peerAddress: String = {
+  def peerAllowedIp: String = {
     nodeType match {
       case NodeType.Relay  => ip
       case NodeType.Client => s"$ip/32"
+    }
+  }
+
+  def peerAddress: String = {
+    nodeType match {
+      case NodeType.Relay  => ip.split("/").head
+      case NodeType.Client => ip
     }
   }
 }
@@ -116,7 +123,7 @@ import io.getquill.*
 
 class NodeDao(using quill: DB) {
 
-  import quill.{*, given}
+  import quill.{ *, given }
 
   def findIdByPublicKey(publicKey: String, networkId: Int): Option[Int] =
     quill.run {
@@ -167,9 +174,11 @@ class NodeDao(using quill: DB) {
     }
   }
 
-  def getAllAvailableNodes(networkId:Int):Seq[Node] = quill.run {
+  def getAllAvailableNodes(networkId: Int): Seq[Node] = quill.run {
     quote {
-      query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal))
+      query[Node].filter(n =>
+        n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal)
+      )
     }
   }
   def getAllAvailableNodes(

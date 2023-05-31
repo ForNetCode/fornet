@@ -21,7 +21,7 @@ use std::mem;
 use cfg_if::cfg_if;
 use rand::RngCore;
 use rand::rngs::OsRng;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use anyhow::anyhow;
@@ -181,6 +181,7 @@ impl DeviceData {
         endpoint: Option<SocketAddr>,
         allowed_ips: &[AllowedIP],
         keepalive: Option<u16>,
+        ip: IpAddr,
         preshared_key: Option<[u8; 32]>,
     ) {
         // Update an existing peer
@@ -202,7 +203,7 @@ impl DeviceData {
         )
             .unwrap();
 
-        let peer = Peer::new(tunn, next_index, endpoint, allowed_ips, preshared_key);
+        let peer = Peer::new(tunn, next_index, endpoint, allowed_ips, ip, preshared_key);
         let peer = Arc::new(Mutex::new(peer));
         let mut peers = self.peers.write().await;
 
@@ -338,9 +339,9 @@ pub async fn tcp_peers_timer(peers: &Arc<RwLock<Peers>>) {
         for peer in peer_map.values() {
             let mut p = peer.lock().await;
             //TODO: if needs to create tcp when p.endpoint().addr.is_some()
-            if p.endpoint.tcp_conn.is_none() {
+            if p.endpoint.tcp_conn.is_none(){
                 if let Some(addr) = &p.endpoint.addr {
-
+                     
 
                 }
                 continue
@@ -508,7 +509,7 @@ pub async fn tcp_listener_handler(
     //Ok(())
 }
 pub fn tcp_handler(
-    mut socket: TcpStream,
+    socket: TcpStream,
     addr: SocketAddr,
     key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
     rate_limiter: Arc<RateLimiter>,

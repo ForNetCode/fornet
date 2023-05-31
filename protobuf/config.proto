@@ -30,6 +30,8 @@ message Peer {
   repeated string allowed_ip = 2;
   string public_key = 3;
   uint32 persistence_keep_alive = 4;
+  // This is for tcp
+  repeated string address = 5;
 }
 
 

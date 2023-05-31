@@ -29,6 +29,7 @@ pub struct Peer {
     index: u32,
     pub endpoint: Endpoint,
     allowed_ips: AllowedIps<()>,
+    ip: IpAddr,
     preshared_key: Option<[u8; 32]>,
 }
 
@@ -68,6 +69,7 @@ impl Peer {
         index: u32,
         endpoint: Option<SocketAddr>,
         allowed_ips: &[AllowedIP],
+        ip:IpAddr,
         preshared_key: Option<[u8; 32]>,
     ) -> Peer {
         Peer {
@@ -78,6 +80,7 @@ impl Peer {
                 udp_conn: None,
                 tcp_conn: None,
             },
+            ip,
             allowed_ips: allowed_ips.iter().map(|ip| (ip, ())).collect(),
             preshared_key,
         }
@@ -137,6 +140,7 @@ impl Peer {
 
 #[cfg(test)]
 mod tests {
+    use std::net::{IpAddr, SocketAddr};
     use crate::device::peer::AllowedIP;
 
     #[test]
@@ -144,5 +148,15 @@ mod tests {
         let ip_v4: AllowedIP = "10.0.0.0/32".parse().unwrap();
         assert_eq!(ip_v4.to_string(), String::from("10.0.0.0/32"));
         assert_eq!(ip_v4.addr.to_string(), String::from("10.0.0.0"));
+    }
+
+    #[test]
+    fn ip_compare() {
+        let ip = "10.0.0.1".parse::<IpAddr>();
+        //println!("123 {:?}", ip);
+        let ip1:IpAddr = "10.0.0.1".parse().unwrap();
+        let ip2:IpAddr = "10.0.0.2".parse().unwrap();
+        println!("should be false {}", ip1 == ip2);
+        println!("should be true {}", ip1 < ip2);
     }
 }

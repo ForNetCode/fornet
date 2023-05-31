@@ -61,8 +61,8 @@ mod test {
 
     #[tokio::test]
     async fn test_tcp_bind() {
-        let ip4_server = create_tcp_server(None, Domain::IPV4, None).await.unwrap();
-        let ip6_server = create_tcp_server(Some(ip4_server.local_addr().unwrap().port()), Domain::IPV6, None).await.unwrap();
+        let ip4_server = create_tcp_server(None, Domain::IPV4, None).unwrap();
+        let ip6_server = create_tcp_server(Some(ip4_server.local_addr().unwrap().port()), Domain::IPV6, None).unwrap();
 
         println!("init ip4/ip6 in same port ok");
     }
