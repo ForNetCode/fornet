@@ -6,8 +6,13 @@ export function checkSampleTokenCorrect(token: string) {
     })
 }
 
-export function getSSOInviteCode(networkId:number) {
-    return http.get<string>(`/auth/oauth/${networkId}/device_code`).then((r) => r.data)
+
+export function getSSOInviteCode(networkId:number):Promise<string> {
+    // @ts-ignore
+    return http.get<string>(`/auth/oauth/${networkId}/device_code`, {
+        // @ts-ignore
+        disableDefaultErrorHandler: true,
+    }).then((r) => r.data)
 }
 
 const TokenKey = "TOKEN_KEY"

@@ -1,6 +1,7 @@
 package com.timzaak.fornet.controller
 
 import com.google.common.base.Charsets
+import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthSupport
 import com.timzaak.fornet.dao.{NetworkDao, NetworkStatus}
 import com.timzaak.fornet.di.DI.hashId
@@ -20,10 +21,8 @@ import java.util.Base64
 case class SimpleTokenCheckReq(token: String)
 given JsonDecoder[SimpleTokenCheckReq] = DeriveJsonDecoder.gen
 
-trait AuthController(networkDao: NetworkDao)(using
-  config: Config,
-  hashId: Hashids
-) extends Controller
+trait AuthController(networkDao: NetworkDao, appConfig: AppConfig)(using config: Config, hashId: Hashids)
+  extends Controller
   with AppAuthSupport {
 
   jPost("/st/check") { (req: SimpleTokenCheckReq) =>
@@ -39,21 +38,26 @@ trait AuthController(networkDao: NetworkDao)(using
     }
   }
 
+  // keycloak device code auth, needs keycloak browser login
   get("/oauth/:network_id/device_code") {
     val groupId = auth
     val networkId = params("network_id").toInt
-    networkDao
-      .findById(networkId)
-      .filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
-      .map { _ =>
-        val nId =
-          URLEncoder.encode(hashId.encode(networkId.toLong), Charsets.UTF_8)
-        String(
-          Base64.getEncoder.encode(
-            s"2|${config.getString("server.grpc.endpoint")}|${nId}"
-              .getBytes()
+    if (appConfig.enableSAAS) {
+      badResponse("SAAS do not support keycloak auth in command line")
+    } else {
+      networkDao
+        .findById(networkId)
+        .filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
+        .map { _ =>
+          val nId =
+            URLEncoder.encode(hashId.encode(networkId.toLong), Charsets.UTF_8)
+          String(
+            Base64.getEncoder.encode(
+              s"2|${config.getString("server.grpc.endpoint")}|${nId}"
+                .getBytes()
+            )
           )
-        )
-      }
+        }
+    }
   }
 }

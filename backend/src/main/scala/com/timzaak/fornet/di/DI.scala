@@ -1,16 +1,16 @@
 package com.timzaak.fornet.di
 
-import com.timzaak.fornet.config.{ AppConfig, AppConfigImpl }
+import com.timzaak.fornet.config.{AppConfig, AppConfigImpl}
 import com.timzaak.fornet.controller.*
 import com.timzaak.fornet.grpc.AuthGRPCController
 import com.timzaak.fornet.mqtt.MqttCallbackController
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
-import com.timzaak.fornet.pubsub.{ MqttConnectionManager, NodeChangeNotifyService }
+import com.timzaak.fornet.pubsub.{MqttConnectionManager, NodeChangeNotifyService}
 import com.timzaak.fornet.service.*
-import com.typesafe.config.{ Config, ConfigFactory }
+import com.typesafe.config.{Config, ConfigFactory}
 import org.hashids.Hashids
-import very.util.keycloak.{ JWKPublicKeyLocator, JWKTokenVerifier, KeycloakJWTAuthStrategy }
-import very.util.web.auth.{ AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy }
+import very.util.keycloak.{JWKPublicKeyLocator, JWKTokenVerifier, KeycloakJWTAuthStrategy}
+import very.util.web.auth.{AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy}
 object DI extends DaoDI { di =>
   given config: Config = ConfigFactory.load()
 
@@ -81,11 +81,13 @@ object DI extends DaoDI { di =>
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
+      appConfig = di.appConfig,
     )
 
   object authController
     extends AuthController(
-      networkDao = di.networkDao
+      networkDao = di.networkDao,
+      appConfig = di.appConfig,
     )
 
   object nodeAuthService extends NodeAuthService
@@ -97,6 +99,7 @@ object DI extends DaoDI { di =>
       networkDao = di.networkDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
       config = di.config,
+      appConfig = di.appConfig,
       nodeAuthService = di.nodeAuthService,
       authStrategyProvider = di.authStrategyProvider,
     )

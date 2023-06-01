@@ -4,6 +4,7 @@ import com.timzaak.fornet.config.AppConfig
 import com.typesafe.config.Config
 import very.util.config.get
 import very.util.web.Controller
+import zio.json.ast.Json
 
 trait AppInfoController(appConfig: AppConfig)(
   using config: Config,
@@ -11,14 +12,15 @@ trait AppInfoController(appConfig: AppConfig)(
 
   jGet("/") {
     if (config.hasPath("auth.keycloak")) {
-      Map(
-        "type" -> "Bearer",
-        "url" -> config.get[String]("auth.keycloak.authServerUrl"),
-        "realm" -> config.get[String]("auth.keycloak.realm"),
-        "clientId" -> config.get[String]("auth.keycloak.frontClientId"),
+      Json(
+        "type" -> Json.Str("Bearer"),
+        "url" -> Json.Str(config.get[String]("auth.keycloak.authServerUrl")),
+        "realm" -> Json.Str(config.get[String]("auth.keycloak.realm")),
+        "clientId" -> Json.Str(config.get[String]("auth.keycloak.frontClientId")),
+        "saas" -> Json.Bool(appConfig.enableSAAS), // saas
       )
     } else {
-      Map("type" -> "ST")
+      Json("type" -> Json.Str("ST"))
     }
   }
 }

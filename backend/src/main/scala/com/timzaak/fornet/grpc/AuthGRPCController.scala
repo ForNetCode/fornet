@@ -3,6 +3,7 @@ package com.timzaak.fornet.grpc
 import ch.qos.logback.core.joran.action.Action
 import com.google.common.base.Charsets
 import com.google.protobuf.empty.Empty
+import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthStrategyProvider
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.protobuf.auth.*
@@ -34,6 +35,7 @@ class AuthGRPCController(
   config: Config,
   nodeAuthService: NodeAuthService,
   authStrategyProvider: AppAuthStrategyProvider,
+  appConfig: AppConfig,
 )(using quill: DB)
   extends AuthGrpc.Auth
   with LogSupport {
@@ -108,8 +110,7 @@ class AuthGRPCController(
     request: OAuthDeviceCodeRequest
   ): Future[ActionResponse] = {
     val params = Seq(request.accessToken, request.deviceCode, request.networkId)
-    if (request.encrypt.exists(v => nodeAuthService.validate2(v, params))) {
-
+    if (!appConfig.enableSAAS && request.encrypt.exists(v => nodeAuthService.validate2(v, params))) {
       if (config.hasPath("auth.keycloak")) {
         val authResult = authStrategyProvider
           .getStrategy(KeycloakJWTAuthStrategy.name)
