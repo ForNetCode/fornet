@@ -2,7 +2,7 @@ package com.timzaak.fornet.pubsub
 
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.grpc.convert.EntityConvert
-import com.timzaak.fornet.protobuf.config.{NodeStatus as PNodeStatus, *}
+import com.timzaak.fornet.protobuf.config.{ NodeStatus as PNodeStatus, * }
 import com.timzaak.fornet.service.NodeService
 import org.hashids.Hashids
 
@@ -14,13 +14,13 @@ class NodeChangeNotifyService(
   nodeService: NodeService,
 )(using quill: DB, hashid: Hashids) {
 
-  import quill.{*, given}
+  import quill.{ *, given }
 
   def nodeInfoChangeNotify(oldNode: Node, setting: NodeSetting) = {
     // TODO: FIXIT
 
     val network = networkDao.findById(oldNode.networkId).get
-    val networkId = hashid.encode(network.id)
+    val networkId = network.id.secretId
 
     val relativeNodes = nodeService.getAllRelativeNodes(oldNode)
     val fixedNode = oldNode.copy(setting = setting)
@@ -60,9 +60,8 @@ class NodeChangeNotifyService(
     status: NodeStatus,
   ) = {
     import NodeStatus.*
-
+    val networkId = node.networkId.secretId
     // notify self node status change
-    val networkId = hashid.encode(node.networkId)
     connectionManager.sendMessage(
       node.networkId,
       node.id,

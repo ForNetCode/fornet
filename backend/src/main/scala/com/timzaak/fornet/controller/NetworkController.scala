@@ -3,9 +3,10 @@ package com.timzaak.fornet.controller
 import com.google.common.net.InetAddresses
 import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthSupport
-import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NetworkSetting}
+import com.timzaak.fornet.dao.{ DB, Network, NetworkDao, NetworkSetting }
 import com.typesafe.config.Config
 import org.hashids.Hashids
+import very.util.security.IntID
 
 import java.util.Base64
 //import org.json4s.Formats
@@ -16,7 +17,8 @@ import org.scalatra.json.*
 import org.scalatra.*
 import very.util.web.Controller
 import very.util.web.validate.ValidationExtra
-import zio.json.{DeriveJsonDecoder, JsonDecoder}
+import very.util.security.IntID.toIntID
+import zio.json.{ DeriveJsonDecoder, JsonDecoder }
 
 import java.time.OffsetDateTime
 
@@ -36,10 +38,9 @@ trait NetworkController(
   with AppAuthSupport {
 
 //  import org.json4s.jvalue2extractable
-  import quill.{*, given}
+  import quill.{ *, given }
 
-
-  def _networkId = params("id").toInt
+  def _networkId: IntID = params("id").toIntID
 
   jGet[Network]("/") {
     val groupId = auth
@@ -65,7 +66,7 @@ trait NetworkController(
     for {
       _ <- ipV4Range(req.addressRange)
     } yield {
-      if(appConfig.enableSAAS && networkDao.countByGroupId(groupId) > 10) {
+      if (appConfig.enableSAAS && networkDao.countByGroupId(groupId) > 10) {
         badResponse("network number is limited to 10")
       } else {
         val id = quill.run {
@@ -99,7 +100,7 @@ trait NetworkController(
       .map { _ =>
         String(
           Base64.getEncoder.encode(
-            s"1|${config.getString("server.grpc.endpoint")}|${hashId.encode(networkId.toLong)}"
+            s"1|${config.getString("server.grpc.endpoint")}|${networkId.secretId}"
               .getBytes()
           )
         )
@@ -108,7 +109,7 @@ trait NetworkController(
 
   jPut("/:id") { (data: UpdateNetworkReq) =>
     val groupId = auth
-    val id = params("id").toInt
+    val id = params("id").toIntID
     for {
       _ <- ipV4Range(data.addressRange)
     } yield {
@@ -134,9 +135,7 @@ trait NetworkController(
     val changeCount = quill.run {
       quote {
         query[Network]
-          .filter(n =>
-            n.id == lift(networkId) && n.status == lift(NetworkStatus.Normal) && n.groupId == lift(groupId)
-          )
+          .filter(n => n.id == lift(networkId) && n.status == lift(NetworkStatus.Normal) && n.groupId == lift(groupId))
           .update(
             _.status -> lift(NetworkStatus.Delete)
           )

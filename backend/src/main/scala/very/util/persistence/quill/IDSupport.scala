@@ -11,4 +11,6 @@ trait IDSupport {
   given intIDEncode: MappedEncoding[IntID, Int] = MappedEncoding(_.id)
 
   given intIDDecode(using hashId: Hashids): MappedEncoding[Int, IntID] = MappedEncoding(IntID.apply)
+  given intIDListEncoder: MappedEncoding[List[IntID], List[Int]] = MappedEncoding(_.map(_.id))
+
 }

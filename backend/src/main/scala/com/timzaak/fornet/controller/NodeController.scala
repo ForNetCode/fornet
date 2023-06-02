@@ -14,6 +14,8 @@ import org.hashids.Hashids
 import org.scalatra.Accepted
 import very.util.web.Controller
 import very.util.web.json.JsonResponse
+import very.util.security.IntID
+import very.util.security.IntID.toIntID
 import zio.json.*
 import zio.prelude.Validation
 
@@ -53,10 +55,10 @@ trait NodeController(
   with AppAuthSupport {
   import quill.{ *, given }
 
-  private def _networkId: Int = params("networkId").toInt
-  private def _nodeId: Int = params("nodeId").toInt
+  private def _networkId: IntID = params("networkId").toIntID
+  private def _nodeId: IntID = params("nodeId").toIntID
 
-  def checkAuth: (User, Int) = {
+  def checkAuth: (User, IntID) = {
     val groupId = auth
     val networkId = _networkId
     if (!networkDao.existGroupNetwork(networkId, groupId)) {

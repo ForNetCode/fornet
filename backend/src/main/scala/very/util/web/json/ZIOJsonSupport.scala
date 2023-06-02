@@ -7,7 +7,7 @@ import very.util.security.IntID
 import zio.json.*
 import zio.json.ast.Json
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 trait ZIOJsonSupport extends ApiFormats {
 
@@ -98,3 +98,4 @@ given intIDDecoder(using hashId: Hashids): JsonDecoder[IntID] = JsonDecoder[Stri
     case Failure(_) => Left("Invalid ID")
   }
 }
+given intIDEncoder(using hashId: Hashids): JsonEncoder[IntID] = JsonEncoder.int.contramap(_.id)
