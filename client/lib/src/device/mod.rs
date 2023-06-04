@@ -329,7 +329,7 @@ pub async fn peers_timer(peers: &Arc<RwLock<Peers>>, udp4: &UdpSocket, udp6: &Ud
     }
 }
 
-pub async fn tcp_peers_timer(peers: &Arc<RwLock<Peers>>) {
+pub async fn tcp_peers_timer(ip: &IpAddr, peers: &Arc<RwLock<Peers>>) {
     let mut interval = time::interval(Duration::from_millis(250));
     let mut dst_buf: Vec<u8>= vec![0; MAX_UDP_SIZE];
 
@@ -341,7 +341,18 @@ pub async fn tcp_peers_timer(peers: &Arc<RwLock<Peers>>) {
             //TODO: if needs to create tcp when p.endpoint().addr.is_some()
             if p.endpoint.tcp_conn.is_none(){
                 if let Some(addr) = &p.endpoint.addr {
-                     
+                    if ip < &p.ip {
+                        match TcpStream::connect(addr).await {
+                            Ok(connection) => {
+                                //let (reader, writer) =  connection.into_split();
+                                //tcp_handler();
+                                //p.endpoint.tcp_conn = Some(writer)
+                            }
+                            Err(e) => {
+                                tracing::debug!("try to tcp connect {addr} fail: {}", e)
+                            }
+                        }
+                    }
 
                 }
                 continue

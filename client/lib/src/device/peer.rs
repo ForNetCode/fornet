@@ -15,11 +15,12 @@ use tokio::net::tcp::OwnedWriteHalf;
 use crate::device::allowed_ips::AllowedIps;
 
 
+
 #[derive(Default, Debug)]
 pub struct Endpoint {
     pub addr: Option<SocketAddr>,
     pub udp_conn: Option<Arc<UdpSocket>>,
-    pub tcp_conn: Option<OwnedWriteHalf>
+    pub tcp_conn: Option<OwnedWriteHalf>// Nothing, Connecting, Connected(OwnedWriteHalf), ConnectedFailure(Error)
 }
 
 pub struct Peer {
@@ -29,7 +30,7 @@ pub struct Peer {
     index: u32,
     pub endpoint: Endpoint,
     allowed_ips: AllowedIps<()>,
-    ip: IpAddr,
+    pub ip: IpAddr,
     preshared_key: Option<[u8; 32]>,
 }
 
