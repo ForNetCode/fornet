@@ -92,7 +92,7 @@ class MqttCallbackController(
             node.id,
             clientId,
             ClientMessage(
-              networkId = hashId.encode(node.networkId),
+              networkId = node.networkId.secretId,
               ClientMessage.Info.Config(
                 EntityConvert.nodeToWRConfig(node, network, notifyNodes)
               )
