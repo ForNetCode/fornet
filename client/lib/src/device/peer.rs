@@ -8,19 +8,25 @@ use std::net::{IpAddr};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use boringtun::noise::{Tunn, TunnResult};
 use tokio::net::{UdpSocket};
 use tokio::net::tcp::OwnedWriteHalf;
 use crate::device::allowed_ips::AllowedIps;
 
-
-
-#[derive(Default, Debug)]
+#[derive(Debug)]
+pub  enum TcpConnection {
+    Nothing,
+    Connecting(SystemTime),
+    Connected(OwnedWriteHalf),
+    ConnectedFailure(std::io::Error)
+}
+#[derive(Debug)]
 pub struct Endpoint {
     pub addr: Option<SocketAddr>,
     pub udp_conn: Option<Arc<UdpSocket>>,
-    pub tcp_conn: Option<OwnedWriteHalf>// Nothing, Connecting, Connected(OwnedWriteHalf), ConnectedFailure(Error)
+    pub tcp_conn: TcpConnection,
 }
 
 pub struct Peer {
@@ -79,7 +85,7 @@ impl Peer {
             endpoint: Endpoint {
                 addr: endpoint,
                 udp_conn: None,
-                tcp_conn: None,
+                tcp_conn: TcpConnection::Nothing,
             },
             ip,
             allowed_ips: allowed_ips.iter().map(|ip| (ip, ())).collect(),
@@ -96,13 +102,13 @@ impl Peer {
     }
 
     pub fn shutdown_endpoint(&mut self) {
-        if let Some(_) = self.endpoint.udp_conn.take() {
-            tracing::info!("disconnecting from endpoint");
-            //drop(conn)
-        }
-        if let Some(_) = self.endpoint.tcp_conn.take() {
+        if let Some(_) = &mut self.endpoint.udp_conn.take() {
             tracing::info!("disconnecting from endpoint");
         }
+        if let TcpConnection::Connected(_) = &mut self.endpoint.tcp_conn {
+            tracing::info!("disconnecting tcp connection");
+        }
+        self.endpoint.tcp_conn = TcpConnection::Nothing;
     }
 
     pub fn set_endpoint(&mut self, addr: SocketAddr) {

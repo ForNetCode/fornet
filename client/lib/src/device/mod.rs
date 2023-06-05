@@ -22,8 +22,8 @@ use cfg_if::cfg_if;
 use rand::RngCore;
 use rand::rngs::OsRng;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::{Arc};
+use std::time::{Duration, SystemTime};
 use anyhow::anyhow;
 use boringtun::noise::errors::WireGuardError;
 use boringtun::noise::rate_limiter::RateLimiter;
@@ -31,7 +31,7 @@ use boringtun::noise::{Packet, Tunn, TunnResult};
 use boringtun::noise::handshake::parse_handshake_anon;
 use prost::bytes::BufMut;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex,MutexGuard, RwLock};
 use tokio::time;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};//keep
 use tokio::net::tcp::OwnedWriteHalf;
@@ -39,6 +39,7 @@ use tokio::net::tcp::OwnedWriteHalf;
 use allowed_ips::AllowedIps;
 use peer::{AllowedIP, Peer};
 use script_run::Scripts;
+use crate::device::peer::TcpConnection;
 use crate::device::script_run::run_opt_script;
 use self::tun::WritePart;
 
@@ -276,7 +277,8 @@ pub async fn tun_read_tcp_handle(peers: &Arc<RwLock<Peers>>, src_buf: &[u8], dst
                 }
                 TunnResult::WriteToNetwork(packet) => {
                     let endpoint = peer.endpoint();
-                    if let Some(conn) = &mut endpoint.tcp_conn {
+                    if let TcpConnection::Connected(conn) = &mut endpoint.tcp_conn {
+                        //TODO: error detect
                         let _ = conn.write_all(packet).await;
                     } else {
                         tracing::info!("no endpoint of {:?}", endpoint.addr);
@@ -329,34 +331,49 @@ pub async fn peers_timer(peers: &Arc<RwLock<Peers>>, udp4: &UdpSocket, udp6: &Ud
     }
 }
 
-pub async fn tcp_peers_timer(ip: &IpAddr, peers: &Arc<RwLock<Peers>>) {
+pub async fn tcp_peers_timer(
+    ip: &IpAddr,
+    peers: &Arc<RwLock<Peers>>,
+    key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
+    rate_limiter: Arc<RateLimiter>,
+    iface: Arc<Mutex<WritePart>>,
+    pi: bool) {
     let mut interval = time::interval(Duration::from_millis(250));
     let mut dst_buf: Vec<u8>= vec![0; MAX_UDP_SIZE];
+
 
     loop {
         interval.tick().await;
         let peer_map = &peers.read().await.by_key;
         for peer in peer_map.values() {
             let mut p = peer.lock().await;
-            //TODO: if needs to create tcp when p.endpoint().addr.is_some()
-            if p.endpoint.tcp_conn.is_none(){
-                if let Some(addr) = &p.endpoint.addr {
-                    if ip < &p.ip {
-                        match TcpStream::connect(addr).await {
-                            Ok(connection) => {
-                                //let (reader, writer) =  connection.into_split();
-                                //tcp_handler();
-                                //p.endpoint.tcp_conn = Some(writer)
-                            }
-                            Err(e) => {
-                                tracing::debug!("try to tcp connect {addr} fail: {}", e)
-                            }
+            let endpoint_addr = match p.endpoint().addr {
+                Some(addr) => addr,
+                None => continue,
+            };
+            match &mut p.endpoint.tcp_conn {
+                TcpConnection::Nothing| TcpConnection::ConnectedFailure(_) => {
+                    p.endpoint.tcp_conn = TcpConnection::Connecting(SystemTime::now());
+                    match TcpStream::connect(&endpoint_addr).await {
+                        Ok(conn) => {
+                            tcp_handler(conn, endpoint_addr, key_pair.clone(),rate_limiter.clone(), peers.clone(), iface.clone(), pi);
+                        },
+                        Err(error) => {
+                            tracing::debug!("connect {endpoint_addr:?} failure, error: {error:?}");
+                            p.endpoint.tcp_conn = TcpConnection::ConnectedFailure(error)
                         }
-                    }
+                    };
+                    continue;
+                }
+                TcpConnection::Connecting(_) => {
+                    //TODO: add check of time, and reconnect
+                    continue;
+                }
+                TcpConnection::Connected(connection) => {
+                    //connection
 
                 }
-                continue
-            }
+            };
             match p.update_timers(&mut dst_buf) {
                 TunnResult::Done => {}
                 TunnResult::Err(WireGuardError::ConnectionExpired) => {
@@ -364,12 +381,12 @@ pub async fn tcp_peers_timer(ip: &IpAddr, peers: &Arc<RwLock<Peers>>) {
                 }
                 TunnResult::Err(e) => tracing::error!(message = "Timer error", error = ?e),
                 TunnResult::WriteToNetwork(packet) => {
-                    if let Some(conn) = &mut p.endpoint().tcp_conn {
-                        let _ = conn.write_all(packet).await;
+                    if let TcpConnection::Connected(connection) = &mut p.endpoint.tcp_conn {
+                        let _ = connection.write_all(packet).await;
                     }
 
                 }
-                _ => panic!("Unexpected result from update_timers"),
+                _ => tracing::warn!("Unexpected result from update_timers"),
             };
         }
     }
@@ -546,7 +563,7 @@ pub fn tcp_handler(
                                 },
                                 WriterState::PeerWriter(peer)=> {
                                     let mut p = peer.lock().await;
-                                    if let Some(w) = &mut p.endpoint.tcp_conn {
+                                    if let TcpConnection::Connected(w) = &mut p.endpoint.tcp_conn {
                                         let _ = w.write_all(cookie).await;
                                     }else {
                                         tracing::warn!("should not come here");
@@ -576,11 +593,11 @@ pub fn tcp_handler(
                 };
 
                 let mut p = peer.lock().await;
-                if p.endpoint.tcp_conn.is_none() {
+                if let TcpConnection::Nothing | TcpConnection::ConnectedFailure(_) = p.endpoint.tcp_conn {
                     if let WriterState::PureWriter(_) = &mut writer {
                         let pure_writer = mem::replace(&mut writer,WriterState::PeerWriter(peer.clone()));
                         if let WriterState::PureWriter(_writer) = pure_writer {
-                            p.endpoint.tcp_conn = Some(_writer);
+                            p.endpoint.tcp_conn = TcpConnection::Connected(_writer);
                         }
                     }
                 }
@@ -594,7 +611,8 @@ pub fn tcp_handler(
                     TunnResult::Err(_) => continue,
                     TunnResult::WriteToNetwork(packet) => {
                         flush = true;
-                        if let Some(conn) = &mut p.endpoint.tcp_conn {
+
+                        if let TcpConnection::Connected(conn) = &mut p.endpoint.tcp_conn {
                             let _ = conn.write_all(packet).await;
                         }
                     }
@@ -654,7 +672,7 @@ pub fn tcp_handler(
                         while let TunnResult::WriteToNetwork(packet) =
                             p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
                         {
-                            if let Some(conn) = &mut p.endpoint.tcp_conn {
+                            if let TcpConnection::Connected(conn) = &mut p.endpoint.tcp_conn {
                                 let _ = conn.write_all(packet).await;
                             }
                         }
