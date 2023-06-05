@@ -19,7 +19,6 @@ To check out docs, visit this [Git Page](https://fornetcode.github.io/documentat
 
 If you are interested with the project future, please refer to [Roadmap](https://fornetcode.github.io/documentation/plan).
 
-
 ## License
 [BSL 1.1](https://github.com/fornetcode/fornet/blob/main/LICENSE)
 ---
