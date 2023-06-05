@@ -3,6 +3,7 @@ package com.timzaak.fornet.dao
 import com.timzaak.fornet.dao.Network
 import io.getquill.*
 import io.getquill.context.jdbc.{Decoders, Encoders}
+import very.util.persistence.quill.IDSupport
 //import org.json4s.Extraction
 //import org.json4s.JsonAST.JValue
 import very.util.persistence.quill.ZIOJsonSupport
@@ -13,7 +14,7 @@ import java.util.Calendar
 
 class DB
   extends PostgresJdbcContext(SnakeCase, "database")
-  with ZIOJsonSupport {
+  with ZIOJsonSupport with IDSupport {
 
   given encodeOffsetDateTime: Encoder[OffsetDateTime] =
     encoder(

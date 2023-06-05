@@ -1,11 +1,4 @@
 import http from "./http";
-import {KeycloakConfig} from "keycloak-js";
-
-type AuthTypeResponse = { type: 'ST' } | (KeycloakConfig & { type: 'Bearer' })
-
-export function getAuthType() {
-    return http.get<AuthTypeResponse>('/auth/type')
-}
 
 export function checkSampleTokenCorrect(token: string) {
     return http.post('/auth/st/check', {
@@ -13,8 +6,13 @@ export function checkSampleTokenCorrect(token: string) {
     })
 }
 
-export function getSSOInviteCode(networkId:number) {
-    return http.get<string>(`/auth/oauth/${networkId}/device_code`).then((r) => r.data)
+
+export function getSSOInviteCode(networkId:number):Promise<string> {
+    // @ts-ignore
+    return http.get<string>(`/auth/oauth/${networkId}/device_code`, {
+        // @ts-ignore
+        disableDefaultErrorHandler: true,
+    }).then((r) => r.data)
 }
 
 const TokenKey = "TOKEN_KEY"

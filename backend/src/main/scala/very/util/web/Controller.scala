@@ -26,8 +26,7 @@ class Controller //(using val jsonFormats: Formats)
   }
 
   errorHandler = {
-    case _: org.json4s.MappingException | _: java.lang.NumberFormatException |
-      _: java.lang.AssertionError =>
+    case _: org.json4s.MappingException | _: java.lang.NumberFormatException | _: java.lang.AssertionError =>
       badResponse(messages("error.parameter_error"))
     case t =>
       logger.error("errorHandler", t)
@@ -40,7 +39,12 @@ class Controller //(using val jsonFormats: Formats)
       super.renderPipeline(info)
   }: RenderPipeline) orElse super.renderPipeline
 
-  def created(id: Long): ActionResult =
+  def created(id: Long): ActionResult = {
     contentType = formats("json")
     Created(s"""{"id":$id}""")
+  }
+  def created(id: very.util.security.ID[_]): ActionResult = {
+    contentType = formats("json")
+    Created(s"""{"id":${id.secretId}}""")
+  }
 }

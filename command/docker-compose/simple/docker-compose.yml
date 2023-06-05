@@ -1,0 +1,47 @@
+version: "3"
+
+services:
+
+  mqtt:
+    image: rmqtt/rmqtt:latest
+    container_name: mqtt
+    ports:
+      - 1883:1883
+    volumes:
+      - ./config/mqtt/rmqtt.toml:/app/rmqtt/rmqtt.toml
+      - ./config/mqtt/plugin:/app/rmqtt/plugin
+      - ./log/mqtt:/var/log/rmqtt
+    networks:
+      - fornet-network  
+  
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - fornet-network
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5      
+
+  backend:
+    image: ghcr.io/fornetcode/fornet-backend:0.0.3
+    container_name: fornet-backend
+    ports:
+      - 9000:9000 # grpc
+      - ${BACKEND_PORT}:${BACKEND_PORT}
+    volumes:
+      - ./config/backend:/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fornet-network
+    env_file: .env
+
+networks:
+  fornet-network:

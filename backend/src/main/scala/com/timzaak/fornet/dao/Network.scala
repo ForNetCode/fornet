@@ -3,11 +3,13 @@ package com.timzaak.fornet.dao
 // import io.getquill.{UpdateMeta, updateMeta}
 
 import com.timzaak.fornet.dao.NetworkProtocol.TCP
+import org.hashids.Hashids
 import very.util.persistence.quill.DBSerializer
+import very.util.security.IntID
 import zio.json.*
 
 import java.time.OffsetDateTime
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 enum NetworkStatus {
   case Normal, Delete
@@ -46,8 +48,9 @@ object NetworkProtocol {
 }
 
 case class Network(
-  id: Int,
+  id: IntID,
   name: String,
+  groupId: String,
   addressRange: String,
   setting: NetworkSetting,
   status: NetworkStatus,
@@ -66,7 +69,8 @@ case class NetworkSetting(
 ) extends DBSerializer
 
 object Network {
-  given JsonCodec[Network] = DeriveJsonCodec.gen
+  import very.util.web.json.{ intIDDecoder, intIDEncoder }
+  given networkDerive(using hashId: Hashids): JsonCodec[Network] = DeriveJsonCodec.gen
 }
 object NetworkSetting {
   given JsonCodec[NetworkSetting] = DeriveJsonCodec.gen
@@ -74,12 +78,21 @@ object NetworkSetting {
 
 import io.getquill.*
 class NetworkDao(using quill: DB) {
-  import quill.{*, given}
+  import quill.{ *, given }
 
-  def findById(id: Int): Option[Network] = {
+  def findById(id: IntID): Option[Network] = {
     quill.run(quote(query[Network]).filter(_.id == lift(id)).single).headOption
   }
-  def findByIds(ids: List[Int]): List[Network] = {
+  def findByIds(ids: List[IntID]): List[Network] = {
     quill.run(quote(query[Network]).filter(v => lift(ids).contains(v.id)))
+  }
+
+  def countByGroupId(groupId: String): Long = {
+    quill.run(quote(query[Network]).filter(_.groupId == lift(groupId)).size)
+  }
+
+  def existGroupNetwork(networkId: IntID, groupId: String): Boolean = {
+    quill.run(quote(query[Network]).filter(n => n.id == lift(networkId) && n.groupId == lift(groupId)).nonEmpty)
+
   }
 }

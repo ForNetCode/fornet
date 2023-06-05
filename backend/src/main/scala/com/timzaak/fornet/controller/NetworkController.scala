@@ -1,11 +1,13 @@
 package com.timzaak.fornet.controller
 
 import com.google.common.net.InetAddresses
+import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthSupport
 import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NetworkProtocol, NetworkSetting}
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
 import com.typesafe.config.Config
 import org.hashids.Hashids
+import very.util.security.IntID
 
 import java.util.Base64
 //import org.json4s.Formats
@@ -16,7 +18,8 @@ import org.scalatra.json.*
 import org.scalatra.*
 import very.util.web.Controller
 import very.util.web.validate.ValidationExtra
-import zio.json.{DeriveJsonDecoder, JsonDecoder}
+import very.util.security.IntID.toIntID
+import zio.json.{ DeriveJsonDecoder, JsonDecoder }
 
 import java.time.OffsetDateTime
 
@@ -31,23 +34,25 @@ given JsonDecoder[UpdateNetworkReq] = DeriveJsonDecoder.gen
 trait NetworkController(
   networkDao: NetworkDao,
   nodeChangeNotifyService: NodeChangeNotifyService,
+  appConfig: AppConfig,
 )(using quill: DB, config: Config, hashId: Hashids)
   extends Controller
   with AppAuthSupport {
 
 //  import org.json4s.jvalue2extractable
-  import quill.{*, given}
+  import quill.{ *, given }
 
-  def _networkId = params("id").toInt
+  def _networkId: IntID = params("id").toIntID
 
   jGet[Network]("/") {
-    auth
+    val groupId = auth
     params.get("name") match {
       case Some(name) if name.nonEmpty =>
         pageWithCount(
           query[Network]
             .filter(v => sql"${v.name} like ${lift(s"%${name}%")}".asCondition)
             .filter(_.status == lift(NetworkStatus.Normal))
+            .filter(_.groupId == lift(groupId))
         )(_.sortBy(_.id)(Ord.desc))
       case _ =>
         pageWithCount(
@@ -57,41 +62,47 @@ trait NetworkController(
   }
 
   jPost("/") { (req: CreateNetworkReq) =>
-    auth
+    val groupId = auth
     import zio.*
+
     for {
       _ <- ipV4Range(req.addressRange)
     } yield {
-      val id = quill.run {
-        quote {
-          query[Network]
-            .insert(
-              _.name -> lift(req.name),
-              _.addressRange -> lift(req.addressRange),
-              _.setting -> lift(NetworkSetting(protocol = req.protocol)),
-            )
-            .returning(_.id)
+      if (appConfig.enableSAAS && networkDao.countByGroupId(groupId) > 10) {
+        badResponse("network number is limited to 10")
+      } else {
+        val id = quill.run {
+          quote {
+            query[Network]
+              .insert(
+                _.name -> lift(req.name),
+                _.addressRange -> lift(req.addressRange),
+                _.setting -> lift(NetworkSetting(protocol = req.protocol)),
+                _.groupId -> lift(groupId),
+              )
+              .returning(_.id)
+          }
         }
+        created(id)
       }
-      created(id)
     }
   }
 
   jGet("/:id") {
-    auth
-    networkDao.findById(_networkId).filter(_.status == NetworkStatus.Normal)
+    val groupId = auth
+    networkDao.findById(_networkId).filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
   }
 
   get("/:id/invite_code") {
-    auth
+    val groupId = auth
     val networkId = _networkId
     networkDao
       .findById(networkId)
-      .filter(_.status == NetworkStatus.Normal)
+      .filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
       .map { _ =>
         String(
           Base64.getEncoder.encode(
-            s"1|${config.getString("server.grpc.endpoint")}|${hashId.encode(networkId.toLong)}"
+            s"1|${config.getString("server.grpc.endpoint")}|${networkId.secretId}"
               .getBytes()
           )
         )
@@ -99,8 +110,8 @@ trait NetworkController(
   }
 
   jPut("/:id") { (data: UpdateNetworkReq) =>
-    auth
-    val id = params("id").toInt
+    val groupId = auth
+    val id = params("id").toIntID
     for {
       _ <- ipV4Range(data.addressRange)
     } yield {
@@ -109,7 +120,7 @@ trait NetworkController(
           quill.run {
             quote {
               query[Network]
-                .filter(_.id == lift(id))
+                .filter(n => n.id == lift(id) && n.groupId == lift(groupId))
                 .update(
                   _.name -> lift(data.name),
                   _.addressRange -> lift(data.addressRange),
@@ -122,22 +133,16 @@ trait NetworkController(
         case _ =>
       }
       Accepted()
-      
-      
-      
-      
     }
   }
 
   delete("/:id") {
-    auth
+    val groupId = auth
     val networkId = _networkId
     val changeCount = quill.run {
       quote {
         query[Network]
-          .filter(n =>
-            n.id == lift(networkId) && n.status == lift(NetworkStatus.Normal)
-          )
+          .filter(n => n.id == lift(networkId) && n.status == lift(NetworkStatus.Normal) && n.groupId == lift(groupId))
           .update(
             _.status -> lift(NetworkStatus.Delete)
           )

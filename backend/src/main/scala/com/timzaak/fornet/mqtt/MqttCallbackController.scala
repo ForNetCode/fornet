@@ -1,6 +1,6 @@
 package com.timzaak.fornet.mqtt
 
-import com.timzaak.fornet.dao.{DB, NetworkDao, NodeDao, NodeStatus, Network}
+import com.timzaak.fornet.dao.{ DB, NetworkDao, NodeDao, NodeStatus, Network }
 import com.timzaak.fornet.entity.PublicKey
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
@@ -9,12 +9,12 @@ import com.timzaak.fornet.pubsub.MqttConnectionManager
 import com.timzaak.fornet.service.NodeService
 import com.typesafe.config.Config
 import org.hashids.Hashids
-import org.scalatra.{Forbidden, Ok, ScalatraServlet}
+import org.scalatra.{ Forbidden, Ok, ScalatraServlet }
 import very.util.web.LogSupport
-import very.util.web.json.{JsonResponse, ZIOJsonSupport}
-import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
+import very.util.web.json.{ JsonResponse, ZIOJsonSupport }
+import zio.json.{ DeriveJsonDecoder, JsonDecoder, jsonField }
 
-import scala.util.{Failure, Try}
+import scala.util.{ Failure, Try }
 
 case class AuthRequest(
   clientId: String, // publicKey
@@ -85,15 +85,17 @@ class MqttCallbackController(
             .toMap
         }
         nodes.foreach { node =>
-          val network:Network = networks(node.networkId)
-          if(node.realStatus(network.status) == NodeStatus.Normal) {
+
+          val network: Network = networks(node.networkId)
+          if (node.realStatus(network.status) == NodeStatus.Normal) {
             val notifyNodes = nodeService.getAllRelativeNodes(node)
+            val network = networks(node.networkId)
             mqttConnectionManager.sendMessage(
               networkId = node.networkId,
               node.id,
               clientId,
               ClientMessage(
-                networkId = hashId.encode(node.networkId),
+                networkId = node.networkId.secretId,
                 ClientMessage.Info.Config(
                   EntityConvert.nodeToWRConfig(node, network, notifyNodes)
                 )
