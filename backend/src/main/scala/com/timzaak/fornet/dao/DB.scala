@@ -2,19 +2,16 @@ package com.timzaak.fornet.dao
 
 import com.timzaak.fornet.dao.Network
 import io.getquill.*
-import io.getquill.context.jdbc.{Decoders, Encoders}
-import very.util.persistence.quill.IDSupport
+import io.getquill.context.jdbc.{ Decoders, Encoders }
+import very.util.persistence.quill.{ IDSupport, PageSupport, ZIOJsonSupport }
 //import org.json4s.Extraction
 //import org.json4s.JsonAST.JValue
-import very.util.persistence.quill.ZIOJsonSupport
-import very.util.web.Pagination
+import very.util.entity.Pagination
 
-import java.time.{LocalDateTime, OffsetDateTime}
+import java.time.{ LocalDateTime, OffsetDateTime }
 import java.util.Calendar
 
-class DB
-  extends PostgresJdbcContext(SnakeCase, "database")
-  with ZIOJsonSupport with IDSupport {
+class DB extends PostgresJdbcContext(SnakeCase, "database") with ZIOJsonSupport with IDSupport with PageSupport[SnakeCase] {
 
   given encodeOffsetDateTime: Encoder[OffsetDateTime] =
     encoder(
@@ -66,28 +63,7 @@ class DB
     MappedEncoding(_.ordinal)
   given decodeNetworkStatus: MappedEncoding[Int, NetworkStatus] =
     MappedEncoding(NetworkStatus.fromOrdinal)
-
-  extension [T](inline q: Query[T]) {
-    inline def page(using pagination: Pagination) = {
-      q.drop(lift(pagination.offset)).take(lift(pagination.pageSize))
-    }
-
-    // warning: sortBy should be split, because PG would report error for count(*)
-    inline def pageWithCount(using pagination: Pagination) = {
-      (this.run(quote(q.page)), this.run(quote(q.size)))
-    }
-
-    inline def pageWithCount(
-      sort: Query[T] => Query[T]
-    )(using pagination: Pagination) = {
-      (this.run(quote(sort(q).page)), this.run(quote(q.size)))
-    }
-
-    //    inline def pageWithPram(param:T => Boolean)(using pagination:Pagination) = {
-//      q.filter(param).page
-//    }
-    inline def single = q.take(1)
-  }
+  
 }
 
 //@main def testQuill = {
