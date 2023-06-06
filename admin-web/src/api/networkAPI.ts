@@ -1,4 +1,4 @@
-import http, {CreatedSuccess, Page} from "./http";
+import http, {CreatedSuccess, ID, Page} from "./http";
 
 
 export interface NetworkSetting {
@@ -9,7 +9,7 @@ export interface NetworkSetting {
 }
 
 export interface Network {
-    id: number,
+    id: ID,
     name: string,
     setting: NetworkSetting,
     createdAt: string,
@@ -41,15 +41,15 @@ export function updateNetwork(id: number, data: Network) {
     return http.put<Network>(`/network/${id}`, data)
 }
 
-export function getNetwork(id: number) {
+export function getNetwork(id: ID) {
     return http.get<Network>(`/network/${id}`).then(r => r.data)
 }
 
-export function getNetworkInviteCode(networkId: number) {
+export function getNetworkInviteCode(networkId: ID) {
     return http.get<string>(`/network/${networkId}/invite_code`).then(r => r.data)
 }
 
 
-export function deleteNetwork(id:number) {
+export function deleteNetwork(id:ID) {
     return http.delete(`/network/${id}`)
 }

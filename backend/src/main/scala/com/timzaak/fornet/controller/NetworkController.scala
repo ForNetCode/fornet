@@ -55,9 +55,12 @@ trait NetworkController(
             .filter(_.groupId == lift(groupId))
         )(_.sortBy(_.id)(Ord.desc))
       case _ =>
-        pageWithCount(
+        val r= pageWithCount(
           query[Network].filter(_.status == lift(NetworkStatus.Normal))
         )(_.sortBy(_.id)(Ord.desc))
+        import zio.json.*
+        val j = r.toJson
+        r
     }
   }
 

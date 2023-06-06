@@ -1,4 +1,4 @@
-import http from "./http";
+import http, {ID} from "./http";
 
 export function checkSampleTokenCorrect(token: string) {
     return http.post('/auth/st/check', {
@@ -7,7 +7,7 @@ export function checkSampleTokenCorrect(token: string) {
 }
 
 
-export function getSSOInviteCode(networkId:number):Promise<string> {
+export function getSSOInviteCode(networkId:ID):Promise<string> {
     // @ts-ignore
     return http.get<string>(`/auth/oauth/${networkId}/device_code`, {
         // @ts-ignore

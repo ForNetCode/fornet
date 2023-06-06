@@ -12,7 +12,7 @@ export default function NetworkDetailPage() {
     const [form] = useForm<Network>()
 
     useEffect(() => {
-        getNetwork(parseInt(networkId!)).then((d) => {
+        getNetwork(networkId!).then((d) => {
             form.setFieldsValue(d)
         })
     }, [networkId, form])

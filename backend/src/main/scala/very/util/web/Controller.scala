@@ -39,10 +39,12 @@ class Controller //(using val jsonFormats: Formats)
       super.renderPipeline(info)
   }: RenderPipeline) orElse super.renderPipeline
 
+  /*
   def created(id: Long): ActionResult = {
     contentType = formats("json")
     Created(s"""{"id":$id}""")
   }
+  */
   def created(id: very.util.security.ID[_]): ActionResult = {
     contentType = formats("json")
     Created(s"""{"id":${id.secretId}}""")
