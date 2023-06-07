@@ -124,7 +124,7 @@ object NodeSetting {
 
 import io.getquill.*
 
-class NodeDao(using quill: DB) {
+class NodeDao(using quill: DB, hashids: Hashids) {
 
   import quill.{ *, given }
 

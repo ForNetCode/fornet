@@ -35,6 +35,15 @@ enum NetworkProtocol {
       case UDP => PProtocol.Protocol_UDP
     }
   }
+
+  given JsonEncoder[NetworkProtocol] = JsonEncoder[Int].contramap(_.ordinal)
+
+  given JsonDecoder[NetworkProtocol] = JsonDecoder[Int].mapOrFail { e =>
+    Try(NetworkProtocol.fromOrdinal(e)) match {
+      case Success(v) => Right(v)
+      case Failure(_) => Left("no matching NodeType enum value")
+    }
+  }
 }
 object NetworkProtocol {
   given JsonEncoder[NetworkProtocol] = JsonEncoder[Int].contramap(_.ordinal)
@@ -55,7 +64,7 @@ case class Network(
   setting: NetworkSetting,
   status: NetworkStatus,
   createdAt: OffsetDateTime,
-  updatedAt: OffsetDateTime
+  updatedAt: OffsetDateTime,
 )
 //object Network {
 //  given networkUpdateMeta:UpdateMeta[Network] = updateMeta[Network](_.id)
@@ -76,9 +85,12 @@ object NetworkSetting {
   given JsonCodec[NetworkSetting] = DeriveJsonCodec.gen
 }
 
+
 import io.getquill.*
-class NetworkDao(using quill: DB) {
-  import quill.{ *, given }
+import org.hashids.Hashids
+
+class NetworkDao(using quill: DB, hashIds:Hashids) {
+  import quill.{*, given}
 
   def findById(id: IntID): Option[Network] = {
     quill.run(quote(query[Network]).filter(_.id == lift(id)).single).headOption

@@ -3,7 +3,7 @@ package com.timzaak.fornet.controller
 import com.google.common.base.Charsets
 import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthSupport
-import com.timzaak.fornet.dao.{ NetworkDao, NetworkStatus }
+import com.timzaak.fornet.dao.{NetworkDao, NetworkStatus}
 import com.timzaak.fornet.di.DI.hashId
 import com.typesafe.config.Config
 import org.hashids.Hashids

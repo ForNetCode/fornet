@@ -1,6 +1,5 @@
 package com.timzaak.fornet.dao
 
-import com.timzaak.fornet.dao.Network
 import io.getquill.*
 import io.getquill.context.jdbc.{ Decoders, Encoders }
 import very.util.persistence.quill.{ IDSupport, PageSupport, ZIOJsonSupport }

@@ -8,7 +8,7 @@ import com.timzaak.fornet.controller.auth.AppAuthStrategyProvider
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.protobuf.auth.*
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
-import com.timzaak.fornet.service.{ GRPCAuth, NodeAuthService }
+import com.timzaak.fornet.service.{GRPCAuth, NodeAuthService}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import inet.ipaddr.IPAddress.IPVersion
@@ -20,12 +20,12 @@ import very.util.keycloak.KeycloakJWTAuthStrategy
 import very.util.web.LogSupport
 import very.util.security.IntID
 import zio.json.*
-import zio.json.ast.{ Json, JsonCursor }
+import zio.json.ast.{Json, JsonCursor}
 
 import java.net.http.HttpRequest.BodyPublishers
-import java.net.http.{ HttpClient, HttpRequest }
-import java.net.{ URI, URLEncoder }
-import java.time.{ LocalDateTime, OffsetDateTime }
+import java.net.http.{HttpClient, HttpRequest}
+import java.net.{URI, URLEncoder}
+import java.time.{LocalDateTime, OffsetDateTime}
 import scala.concurrent.Future
 
 class AuthGRPCController(

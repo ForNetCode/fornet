@@ -1,7 +1,7 @@
 package com.timzaak.fornet.controller
 
 import com.timzaak.fornet.config.AppConfig
-import com.timzaak.fornet.controller.auth.{ AppAuthSupport, User }
+import com.timzaak.fornet.controller.auth.{AppAuthSupport, User}
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService

@@ -1,6 +1,6 @@
 package com.timzaak.fornet.mqtt
 
-import com.timzaak.fornet.dao.{ DB, NetworkDao, NodeDao, NodeStatus, Network }
+import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NodeDao, NodeStatus}
 import com.timzaak.fornet.entity.PublicKey
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
