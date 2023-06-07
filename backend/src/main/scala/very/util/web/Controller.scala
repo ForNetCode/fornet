@@ -47,6 +47,6 @@ class Controller //(using val jsonFormats: Formats)
   */
   def created(id: very.util.security.ID[_]): ActionResult = {
     contentType = formats("json")
-    Created(s"""{"id":${id.secretId}}""")
+    Created(s"""{"id":"${id.secretId}"}""")
   }
 }

@@ -20,7 +20,7 @@ export default function NetworkDetailPage() {
 
     const submit = async () => {
         const data = await form.validateFields()
-        await updateNetwork(parseInt(networkId!), data)
+        await updateNetwork(networkId!, data)
     }
     return (
         <>

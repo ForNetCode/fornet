@@ -23,6 +23,9 @@ export function CreateNetworkPage() {
         form={form}
         labelCol={{span: 8}}
         wrapperCol={{span: 16}}
+        initialValues={{
+            protocol: NetworkProtocol.UDP
+        }}
     >
         <Form.Item
             label={intl.formatMessage({id: 'name'})}

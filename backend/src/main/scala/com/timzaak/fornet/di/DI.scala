@@ -10,7 +10,7 @@ import com.timzaak.fornet.service.*
 import very.util.keycloak.{JWKPublicKeyLocator, JWKTokenVerifier, KeycloakJWTAuthStrategy}
 import very.util.web.auth.{AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy}
 object DI extends DaoDI { di =>
-  
+
   object appConfig extends AppConfigImpl(config)
 
   // connection Manager

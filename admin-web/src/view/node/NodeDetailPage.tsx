@@ -71,7 +71,6 @@ export default function NodeDetailPage() {
 
     useEffect(() => {
         if (networkId && nodeId) {
-            //const networkIdNum = parseInt(networkId)
             Promise.all([getNetwork(networkId), getNode(networkId, nodeId)]).then(r => {
                 setNetwork(r[0])
                 form.setFieldsValue(r[1])

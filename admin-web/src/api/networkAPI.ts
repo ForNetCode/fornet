@@ -42,7 +42,7 @@ export function createNetwork(data: CreateNetwork) {
     return http.post<CreatedSuccess>('/network', data)
 }
 
-export function updateNetwork(id: number, data: Network) {
+export function updateNetwork(id: ID, data: Network) {
     return http.put<Network>(`/network/${id}`, data)
 }
 
