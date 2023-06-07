@@ -1,10 +1,11 @@
 import {useEffect} from "react";
-import {getNetwork, Network, updateNetwork} from "../../api/networkAPI";
+import {getNetwork, Network, NetworkProtocol, updateNetwork} from "../../api/networkAPI";
 import {useParams} from "react-router-dom";
-import {Button, Col, Form, Input, InputNumber, Row} from "antd";
+import {Button, Col, Form, Input, InputNumber, Row, Select} from "antd";
 import {useIntl} from "react-intl";
 import {useForm} from "antd/es/form/Form";
 
+const {Option} = Select;
 
 export default function NetworkDetailPage() {
     const {networkId} = useParams<{ networkId: string }>()
@@ -60,6 +61,15 @@ export default function NetworkDetailPage() {
                                          placeholder="network default keepAlive"
                                          min={10}
                                          max={600}/>
+                        </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                        <Form.Item rules={[{required: true}]} name={['setting','protocol']}
+                                   label="Protocol">
+                            <Select>
+                                <Option value={NetworkProtocol.TCP}>TCP</Option>
+                                <Option value={NetworkProtocol.UDP}>UDP</Option>
+                            </Select>
                         </Form.Item>
                     </Col>
                 </Row>

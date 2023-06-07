@@ -1,9 +1,9 @@
-import {Button, Form, Input, message} from "antd";
+import {Button, Form, Input, message, Select} from "antd";
 import {useIntl} from "react-intl";
-import {CreateNetwork, createNetwork} from "../../api/networkAPI";
+import {CreateNetwork, createNetwork, NetworkProtocol} from "../../api/networkAPI";
 import {useNavigate} from "react-router-dom";
 
-
+const {Option} = Select;
 export function CreateNetworkPage() {
     const [form] = Form.useForm<CreateNetwork>()
     const navi = useNavigate()
@@ -39,6 +39,17 @@ export function CreateNetworkPage() {
             name="addressRange"
         >
             <Input placeholder="10.2.0.0/16"/>
+        </Form.Item>
+        <Form.Item
+            label="Protocol"
+            required
+            rules={[{required: true}]}
+            name="protocol"
+        >
+            <Select>
+                <Option value={NetworkProtocol.TCP}>TCP</Option>
+                <Option value={NetworkProtocol.UDP}>UDP</Option>
+            </Select>
         </Form.Item>
         <Form.Item wrapperCol={{offset: 8, span: 16}}>
             <Button type="ghost" onClick={onFinish}>{intl.formatMessage({id: 'submit'})}</Button>
