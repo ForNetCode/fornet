@@ -56,6 +56,7 @@ impl WRManager {
         let interface = wr_config.interface.unwrap();
         //let address = AllowedIP::from_str(interface.address.as_str()).map_err(|e| anyhow!(e))?;
         let mut address: Vec<AllowedIP> = Vec::new();
+
         for addr in &interface.address {
             address.push(AllowedIP::from_str(addr).map_err(|e| anyhow!(e))?);
         }

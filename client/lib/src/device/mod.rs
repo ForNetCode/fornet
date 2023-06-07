@@ -341,7 +341,6 @@ pub async fn tcp_peers_timer(
     let mut interval = time::interval(Duration::from_millis(250));
     let mut dst_buf: Vec<u8>= vec![0; MAX_UDP_SIZE];
 
-
     loop {
         interval.tick().await;
         let peer_map = &peers.read().await.by_key;
@@ -353,16 +352,18 @@ pub async fn tcp_peers_timer(
             };
             match &mut p.endpoint.tcp_conn {
                 TcpConnection::Nothing| TcpConnection::ConnectedFailure(_) => {
-                    p.endpoint.tcp_conn = TcpConnection::Connecting(SystemTime::now());
-                    match TcpStream::connect(&endpoint_addr).await {
-                        Ok(conn) => {
-                            tcp_handler(conn, endpoint_addr, key_pair.clone(),rate_limiter.clone(), peers.clone(), iface.clone(), pi);
-                        },
-                        Err(error) => {
-                            tracing::debug!("connect {endpoint_addr:?} failure, error: {error:?}");
-                            p.endpoint.tcp_conn = TcpConnection::ConnectedFailure(error)
-                        }
-                    };
+                    if ip < &p.ip {
+                        p.endpoint.tcp_conn = TcpConnection::Connecting(SystemTime::now());
+                        match TcpStream::connect(&endpoint_addr).await {
+                            Ok(conn) => {
+                                tcp_handler(conn, endpoint_addr, key_pair.clone(), rate_limiter.clone(), peers.clone(), iface.clone(), pi);
+                            },
+                            Err(error) => {
+                                tracing::debug!("connect {endpoint_addr:?} failure, error: {error:?}");
+                                p.endpoint.tcp_conn = TcpConnection::ConnectedFailure(error)
+                            }
+                        };
+                    }
                     continue;
                 }
                 TcpConnection::Connecting(_) => {

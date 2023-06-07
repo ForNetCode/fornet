@@ -37,6 +37,7 @@ impl Device {
         run_opt_script(&scripts.pre_up)?;
         tracing::debug!("begin to create tun");
         let (mut iface_reader, iface_writer,pi, name) = create_async_tun(name, mtu, address)?;
+
         tracing::debug!("finish to create tun");
         let iface_writer = Arc::new(Mutex::new(iface_writer));
         let rate_limiter = Arc::new(RateLimiter::new(&key_pair.1, HANDSHAKE_RATE_LIMIT));
@@ -46,7 +47,6 @@ impl Device {
         let mut tun_dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
         let key_pair1 = key_pair.clone();
         let peers1 = peers.clone();
-
         // create tcp/udp server
         let (port,task) = match protocol {
             Protocol::Udp => {
@@ -80,6 +80,7 @@ impl Device {
                 (port, task)
             }
             Protocol::Tcp => {
+                let ip = address[0].addr.clone();
                 let tcp4 = create_tcp_server(port, Domain::IPV4, None)?;
                 let port = tcp4.local_addr()?.port();
                 let tcp6 = create_tcp_server(Some(port), Domain::IPV6, None)?;
@@ -89,7 +90,14 @@ impl Device {
                     loop {
                         tokio::select! {
                             _ = device::rate_limiter_timer(&rate_limiter) => {}
-                            _ = device::tcp_peers_timer(&peers) => {}
+                            _ = device::tcp_peers_timer(
+                                &ip,
+                                &peers,
+                                key_pair.clone(),
+                                rate_limiter.clone(),
+                                iface_writer.clone(),
+                                pi,
+                            ) => {}
                             // iface listen
                             Ok(len) = iface_reader.read(&mut tun_src_buf) => {
                                 let src_buf = if pi {
