@@ -1,6 +1,6 @@
 package com.timzaak.fornet.mqtt
 
-import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NodeDao, NodeStatus}
+import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.entity.PublicKey
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
@@ -8,13 +8,18 @@ import com.timzaak.fornet.protobuf.config.ClientMessage
 import com.timzaak.fornet.pubsub.MqttConnectionManager
 import com.timzaak.fornet.service.NodeService
 import com.typesafe.config.Config
+import inet.ipaddr.IPAddress.IPVersion
+import inet.ipaddr.IPAddressString
+import inet.ipaddr.ipv4.IPv4Address
 import org.hashids.Hashids
-import org.scalatra.{ Forbidden, Ok, ScalatraServlet }
+import org.scalatra.{BadRequest, Forbidden, Ok, ScalatraServlet}
 import very.util.web.LogSupport
-import very.util.web.json.{ JsonResponse, ZIOJsonSupport }
-import zio.json.{ DeriveJsonDecoder, JsonDecoder, jsonField }
+import very.util.web.json.{JsonResponse, ZIOJsonSupport}
+import very.util.web.validate.ValidationExtra
+import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
 
-import scala.util.{ Failure, Try }
+import scala.tools.nsc.backend.jvm.BackendReporting.Invalid
+import scala.util.{Failure, Try}
 
 case class AuthRequest(
   clientId: String, // publicKey
@@ -31,6 +36,18 @@ case class WebHookCallbackRequest(
   topic: String,
 )
 given JsonDecoder[WebHookCallbackRequest] = DeriveJsonDecoder.gen
+
+case class AclRequest(
+  // 1 = sub, 2 = pub
+  access: String,
+  username: String,
+  ipaddr: String,
+  @jsonField("clientid")
+  clientId: String,
+  topic: String
+)
+
+given JsonDecoder[AclRequest] = DeriveJsonDecoder.gen
 
 class MqttCallbackController(
   nodeDao: NodeDao,
@@ -116,8 +133,25 @@ class MqttCallbackController(
     Forbidden()
   }
 
-  post("/acl") {
-    logger.debug(s"mqtt acl does not implement,body: ${request.body}")
+  jPost("/acl") { (req: AclRequest) =>
+    // logger.debug(s"mqtt acl does not implement,body: ${request.body}")
+    // pub
+    if (req.access == "2") {
+      val isPrivateIP =
+        Try(IPAddressString(req.ipaddr).toAddress(IPVersion.IPV4).asInstanceOf[IPv4Address].isPrivate) match {
+          case scala.util.Success(v) => v
+          case _                     => false
+        }
+      if (isPrivateIP) {
+        Ok()
+      } else {
+        Forbidden()
+      }
+      // sub
+    } else if (req.access == "1") {
+
+      // TODO: check it can only subscribe self, add hashId to username,and check
+    }
     Ok()
   }
 }
