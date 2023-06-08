@@ -1,6 +1,7 @@
 # ForNet
 
 ---
+**v0.0.3 has a terrible bug of error usage of mqtt**, please wait for V0.0.4.
 
 ForNet is another Layer3 Virutal Private Network software, built on top of [BoringTun](https://github.com/cloudflare/boringtun).
 
