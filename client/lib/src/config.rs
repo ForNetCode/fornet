@@ -235,11 +235,18 @@ impl Debug for Identity {
         )
     }
 }
+#[derive(Deserialize, Serialize, Debug)]
+pub struct NodeInfo {
+    pub network_id: String,
+    pub mqtt_url: String,
+    pub node_id: String,
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ServerConfig {
     pub server: String,
-    pub mqtt: HashMap<String,String>
+    //networkId, mqttUrl, clientId
+    pub info: Vec<NodeInfo>
 }
 
 /* impl default for serverconfig {

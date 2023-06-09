@@ -8,7 +8,7 @@ import com.timzaak.fornet.controller.auth.AppAuthStrategyProvider
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.protobuf.auth.*
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
-import com.timzaak.fornet.service.{GRPCAuth, NodeAuthService}
+import com.timzaak.fornet.service.{ GRPCAuth, NodeAuthService }
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import inet.ipaddr.IPAddress.IPVersion
@@ -20,12 +20,12 @@ import very.util.keycloak.KeycloakJWTAuthStrategy
 import very.util.web.LogSupport
 import very.util.security.IntID
 import zio.json.*
-import zio.json.ast.{Json, JsonCursor}
+import zio.json.ast.{ Json, JsonCursor }
 
 import java.net.http.HttpRequest.BodyPublishers
-import java.net.http.{HttpClient, HttpRequest}
-import java.net.{URI, URLEncoder}
-import java.time.{LocalDateTime, OffsetDateTime}
+import java.net.http.{ HttpClient, HttpRequest }
+import java.net.{ URI, URLEncoder }
+import java.time.{ LocalDateTime, OffsetDateTime }
 import scala.concurrent.Future
 
 class AuthGRPCController(
@@ -44,10 +44,18 @@ class AuthGRPCController(
   private val mqttClientUrl = config.get[String]("mqtt.clientUrl")
 
   import quill.{ *, given }
+  private def errorResponse(message: String) = ActionResponse(ActionResponse.Response.Error(message))
+  private def successResponse(secretId:String) = ActionResponse(
+    ActionResponse.Response.Success(
+      com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, secretId)
+    )
+  )
 
   override def inviteConfirm(
     request: InviteConfirmRequest
   ): Future[ActionResponse] = {
+
+
     var params = Seq(request.networkId)
     if (request.nodeId.nonEmpty) {
       params = params.appended(request.nodeId.get)
@@ -86,21 +94,22 @@ class AuthGRPCController(
               NodeStatus.Waiting,
               NodeStatus.Normal
             )
-            ActionResponse(true, mqttUrl = Some(mqttClientUrl))
+            successResponse(node.id.secretId)
+
           } else {
-            ActionResponse(message = Some("already active or error response"))
+            errorResponse("already active or error response")
           }
         case None =>
           createNode(networkId, publicKey) match {
-            case Some(value) => ActionResponse(message = Some(value))
-            case None =>
-              ActionResponse(isOk = true, mqttUrl = Some(mqttClientUrl))
+            case Left(value) => errorResponse(value)
+            case Right(id) =>
+              successResponse(id.secretId)
           }
       }
       Future.successful(response)
     } else {
       Future.successful(
-        ActionResponse(message = Some("Illegal Arguments"))
+        errorResponse("Illegal Arguments")
       )
     }
   }
@@ -120,35 +129,34 @@ class AuthGRPCController(
 
         authResult match {
           case Left(value) =>
-            Future.successful(ActionResponse(message = Some(value)))
+            Future.successful(errorResponse(value))
           case Right(userId) =>
             val publicKey = request.encrypt.get.publicKey
             val networkId = IntID(request.networkId)
 
             logger.info(
-              s"user:${userId},networkId:${networkId}, publicKey:${request.encrypt.get.publicKey} register device with code:${request.deviceCode}"
+              s"user:${userId},networkId:${request.networkId}, publicKey:${request.encrypt.get.publicKey} register device with code:${request.deviceCode}"
             )
             Future.successful(
               createNode(networkId, publicKey) match {
-                case Some(value) => ActionResponse(message = Some(value))
-                case None =>
-                  ActionResponse(isOk = true, mqttUrl = Some(mqttClientUrl))
+                case Left(value) => errorResponse(value)
+                case Right(id) => successResponse(id.secretId)
               }
             )
         }
       } else {
         Future.successful(
-          ActionResponse(message = Some("do not support keycloak now"))
+          errorResponse("do not support keycloak now")
         )
       }
     } else {
       Future.successful(
-        ActionResponse(message = Some("Illegal Arguments"))
+        errorResponse("Illegal Arguments")
       )
     }
   }
 
-  private def createNode(networkId: IntID, publicKey: String) = {
+  private def createNode(networkId: IntID, publicKey: String):Either[String, IntID] = {
     val network = networkDao.findById(networkId).get
     // network create node
     val usedIp = nodeDao
@@ -187,11 +195,11 @@ class AuthGRPCController(
           }
         }
         logger.info(
-          s"new client:$id(${publicKey}) join network ${network.id}"
+          s"new client:${id.id}(${publicKey}) join network ${network.id}"
         )
-        None
+        Right(id)
       case None =>
-        Some("Network has no available IP")
+        Left("Network has no available IP")
     }
   }
 

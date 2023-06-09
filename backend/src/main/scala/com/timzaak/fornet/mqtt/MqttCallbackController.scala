@@ -12,14 +12,15 @@ import inet.ipaddr.IPAddress.IPVersion
 import inet.ipaddr.IPAddressString
 import inet.ipaddr.ipv4.IPv4Address
 import org.hashids.Hashids
-import org.scalatra.{BadRequest, Forbidden, Ok, ScalatraServlet}
+import org.scalatra.{ ActionResult, BadRequest, Forbidden, Ok, ScalatraServlet }
 import very.util.web.LogSupport
-import very.util.web.json.{JsonResponse, ZIOJsonSupport}
+import very.util.web.json.{ JsonResponse, ZIOJsonSupport }
 import very.util.web.validate.ValidationExtra
-import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
+import very.util.security.IntID.toIntID
+import zio.json.{ DeriveJsonDecoder, JsonDecoder, jsonField }
 
-import scala.tools.nsc.backend.jvm.BackendReporting.Invalid
-import scala.util.{Failure, Try}
+import scala.util.{ Failure, Success, Try }
+import scala.util.matching.Regex
 
 case class AuthRequest(
   clientId: String, // publicKey
@@ -34,6 +35,7 @@ case class WebHookCallbackRequest(
   @jsonField("clientid")
   clientId: String,
   topic: String,
+  username: String,
 )
 given JsonDecoder[WebHookCallbackRequest] = DeriveJsonDecoder.gen
 
@@ -49,6 +51,7 @@ case class AclRequest(
 
 given JsonDecoder[AclRequest] = DeriveJsonDecoder.gen
 
+private val networkTopicPattern = """^network/(\w+)$""".r
 class MqttCallbackController(
   nodeDao: NodeDao,
   networkDao: NetworkDao,
@@ -67,7 +70,7 @@ class MqttCallbackController(
       val plainText = data.dropRight(1).mkString("-")
       PublicKey(clientId).validate(plainText, signature) && nodeDao
         .findByPublicKey(clientId)
-        .nonEmpty
+        .exists(_.id.secretId == username)
     } else {
       false
     }
@@ -86,7 +89,7 @@ class MqttCallbackController(
     // {"action":"client_subscribe","clientid":"C5yG28uwzTumy6PpBEGqvvEWLJ8dYzF1uSFGziJG6Q8Jl+DPCRZZX05MPXb/s9GWsuO2JXzADAHz70WVbD2lew==","ipaddress":"127.0.0.1:56588","node":1,"opts":{"qos":1},"topic":"client","username":"undefined"}
 
     Try {
-      if (action == "client_subscribe" && topic == "client") {
+      if (action == "client_subscribe" && topic == s"client/${req.username}") {
         // send wr config
         val nodes =
           nodeDao
@@ -134,13 +137,13 @@ class MqttCallbackController(
   }
 
   jPost("/acl") { (req: AclRequest) =>
-    // logger.debug(s"mqtt acl does not implement,body: ${request.body}")
+    logger.debug(s"mqtt acl: ${request.body}")
     // pub
-    if (req.access == "2") {
+    val result: ActionResult = if (req.access == "2") {
       val isPrivateIP =
         Try(IPAddressString(req.ipaddr).toAddress(IPVersion.IPV4).asInstanceOf[IPv4Address].isPrivate) match {
-          case scala.util.Success(v) => v
-          case _                     => false
+          case Success(v) => v
+          case _          => false
         }
       if (isPrivateIP) {
         Ok()
@@ -149,9 +152,30 @@ class MqttCallbackController(
       }
       // sub
     } else if (req.access == "1") {
+      Try(req.username.toIntID).fold(
+        _ => Forbidden(),
+        { id =>
+          req.topic match {
+            case networkTopicPattern(secretId) =>
+              Try(secretId.toIntID).fold(
+                _ => Forbidden(),
+                { networkId =>
+                  if (nodeDao.findById(networkId, id).nonEmpty) {
+                    Ok()
+                  } else {
+                    Forbidden()
+                  }
+                }
+              )
 
-      // TODO: check it can only subscribe self, add hashId to username,and check
+            case s"client/${id.secretId}" => Ok()
+            case _                        => Forbidden()
+          }
+        }
+      )
+    } else {
+      Forbidden()
     }
-    Ok()
+    result
   }
 }

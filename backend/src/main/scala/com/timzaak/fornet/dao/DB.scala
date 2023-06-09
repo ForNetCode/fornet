@@ -3,8 +3,6 @@ package com.timzaak.fornet.dao
 import io.getquill.*
 import io.getquill.context.jdbc.{ Decoders, Encoders }
 import very.util.persistence.quill.{ IDSupport, PageSupport, ZIOJsonSupport }
-//import org.json4s.Extraction
-//import org.json4s.JsonAST.JValue
 import very.util.entity.Pagination
 
 import java.time.{ LocalDateTime, OffsetDateTime }
@@ -20,8 +18,6 @@ class DB extends PostgresJdbcContext(SnakeCase, "database") with ZIOJsonSupport 
 
   given decodeOffsetDateTime: Decoder[OffsetDateTime] =
     decoder((index, row, _) => row.getObject(index, classOf[OffsetDateTime]))
-
-  // import org.json4s.jvalue2extractable
 
 //  private inline def encodeJValueEntity[T]:MappedEncoding[T,JValue] = MappedEncoding[T,JValue](v => Extraction.decompose(v)(formats))
 //  private inline def decodeJValueEntity[T](implicit mf:scala.reflect.Manifest[T]):MappedEncoding[JValue, T] = MappedEncoding[JValue,T](_.extract[T])

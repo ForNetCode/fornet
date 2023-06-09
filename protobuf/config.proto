@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package config;
 
-import "google/protobuf/empty.proto";
+//import "google/protobuf/empty.proto";
 
 option java_package = "com.timzaak.fornet.protobuf";
 

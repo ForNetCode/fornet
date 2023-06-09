@@ -35,9 +35,9 @@ impl SCManager {
             status: None,
         };
 
-        for (_, mqtt_url) in &config.server_config.mqtt {
+        for node_info in &config.server_config.info {
             let mut client = mqtt::CreateOptionsBuilder::new()
-                .server_uri(mqtt_url)
+                .server_uri(&node_info.mqtt_url)
                 .client_id(
                     &config.identity.pk_base64,
                 ).create_client()?;
@@ -48,6 +48,7 @@ impl SCManager {
 
             let conn_ops = mqtt::ConnectOptionsBuilder::new_v5()
                 .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 3600])
+                .user_name(&node_info.node_id)
                 .password(password)
                 .finalize();
             //client
@@ -55,8 +56,9 @@ impl SCManager {
             //tokio spawn
 
             client.connect(conn_ops).await?;
-            let mut topics = config.server_config.mqtt.iter().map(|(key,_)| format!("network/{key}")).collect::<Vec<String>>();
-            topics.push("client".to_owned());
+            let client_topic = format!("client/{}",&node_info.node_id);
+            let network_topic = format!("network/{}", &node_info.network_id);
+            let mut topics = vec!(&client_topic, &network_topic);
             let sub_opts = vec![mqtt::SubscribeOptions::with_retain_as_published(); topics.len()];
 
             let qos = vec![1i32; topics.len()];
@@ -68,7 +70,7 @@ impl SCManager {
                 if let Some(msg) = msg_opt {
                     tracing::debug!("receive message, topic: {}",msg.topic());
                     match msg.topic() {
-                        "client" => {
+                        topic if topic == &client_topic => {
                             if let Ok(client_message) = ClientMessage::decode(msg.payload()) {
                                 if let Some(info) = client_message.info {
                                     match info {
@@ -104,7 +106,7 @@ impl SCManager {
                                 tracing::warn!("client message can not decode, may should update software");
                             }
                         }
-                        "network" => {
+                        topic if topic == &network_topic => {
                             if let Ok(network_message) = NetworkMessage::decode(msg.payload()) {
                                 if let Some(info) = network_message.info {
                                     match info {
