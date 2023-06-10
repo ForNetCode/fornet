@@ -1,6 +1,5 @@
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
-use std::time::Duration;
 use anyhow::anyhow;
 use serde_derive::{Deserialize, Serialize};
 use crate::config::{Config, Identity};

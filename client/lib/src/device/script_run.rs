@@ -1,4 +1,4 @@
-use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog, ShellTaskOutput};
+use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog};
 use crate::protobuf::config::Interface;
 
 #[derive(Default,Debug)]

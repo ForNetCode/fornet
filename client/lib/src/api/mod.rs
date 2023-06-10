@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -12,7 +11,6 @@ use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuth
 use crate::server_api::APISocket;
 use crate::server_manager::{ServerManager, ServerMessage};
 use std::time::Duration;
-use auto_launch_extra::AutoLaunchBuilder;
 use cfg_if::cfg_if;
 use tonic::{
     transport::Channel,

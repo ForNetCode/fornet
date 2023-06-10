@@ -1,5 +1,5 @@
 use std::net::{SocketAddr};
-use tokio::net::{TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
+use tokio::net::{TcpListener, ToSocketAddrs, UdpSocket};
 use socket2::{Type, Protocol, Domain};
 
 pub fn create_udp_socket(port: Option<u16>, domain: Domain, mark:Option<u32>) -> anyhow::Result<UdpSocket> {

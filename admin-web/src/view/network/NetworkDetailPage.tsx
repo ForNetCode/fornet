@@ -1,7 +1,7 @@
 import {useEffect} from "react";
 import {getNetwork, Network, NetworkProtocol, updateNetwork} from "../../api/networkAPI";
 import {useParams} from "react-router-dom";
-import {Button, Col, Form, Input, InputNumber, Row, Select} from "antd";
+import {Button, Col, Form, Input, InputNumber, message, Row, Select} from "antd";
 import {useIntl} from "react-intl";
 import {useForm} from "antd/es/form/Form";
 
@@ -21,6 +21,7 @@ export default function NetworkDetailPage() {
     const submit = async () => {
         const data = await form.validateFields()
         await updateNetwork(networkId!, data)
+        message.info(intl.formatMessage({id: 'result.updateSuccess'}, {'0': intl.formatMessage({id: 'nav.network'})}))
     }
     return (
         <>

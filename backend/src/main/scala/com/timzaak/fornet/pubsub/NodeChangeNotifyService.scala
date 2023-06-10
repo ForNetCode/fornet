@@ -27,7 +27,7 @@ class NodeChangeNotifyService(
     val wrConfig: WRConfig =
       EntityConvert.nodeToWRConfig(fixedNode, network, relativeNodes)
 
-    connectionManager.sendMessage(
+    connectionManager.sendClientMessage(
       oldNode.networkId,
       oldNode.id,
       oldNode.publicKey,
@@ -39,7 +39,7 @@ class NodeChangeNotifyService(
       // only keep alive matter
       case NodeType.Relay =>
         // notify other nodes in network that relay change.
-        connectionManager.sendMessage(
+        connectionManager.sendNetworkMessage(
           fixedNode.networkId,
           NetworkMessage(
             networkId = networkId,
@@ -61,7 +61,7 @@ class NodeChangeNotifyService(
       for ((node, relativeNodes) <- nodeService.getNetworkAllRelativeNodes(nodes)) {
         val wrConfig = EntityConvert.nodeToWRConfig(node, newNetwork, relativeNodes)
         // this would trigger all nodes restart.
-        connectionManager.sendMessage(
+        connectionManager.sendClientMessage(
           node.networkId,
           node.id,
           node.publicKey,
@@ -74,7 +74,7 @@ class NodeChangeNotifyService(
 
   // PS: Network would never recover from delete status
   def networkDeleteNotify(networkId: IntID): Unit = {
-    connectionManager.sendMessage(
+    connectionManager.sendNetworkMessage(
       networkId,
       NetworkMessage(
         networkId = networkId.secretId,
@@ -91,7 +91,7 @@ class NodeChangeNotifyService(
     import NodeStatus.*
     val networkId = node.networkId.secretId
     // notify self node status change
-    connectionManager.sendMessage(
+    connectionManager.sendClientMessage(
       node.networkId,
       node.id,
       node.publicKey,
@@ -103,7 +103,7 @@ class NodeChangeNotifyService(
 
     (oldStatus, status) match {
       case (Normal, _) =>
-        connectionManager.sendMessage(
+        connectionManager.sendNetworkMessage(
           node.networkId,
           NetworkMessage(
             networkId = networkId,
@@ -119,7 +119,7 @@ class NodeChangeNotifyService(
         val network = networkDao.findById(node.networkId).get
         val peer = EntityConvert.toPeer(node, network)
 
-        connectionManager.sendMessage(
+        connectionManager.sendNetworkMessage(
           node.networkId,
           NetworkMessage(
             networkId = networkId,
@@ -131,7 +131,7 @@ class NodeChangeNotifyService(
 
         val notifyNodes = nodeService.getAllRelativeNodes(node)
 
-        connectionManager.sendMessage(
+        connectionManager.sendClientMessage(
           node.networkId,
           node.id,
           node.publicKey,

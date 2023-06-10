@@ -5,7 +5,7 @@ use paho_mqtt as mqtt;
 use prost::Message;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::StreamExt;
-use crate::config::NodeInfo;
+use crate::config::{NodeInfo, Config as AppConfig};
 
 use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
@@ -30,7 +30,7 @@ impl SCManager {
         }
     }
 
-    async fn mqtt_reconnect(&mut self, node_info: &NodeInfo, deduplication:&mut Duplication) -> anyhow::Result<()> {
+    async fn mqtt_reconnect(sender:Sender<ServerMessage>, node_info: &NodeInfo, config:Arc<AppConfig>, deduplication:&mut Duplication) -> anyhow::Result<()> {
         let mut client = mqtt::CreateOptionsBuilder::new()
             .server_uri(&node_info.mqtt_url)
             .client_id(
@@ -53,7 +53,7 @@ impl SCManager {
         client.connect(conn_ops).await?;
         let client_topic = format!("client/{}",&node_info.node_id);
         let network_topic = format!("network/{}", &node_info.network_id);
-        let mut topics = vec!(&client_topic, &network_topic);
+        let topics = vec!(&client_topic, &network_topic);
         let sub_opts = vec![mqtt::SubscribeOptions::with_retain_as_published(); topics.len()];
 
         let qos = vec![1i32; topics.len()];
@@ -74,7 +74,7 @@ impl SCManager {
                                             continue;
                                         }
 
-                                        let _ = self.sender.send(ServerMessage::SyncConfig(wr_config.clone())).await;
+                                        let _ = sender.send(ServerMessage::SyncConfig(wr_config.clone())).await;
                                         deduplication.wr_config = Some(wr_config);
                                     }
                                     Status(status) => {
@@ -84,7 +84,7 @@ impl SCManager {
                                             }
                                             match node_status {
                                                 NodeStatus::NodeForbid => {
-                                                    let _ = self.sender.send(
+                                                    let _ = sender.send(
                                                         ServerMessage::StopWR("node has been forbid or delete".to_owned())
                                                     ).await;
                                                 }
@@ -106,11 +106,11 @@ impl SCManager {
                             if let Some(info) = network_message.info {
                                 match info {
                                     Peer(peer_change) => {
-                                        let _ = self.sender.send(ServerMessage::SyncPeers(peer_change)).await;
+                                        let _ = sender.send(ServerMessage::SyncPeers(peer_change)).await;
                                     }
                                     NStatus(status) => {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
-                                            let _ = self.sender.send(
+                                            let _ = sender.send(
                                                 ServerMessage::StopWR("network has been delete".to_owned())
                                             ).await;
                                         }
@@ -137,19 +137,23 @@ impl SCManager {
     }
 
     pub async fn mqtt_connect(&mut self, config: Arc<crate::config::Config>) -> anyhow::Result<()> {
-
         for node_info in &config.server_config.info {
             let mut deduplication = Duplication {
                 wr_config: None,
                 status: None,
             };
             let node_info = node_info.clone();
-            tokio::spawn(async {
-                //self.mqtt_reconnect(node_info.clone(),)
+            let _config = config.clone();
+            let _sender = self.sender.clone();
+            tokio::spawn(async move{
+                loop {
+                    let _config = _config.clone();
+                    let _sender = _sender.clone();
+                    let _ = SCManager::mqtt_reconnect(_sender, &node_info, _config, &mut deduplication).await;
+                    tracing::debug!("mqtt connect error");
+                    tokio::time::sleep(Duration::from_secs(10)).await;
+                }
             });
-            loop {
-
-            }
 
         }
         Ok(())

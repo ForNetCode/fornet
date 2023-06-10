@@ -1,7 +1,7 @@
 package com.timzaak.fornet.pubsub
 
-import com.timzaak.fornet.mqtt.api.{ PublishRequest, RMqttApiClient }
-import com.timzaak.fornet.protobuf.config.{ ClientMessage, NetworkMessage }
+import com.timzaak.fornet.mqtt.api.{PublishRequest, RMqttApiClient}
+import com.timzaak.fornet.protobuf.config.{ClientMessage, NetworkMessage}
 import org.hashids.Hashids
 import scalapb.GeneratedMessage
 import very.util.security.IntID
@@ -18,7 +18,11 @@ class MqttConnectionManager(
   private def encodeMessage(message: GeneratedMessage) =
     Base64.getEncoder.encodeToString(message.toByteArray)
 
-  def sendMessage(networkId: IntID, message: NetworkMessage, retain: Option[Boolean] = Some(false)): Try[Boolean] = {
+  def sendNetworkMessage(
+    networkId: IntID,
+    message: NetworkMessage,
+    retain: Option[Boolean] = Some(false)
+  ): Try[Boolean] = {
     logTry(s"send message[Network:${networkId.id}] failure")(
       mqttApiClient.publish(
         PublishRequest(
@@ -31,7 +35,7 @@ class MqttConnectionManager(
       )
     )
   }
-  def sendMessage(
+  def sendClientMessage(
     networkId: IntID,
     nodeId: IntID,
     publicKey: String,

@@ -24,14 +24,13 @@ use rand::rngs::OsRng;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc};
 use std::time::{Duration, SystemTime};
-use anyhow::anyhow;
 use boringtun::noise::errors::WireGuardError;
 use boringtun::noise::rate_limiter::RateLimiter;
 use boringtun::noise::{Packet, Tunn, TunnResult};
 use boringtun::noise::handshake::parse_handshake_anon;
 use prost::bytes::BufMut;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
-use tokio::sync::{Mutex,MutexGuard, RwLock};
+use tokio::sync::{Mutex, RwLock};
 use tokio::time;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};//keep
 use tokio::net::tcp::OwnedWriteHalf;
@@ -528,7 +527,7 @@ pub async fn tcp_listener_handler(
     pi: bool,
 ) ->anyhow::Result<()> {
     loop {
-        let (mut socket, addr) = listener.accept().await?;
+        let (socket, addr) = listener.accept().await?;
         let key_pair = key_pair.clone();
         let rate_limiter = rate_limiter.clone();
         let peers = peers.clone();
@@ -548,7 +547,7 @@ pub fn tcp_handler(
 ) {
     tokio::spawn(async move {
         let (private_key, public_key) = key_pair.as_ref();
-        let (mut reader, mut writer ) = socket.into_split();
+        let (mut reader, writer ) = socket.into_split();
         let mut writer = WriterState::PureWriter(writer);
         let mut src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
         let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
