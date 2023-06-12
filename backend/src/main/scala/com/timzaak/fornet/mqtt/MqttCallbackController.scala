@@ -12,15 +12,15 @@ import inet.ipaddr.IPAddress.IPVersion
 import inet.ipaddr.IPAddressString
 import inet.ipaddr.ipv4.IPv4Address
 import org.hashids.Hashids
-import org.scalatra.{ ActionResult, BadRequest, Forbidden, Ok, ScalatraServlet }
-import very.util.web.LogSupport
-import very.util.web.json.{ JsonResponse, ZIOJsonSupport }
-import very.util.web.validate.ValidationExtra
+import org.scalatra.*
 import very.util.security.IntID.toIntID
-import zio.json.{ DeriveJsonDecoder, JsonDecoder, jsonField }
+import very.util.web.LogSupport
+import very.util.web.json.{JsonResponse, ZIOJsonSupport}
+import very.util.web.validate.ValidationExtra
+import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
 
-import scala.util.{ Failure, Success, Try }
 import scala.util.matching.Regex
+import scala.util.{Failure, Success, Try}
 
 case class AuthRequest(
   clientId: String, // publicKey
@@ -65,15 +65,16 @@ class MqttCallbackController(
   jPost("/auth") { (req: AuthRequest) =>
     import req.*
     val data = password.split('|')
-    val isOk = if (data.length != 3) {
+    val isOk = if (data.length == 3) {
       val signature = data.last
-      val plainText = data.dropRight(1).mkString("-")
+      val plainText = data.dropRight(1).mkString("|")
       PublicKey(clientId).validate(plainText, signature) && nodeDao
         .findByPublicKey(clientId)
         .exists(_.id.secretId == username)
     } else {
       false
     }
+    logger.debug(s"userName:${req.username}, ${req.clientId} auth ${isOk}")
     if (isOk) {
       Ok()
     } else {
@@ -141,14 +142,14 @@ class MqttCallbackController(
           case _          => false
         }
       if (isPrivateIP) {
-        Ok()
+        Ok("allow")
       } else {
-        Forbidden()
+        Forbidden("deny")
       }
       // sub
     } else if (req.access == "1") {
       Try(req.username.toIntID).fold(
-        _ => Forbidden(),
+        _ => Forbidden("allow"),
         { id =>
           req.topic match {
             case networkTopicPattern(secretId) =>
@@ -156,20 +157,20 @@ class MqttCallbackController(
                 _ => Forbidden(),
                 { networkId =>
                   if (nodeDao.findById(networkId, id).nonEmpty) {
-                    Ok()
+                    Ok("allow")
                   } else {
-                    Forbidden()
+                    Forbidden("deny")
                   }
                 }
               )
 
-            case s"client/${id.secretId}" => Ok()
-            case _                        => Forbidden()
+            case s"client/${id.secretId}" => Ok("allow")
+            case _                        => Forbidden("deny")
           }
         }
       )
     } else {
-      Forbidden()
+      Forbidden("deny")
     }
     result
   }
