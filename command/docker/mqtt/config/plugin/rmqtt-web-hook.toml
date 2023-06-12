@@ -32,7 +32,7 @@ retry_multiplier = 2.5
 #rule.client_connack = [{action = "client_connack", urls = ["http://127.0.0.1:5656/mqtt/webhook", "http://127.0.0.1:5656/mqtt/webhook"] } ]
 #rule.client_connected = [{action = "client_connected" } ]
 #rule.client_disconnected = [{action = "client_disconnected" } ]
-rule.client_subscribe = [{action = "client_subscribe", topics=["client"]} ]
+rule.client_subscribe = [{action = "client_subscribe", topics=["client/#"]} ]
 #rule.client_unsubscribe = [{action = "client_unsubscribe", topics=["x/y/z", "foo/#"] } ]
 
 #rule.message_publish = [{action = "message_publish" }]

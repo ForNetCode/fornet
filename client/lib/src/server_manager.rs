@@ -33,10 +33,8 @@ impl ServerManager {
             let mut sc_manager = SCManager::new(tx.clone());
             let config = config.clone();
             let _ = tokio::spawn(async move {
-                match sc_manager.mqtt_connect(config).await {
-                    Ok(()) => tracing::warn!("sync config manager close, now can not receive any update from server"),
-                    Err(e) => tracing::error!("sync config manager connect server result:{:?}", e),
-                };
+                tracing::debug!("mqtt connect");
+                let _ = sc_manager.mqtt_connect(config).await;
             });
         } else {
             if start_method == StartMethod::CommandLine {

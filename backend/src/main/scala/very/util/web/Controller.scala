@@ -1,5 +1,6 @@
 package very.util.web
 
+import com.typesafe.scalalogging.LazyLogging
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.*
 //import org.json4s.Formats
@@ -14,7 +15,7 @@ class Controller //(using val jsonFormats: Formats)
   with I18nSupport
   with ValidationExtra
   with PaginationSupport
-  with LogSupport {
+  with LazyLogging {
   override def defaultFormat: Symbol = Symbol("txt")
   def badResponse(msg: String): ActionResult = {
     contentType = formats("txt")
