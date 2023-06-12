@@ -131,11 +131,6 @@ class MqttCallbackController(
     Ok()
   }
 
-  post("/superuser") {
-    logger.debug(s"mqtt super user does not implement ${request.body}")
-    Forbidden()
-  }
-
   jPost("/acl") { (req: AclRequest) =>
     logger.debug(s"mqtt acl: ${request.body}")
     // pub
