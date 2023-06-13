@@ -8,6 +8,7 @@ import com.timzaak.fornet.protobuf.config.ClientMessage
 import com.timzaak.fornet.pubsub.MqttConnectionManager
 import com.timzaak.fornet.service.NodeService
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import inet.ipaddr.IPAddress.IPVersion
 import inet.ipaddr.IPAddressString
 import inet.ipaddr.ipv4.IPv4Address
@@ -59,7 +60,7 @@ class MqttCallbackController(
   mqttConnectionManager: MqttConnectionManager,
 )(using hashId: Hashids)
   extends ScalatraServlet
-  with LogSupport
+  with LazyLogging
   with ZIOJsonSupport {
 
   jPost("/auth") { (req: AuthRequest) =>

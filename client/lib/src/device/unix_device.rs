@@ -81,9 +81,10 @@ impl Device {
             }
             Protocol::Tcp => {
                 let ip = address[0].addr.clone();
-                let tcp4 = create_tcp_server(port, Domain::IPV4, None)?;
-                let port = tcp4.local_addr()?.port();
-                let tcp6 = create_tcp_server(Some(port), Domain::IPV6, None)?;
+                //let tcp4 = create_tcp_server(port, Domain::IPV4, None)?;
+                //let port = tcp4.local_addr()?.port();
+                let tcp6 = create_tcp_server(port, Domain::IPV6, None)?;
+                let port = tcp6.local_addr()?.port();
                 let key_pair = Arc::new(key_pair);
 
                 let task:JoinHandle<()> = tokio::spawn(async move {
@@ -107,7 +108,7 @@ impl Device {
                                 };
                                 device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
                             }
-                            _ = device::tcp_listener_handler(&tcp4, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
+                            //_ = device::tcp_listener_handler(&tcp4, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
                             _ = device::tcp_listener_handler(&tcp6, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
                         }
                     }

@@ -28,29 +28,33 @@ pub fn create_udp_socket(port: Option<u16>, domain: Domain, mark:Option<u32>) ->
     socket.bind(&address.into())?;
     Ok(UdpSocket::from_std(socket.into())?)
 }
-
+//TODO: how to bind same port of IPv6 IPv4
 pub fn create_tcp_server(port: Option<u16>, domain: Domain, mark:Option<u32>) ->anyhow::Result<TcpListener>{
     let socket = socket2::Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
     #[cfg(target_os = "linux")]
     {
-        socket.set_reuse_address(true)?; // On Linux SO_REUSEPORT won't prefer a connected IPv6 socket
         if let Some(mark) = mark {
             socket.set_mark(mark)?;
         }
     }
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-    socket.set_reuse_port(true)?;
 
     let port = port.unwrap_or(0);
     let address: SocketAddr = match domain {
         Domain::IPV4 =>
             format!("0.0.0.0:{}", port),
-        Domain::IPV6 =>
-            format!("[::]:{}", port),
-        _ => panic!("udp client don't support Domain::Unix")
+        Domain::IPV6 => {
+            socket.set_only_v6(false)?;
+            format!("[::]:{}", port)
+        },
+        _ => panic!("tcp server don't support Domain::Unix")
     }.parse()?;
+
+    socket.set_nonblocking(true)?;
     socket.bind(&address.into())?;
-    let tcp_listener = TcpListener::from_std(socket.into())?;
+    socket.listen(128)?;
+
+    let tcp_listener = socket.into();
+    let tcp_listener = TcpListener::from_std(tcp_listener)?;
     Ok(tcp_listener)
 }
 

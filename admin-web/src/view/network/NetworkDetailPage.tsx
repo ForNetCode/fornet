@@ -81,6 +81,7 @@ export default function NetworkDetailPage() {
         </>
     )
 }
+// add Nodes Navigator, Invite Code
 // <Col span={8}>
 //     <Form.Item name={['setting', 'dns']} label="Default DNS"><Input/></Form.Item>
 // </Col>
