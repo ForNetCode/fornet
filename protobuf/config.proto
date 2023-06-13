@@ -42,8 +42,10 @@ message PeerChange {
 }
 
 message WRConfig {
-  Interface interface = 1;
-  repeated Peer peers = 2;
+  string network_id = 1;
+  NodeType type = 2;
+  Interface interface = 3;
+  repeated Peer peers = 4;
 }
 
 enum NodeStatus {
@@ -54,9 +56,12 @@ enum NodeStatus {
 enum NetworkStatus {
   NETWORK_DELETE = 0;
 }
+enum NodeType {
+  NODE_CLIENT = 0;
+  NODE_RELAY = 1;
+}
 
 message ClientMessage {
-  string network_id = 1;
   oneof info {
     WRConfig config = 2;
     NodeStatus status = 3;

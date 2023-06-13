@@ -2,7 +2,7 @@ package com.timzaak.fornet.pubsub
 
 import com.timzaak.fornet.dao.{NetworkDao, *}
 import com.timzaak.fornet.grpc.convert.EntityConvert
-import com.timzaak.fornet.protobuf.config.{NetworkStatus as PNetworkStatus, NodeStatus as PNodeStatus, *}
+import com.timzaak.fornet.protobuf.config.{NetworkStatus as PNetworkStatus, NodeStatus as PNodeStatus, NodeType as PNodeType, *}
 import com.timzaak.fornet.service.NodeService
 import org.hashids.Hashids
 import very.util.security.IntID
@@ -97,7 +97,8 @@ class NodeChangeNotifyService(
       node.publicKey,
       ClientMessage(
         networkId = networkId,
-        ClientMessage.Info.Status(status.gRPCNodeStatus)
+        ClientMessage.Info.Status(status.gRPCNodeStatus),
+        `type` = node.nodeType.gRPCNodeType,
       )
     )
 
@@ -139,7 +140,8 @@ class NodeChangeNotifyService(
             networkId = networkId,
             ClientMessage.Info.Config(
               EntityConvert.nodeToWRConfig(node, network, notifyNodes)
-            )
+            ),
+            `type` = node.nodeType.gRPCNodeType
           )
         )
       case _ =>

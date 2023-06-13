@@ -44,7 +44,7 @@ object EntityConvert {
           mtu = Some(setting.mtu.getOrElse(nSetting.mtu)),
           postUp = setting.postUp,
           postDown = setting.postDown,
-          protocol = nSetting.protocol.gRPCProtocol
+          protocol = nSetting.protocol.gRPCProtocol,
         ),
       ),
       peers = toPeers(relativeNodes.filter(_.id != node.id), network)

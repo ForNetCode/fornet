@@ -120,7 +120,7 @@ class MqttCallbackController(
                 networkId = node.networkId.secretId,
                 ClientMessage.Info.Config(
                   EntityConvert.nodeToWRConfig(node, network, notifyNodes)
-                )
+                ),
               )
             )
           }

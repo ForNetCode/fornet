@@ -13,6 +13,14 @@ enum NodeType {
   // Normal: Fornet Client
 
   case Client, Relay
+
+  import com.timzaak.fornet.protobuf.config.NodeType as PNodeType
+  def gRPCNodeType: PNodeType = {
+    this match {
+      case NodeType.Client => PNodeType.NODE_CLIENT
+      case NodeType.Relay  => PNodeType.NODE_RELAY
+    }
+  }
 }
 
 object NodeType {
@@ -102,7 +110,7 @@ case class Node(
 }
 
 object Node {
-  import very.util.web.json.{intIDDecoder, intIDEncoder}
+  import very.util.web.json.{ intIDDecoder, intIDEncoder }
   given nodeCCodec(using hashId: Hashids): JsonCodec[Node] = DeriveJsonCodec.gen
 }
 
@@ -175,9 +183,7 @@ class NodeDao(using quill: DB, hashids: Hashids) {
 
   def getAllAvailableNodes(networkId: IntID): Seq[Node] = quill.run {
     quote {
-      query[Node].filter(n =>
-        n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal)
-      )
+      query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal))
     }
   }
   def getAllAvailableNodes(
