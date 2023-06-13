@@ -98,7 +98,6 @@ class NodeChangeNotifyService(
       ClientMessage(
         networkId = networkId,
         ClientMessage.Info.Status(status.gRPCNodeStatus),
-        `type` = node.nodeType.gRPCNodeType,
       )
     )
 
@@ -141,7 +140,6 @@ class NodeChangeNotifyService(
             ClientMessage.Info.Config(
               EntityConvert.nodeToWRConfig(node, network, notifyNodes)
             ),
-            `type` = node.nodeType.gRPCNodeType
           )
         )
       case _ =>

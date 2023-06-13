@@ -40,6 +40,7 @@ use peer::{AllowedIP, Peer};
 use script_run::Scripts;
 use crate::device::peer::TcpConnection;
 use crate::device::script_run::run_opt_script;
+use crate::protobuf::config::NodeType;
 use self::tun::WritePart;
 
 const HANDSHAKE_RATE_LIMIT: u64 = 100; // The number of handshakes per second we can tolerate before using cookies
@@ -336,7 +337,9 @@ pub async fn tcp_peers_timer(
     key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
     rate_limiter: Arc<RateLimiter>,
     iface: Arc<Mutex<WritePart>>,
-    pi: bool) {
+    pi: bool,
+    node_type: NodeType,
+) {
     let mut interval = time::interval(Duration::from_millis(250));
     let mut dst_buf: Vec<u8>= vec![0; MAX_UDP_SIZE];
 
@@ -351,7 +354,7 @@ pub async fn tcp_peers_timer(
             };
             match &mut p.endpoint.tcp_conn {
                 TcpConnection::Nothing| TcpConnection::ConnectedFailure(_) => {
-                    if ip < &p.ip {
+                    if node_type == NodeType::NodeClient || ip < &p.ip {
                         p.endpoint.tcp_conn = TcpConnection::Connecting(SystemTime::now());
                         match TcpStream::connect(&endpoint_addr).await {
                             Ok(conn) => {

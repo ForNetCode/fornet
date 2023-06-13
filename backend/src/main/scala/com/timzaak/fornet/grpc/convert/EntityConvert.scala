@@ -1,7 +1,7 @@
 package com.timzaak.fornet.grpc.convert
 
-import com.timzaak.fornet.dao.{ Network, Node }
-import com.timzaak.fornet.protobuf.config.{ Interface, Peer, WRConfig }
+import com.timzaak.fornet.dao.{Network, Node}
+import com.timzaak.fornet.protobuf.config.{Interface, Peer, WRConfig}
 
 object EntityConvert {
 
@@ -16,9 +16,7 @@ object EntityConvert {
     val defaultKeepAlive = network.setting.keepAlive
 
     Peer(
-      endpoint = nodeSetting.endpoint.map(v =>
-        s"$v:${nodeSetting.port.getOrElse(defaultPort)}"
-      ),
+      endpoint = nodeSetting.endpoint.map(v => s"$v:${nodeSetting.port.getOrElse(defaultPort)}"),
       allowedIp = Seq(node.peerAllowedIp),
       publicKey = node.publicKey,
       address = Seq(node.peerAddress),
@@ -47,7 +45,8 @@ object EntityConvert {
           protocol = nSetting.protocol.gRPCProtocol,
         ),
       ),
-      peers = toPeers(relativeNodes.filter(_.id != node.id), network)
+      peers = toPeers(relativeNodes.filter(_.id != node.id), network),
+      `type` = node.nodeType.gRPCNodeType,
     )
   }
 }

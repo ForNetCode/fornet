@@ -14,7 +14,7 @@ use crate::device::script_run::{run_opt_script, Scripts};
 use crate::device::tun::create_async_tun;
 use crate::device::tunnel::{create_tcp_server, create_udp_socket};
 use nix::unistd::Uid;
-use crate::protobuf::config::Protocol;
+use crate::protobuf::config::{Protocol, NodeType};
 
 
 pub struct Device {
@@ -33,6 +33,7 @@ impl Device {
         mtu: u32,
         scripts:Scripts,
         protocol: Protocol,
+        node_type: NodeType,
     ) -> anyhow::Result<Device> {
         run_opt_script(&scripts.pre_up)?;
         tracing::debug!("begin to create tun");
@@ -53,9 +54,6 @@ impl Device {
                 let udp4 = create_udp_socket(port, Domain::IPV4, None)?;
                 let port = udp4.local_addr()?.port();
                 let udp6 = create_udp_socket(Some(port), Domain::IPV6, None)?;
-
-
-
                 let task:JoinHandle<()> = tokio::spawn(async move {
                     loop {
                         tokio::select! {
@@ -81,8 +79,6 @@ impl Device {
             }
             Protocol::Tcp => {
                 let ip = address[0].addr.clone();
-                //let tcp4 = create_tcp_server(port, Domain::IPV4, None)?;
-                //let port = tcp4.local_addr()?.port();
                 let tcp6 = create_tcp_server(port, Domain::IPV6, None)?;
                 let port = tcp6.local_addr()?.port();
                 let key_pair = Arc::new(key_pair);
@@ -98,6 +94,7 @@ impl Device {
                                 rate_limiter.clone(),
                                 iface_writer.clone(),
                                 pi,
+                                node_type,
                             ) => {}
                             // iface listen
                             Ok(len) = iface_reader.read(&mut tun_src_buf) => {

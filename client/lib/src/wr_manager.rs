@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use serde_derive::{Deserialize, Serialize};
 use crate::config::{Config, Identity};
 use crate::device::peer::AllowedIP;
-use crate::protobuf::config::{Protocol, WrConfig};
+use crate::protobuf::config::{Protocol, WrConfig, NodeType};
 use crate::device::Device;
 use crate::device::script_run::Scripts;
 
@@ -67,6 +67,7 @@ impl WRManager {
         tracing::info!("close device before restart");
         let tun_name = config.get_tun_name();
         let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
+        let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
 
         let scripts = Scripts::load_from_interface(&interface);
         let key_pair = (config.identity.x25519_sk.clone(), config.identity.x25519_pk.clone());
@@ -78,6 +79,7 @@ impl WRManager {
             interface.mtu.unwrap_or(1420) as u32,
             scripts,
             protocol,
+            node_type,
         )?;
 
         self.device = Some(wr_interface);
