@@ -16,11 +16,10 @@ object EntityConvert {
     val defaultKeepAlive = network.setting.keepAlive
 
     Peer(
-      endpoint = nodeSetting.endpoint.map(v =>
-        s"$v:${nodeSetting.port.getOrElse(defaultPort)}"
-      ),
-      allowedIp = Seq(node.peerAddress),
+      endpoint = nodeSetting.endpoint.map(v => s"$v:${nodeSetting.port.getOrElse(defaultPort)}"),
+      allowedIp = Seq(node.peerAllowedIp),
       publicKey = node.publicKey,
+      address = Seq(node.peerAddress),
       persistenceKeepAlive = nodeSetting.keepAlive.getOrElse(defaultKeepAlive),
     )
   }
@@ -43,9 +42,11 @@ object EntityConvert {
           mtu = Some(setting.mtu.getOrElse(nSetting.mtu)),
           postUp = setting.postUp,
           postDown = setting.postDown,
+          protocol = nSetting.protocol.gRPCProtocol,
         ),
       ),
-      peers = toPeers(relativeNodes.filter(_.id != node.id), network)
+      peers = toPeers(relativeNodes.filter(_.id != node.id), network),
+      `type` = node.nodeType.gRPCNodeType,
     )
   }
 }

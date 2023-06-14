@@ -7,17 +7,11 @@ import com.timzaak.fornet.mqtt.MqttCallbackController
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
 import com.timzaak.fornet.pubsub.{MqttConnectionManager, NodeChangeNotifyService}
 import com.timzaak.fornet.service.*
-import com.typesafe.config.{Config, ConfigFactory}
-import org.hashids.Hashids
 import very.util.keycloak.{JWKPublicKeyLocator, JWKTokenVerifier, KeycloakJWTAuthStrategy}
 import very.util.web.auth.{AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy}
 object DI extends DaoDI { di =>
-  given config: Config = ConfigFactory.load()
 
   object appConfig extends AppConfigImpl(config)
-
-  object hashId extends Hashids(config.getString("server.hashId"), 5)
-  given Hashids = hashId
 
   // connection Manager
   // object connectionManager extends ConnectionManager
@@ -75,7 +69,9 @@ object DI extends DaoDI { di =>
     extends NetworkController(
       networkDao = di.networkDao,
       appConfig = di.appConfig,
+      nodeChangeNotifyService = di.nodeChangeNotifyService,
     )
+
   object nodeController
     extends NodeController(
       nodeDao = di.nodeDao,

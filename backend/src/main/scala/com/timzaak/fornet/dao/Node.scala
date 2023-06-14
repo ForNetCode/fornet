@@ -13,6 +13,14 @@ enum NodeType {
   // Normal: Fornet Client
 
   case Client, Relay
+
+  import com.timzaak.fornet.protobuf.config.NodeType as PNodeType
+  def gRPCNodeType: PNodeType = {
+    this match {
+      case NodeType.Client => PNodeType.NODE_CLIENT
+      case NodeType.Relay  => PNodeType.NODE_RELAY
+    }
+  }
 }
 
 object NodeType {
@@ -78,16 +86,31 @@ case class Node(
     }
   }
 
-  def peerAddress: String = {
+  def realStatus(networkStatus: NetworkStatus): NodeStatus = {
+    if (networkStatus == NetworkStatus.Delete) {
+      NodeStatus.Delete
+    } else {
+      status
+    }
+  }
+
+  def peerAllowedIp: String = {
     nodeType match {
       case NodeType.Relay  => ip
       case NodeType.Client => s"$ip/32"
     }
   }
+
+  def peerAddress: String = {
+    nodeType match {
+      case NodeType.Relay  => ip.split("/").head
+      case NodeType.Client => ip
+    }
+  }
 }
 
 object Node {
-  import very.util.web.json.{intIDDecoder, intIDEncoder}
+  import very.util.web.json.{ intIDDecoder, intIDEncoder }
   given nodeCCodec(using hashId: Hashids): JsonCodec[Node] = DeriveJsonCodec.gen
 }
 
@@ -109,7 +132,7 @@ object NodeSetting {
 
 import io.getquill.*
 
-class NodeDao(using quill: DB) {
+class NodeDao(using quill: DB, hashids: Hashids) {
 
   import quill.{ *, given }
 
@@ -158,6 +181,11 @@ class NodeDao(using quill: DB) {
     }
   }
 
+  def getAllAvailableNodes(networkId: IntID): Seq[Node] = quill.run {
+    quote {
+      query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal))
+    }
+  }
   def getAllAvailableNodes(
     networkId: IntID,
     exceptNodeId: IntID,

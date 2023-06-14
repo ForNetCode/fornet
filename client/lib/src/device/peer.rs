@@ -8,16 +8,25 @@ use std::net::{IpAddr};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use boringtun::noise::{Tunn, TunnResult};
-use tokio::net::UdpSocket;
+use tokio::net::{UdpSocket};
+use tokio::net::tcp::OwnedWriteHalf;
 use crate::device::allowed_ips::AllowedIps;
 
-
-#[derive(Default, Debug)]
+#[derive(Debug)]
+pub  enum TcpConnection {
+    Nothing,
+    Connecting(SystemTime),
+    Connected(OwnedWriteHalf),
+    ConnectedFailure(std::io::Error)
+}
+#[derive(Debug)]
 pub struct Endpoint {
     pub addr: Option<SocketAddr>,
-    pub conn: Option<Arc<UdpSocket>>,
+    pub udp_conn: Option<Arc<UdpSocket>>,
+    pub tcp_conn: TcpConnection,
 }
 
 pub struct Peer {
@@ -25,8 +34,9 @@ pub struct Peer {
     pub(crate) tunnel: Tunn,
     /// The index the tunnel uses
     index: u32,
-    endpoint: Endpoint,
+    pub endpoint: Endpoint,
     allowed_ips: AllowedIps<()>,
+    pub ip: IpAddr,
     preshared_key: Option<[u8; 32]>,
 }
 
@@ -66,6 +76,7 @@ impl Peer {
         index: u32,
         endpoint: Option<SocketAddr>,
         allowed_ips: &[AllowedIP],
+        ip:IpAddr,
         preshared_key: Option<[u8; 32]>,
     ) -> Peer {
         Peer {
@@ -73,8 +84,10 @@ impl Peer {
             index,
             endpoint: Endpoint {
                 addr: endpoint,
-                conn: None,
+                udp_conn: None,
+                tcp_conn: TcpConnection::Nothing,
             },
+            ip,
             allowed_ips: allowed_ips.iter().map(|ip| (ip, ())).collect(),
             preshared_key,
         }
@@ -89,23 +102,20 @@ impl Peer {
     }
 
     pub fn shutdown_endpoint(&mut self) {
-        if let Some(conn) = self.endpoint.conn.take() {
-            tracing::info!("Disconnecting from endpoint");
-            drop(conn)
+        if let Some(_) = &mut self.endpoint.udp_conn.take() {
+            tracing::info!("disconnecting from endpoint");
         }
+        if let TcpConnection::Connected(_) = &mut self.endpoint.tcp_conn {
+            tracing::info!("disconnecting tcp connection");
+        }
+        self.endpoint.tcp_conn = TcpConnection::Nothing;
     }
 
     pub fn set_endpoint(&mut self, addr: SocketAddr) {
         if self.endpoint.addr != Some(addr) {
             // We only need to update the endpoint if it differs from the current one
-            if let Some(conn) = self.endpoint.conn.take() {
-                drop(conn)
-                // conn.shutdown();
-            }
-            self.endpoint = Endpoint {
-                addr: Some(addr),
-                conn: None,
-            }
+            self.shutdown_endpoint();
+            self.endpoint.addr = Some(addr);
         };
     }
 
@@ -137,6 +147,7 @@ impl Peer {
 
 #[cfg(test)]
 mod tests {
+    use std::net::{IpAddr, SocketAddr};
     use crate::device::peer::AllowedIP;
 
     #[test]
@@ -144,5 +155,15 @@ mod tests {
         let ip_v4: AllowedIP = "10.0.0.0/32".parse().unwrap();
         assert_eq!(ip_v4.to_string(), String::from("10.0.0.0/32"));
         assert_eq!(ip_v4.addr.to_string(), String::from("10.0.0.0"));
+    }
+
+    #[test]
+    fn ip_compare() {
+        let ip = "10.0.0.1".parse::<IpAddr>();
+        //println!("123 {:?}", ip);
+        let ip1:IpAddr = "10.0.0.1".parse().unwrap();
+        let ip2:IpAddr = "10.0.0.2".parse().unwrap();
+        println!("should be false {}", ip1 == ip2);
+        println!("should be true {}", ip1 < ip2);
     }
 }

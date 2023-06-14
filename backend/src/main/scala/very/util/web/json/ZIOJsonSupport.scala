@@ -98,4 +98,4 @@ given intIDDecoder(using hashId: Hashids): JsonDecoder[IntID] = JsonDecoder[Stri
     case Failure(_) => Left("Invalid ID")
   }
 }
-given intIDEncoder(using hashId: Hashids): JsonEncoder[IntID] = JsonEncoder.int.contramap(_.id)
+given intIDEncoder: JsonEncoder[IntID] = JsonEncoder.string.contramap(_.secretId)

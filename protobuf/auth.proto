@@ -4,13 +4,18 @@ package auth;
 
 option java_package = "com.timzaak.fornet.protobuf";
 
-import "google/protobuf/empty.proto";
+//import "google/protobuf/empty.proto";
 
+message SuccessResponse {
+  string mqtt_url = 1;
+  string client_id = 2;
+}
 
 message ActionResponse {
-  bool isOk = 1;
-  optional string mqtt_url = 2;
-  optional string message = 3;
+  oneof response {
+    string error = 1;
+    SuccessResponse success = 2;
+  }
 }
 
 message EncryptRequest {

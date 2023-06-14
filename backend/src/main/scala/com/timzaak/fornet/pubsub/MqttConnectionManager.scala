@@ -18,19 +18,24 @@ class MqttConnectionManager(
   private def encodeMessage(message: GeneratedMessage) =
     Base64.getEncoder.encodeToString(message.toByteArray)
 
-  def sendMessage(networkId: IntID, message: NetworkMessage): Try[Boolean] = {
-    logTry(s"send message[Network:$networkId] failure")(
+  def sendNetworkMessage(
+    networkId: IntID,
+    message: NetworkMessage,
+    retain: Option[Boolean] = Some(false)
+  ): Try[Boolean] = {
+    logTry(s"send message[Network:${networkId.id}] failure")(
       mqttApiClient.publish(
         PublishRequest(
           payload = encodeMessage(message),
           qos = Some(1),
           encoding = Some("base64"),
-          topic = s"network/${networkId.secretId}"
+          topic = s"network/${networkId.secretId}",
+          retain = retain,
         )
       )
     )
   }
-  def sendMessage(
+  def sendClientMessage(
     networkId: IntID,
     nodeId: IntID,
     publicKey: String,
@@ -44,7 +49,7 @@ class MqttConnectionManager(
           clientId = Some(publicKey),
           qos = Some(1),
           encoding = Some("base64"),
-          topic = "client",
+          topic = s"client/${nodeId.secretId}",
           retain,
         )
       )

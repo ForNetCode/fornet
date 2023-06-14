@@ -5,7 +5,7 @@ import {deleteNetwork, getNetworkInviteCode, Network, networkList} from "../../a
 import {useEffect, useState} from "react";
 import DayjsFormat from "../../component/DayjsFormat";
 import {Link, useSearchParams} from "react-router-dom";
-import {defaultPage, Page} from "../../api/http";
+import {defaultPage, ID, Page} from "../../api/http";
 import {QRCodeCanvas} from "qrcode.react";
 import copy from "copy-to-clipboard";
 import {getPersistenceToken, getSSOInviteCode} from "../../api/authAPI";
@@ -23,13 +23,13 @@ export default function NetworkListPage() {
         networkList(name, page).then((d) => setData(d))
     }, [name, page])
 
-    const showInviteModel = (id: number) => {
+    const showInviteModel = (id: ID) => {
         if((getPersistenceToken()??'').startsWith('Bearer')) {
             getSSOInviteCode(id).then(r => setShowSSO(r))
         }
         getNetworkInviteCode(id).then(setShowModal)
     }
-    const deleteNetworkAction = async (id: number) => {
+    const deleteNetworkAction = async (id: ID) => {
         await deleteNetwork(id)
         message.info(intl.formatMessage({id: 'result.deleteSuccess'},
             {'0': intl.formatMessage({id: 'nav.network'})}))

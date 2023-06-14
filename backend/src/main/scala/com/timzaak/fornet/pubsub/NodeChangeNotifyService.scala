@@ -1,10 +1,11 @@
 package com.timzaak.fornet.pubsub
 
-import com.timzaak.fornet.dao.*
+import com.timzaak.fornet.dao.{NetworkDao, *}
 import com.timzaak.fornet.grpc.convert.EntityConvert
-import com.timzaak.fornet.protobuf.config.{ NodeStatus as PNodeStatus, * }
+import com.timzaak.fornet.protobuf.config.{NetworkStatus as PNetworkStatus, NodeStatus as PNodeStatus, NodeType as PNodeType, *}
 import com.timzaak.fornet.service.NodeService
 import org.hashids.Hashids
+import very.util.security.IntID
 
 class NodeChangeNotifyService(
   nodeDao: NodeDao,
@@ -16,10 +17,8 @@ class NodeChangeNotifyService(
 
   import quill.{ *, given }
 
-  def nodeInfoChangeNotify(oldNode: Node, setting: NodeSetting) = {
+  def nodeInfoChangeNotify(oldNode: Node, setting: NodeSetting, network: Network) = {
     // TODO: FIXIT
-
-    val network = networkDao.findById(oldNode.networkId).get
     val networkId = network.id.secretId
 
     val relativeNodes = nodeService.getAllRelativeNodes(oldNode)
@@ -28,7 +27,7 @@ class NodeChangeNotifyService(
     val wrConfig: WRConfig =
       EntityConvert.nodeToWRConfig(fixedNode, network, relativeNodes)
 
-    connectionManager.sendMessage(
+    connectionManager.sendClientMessage(
       oldNode.networkId,
       oldNode.id,
       oldNode.publicKey,
@@ -40,7 +39,7 @@ class NodeChangeNotifyService(
       // only keep alive matter
       case NodeType.Relay =>
         // notify other nodes in network that relay change.
-        connectionManager.sendMessage(
+        connectionManager.sendNetworkMessage(
           fixedNode.networkId,
           NetworkMessage(
             networkId = networkId,
@@ -54,6 +53,36 @@ class NodeChangeNotifyService(
     }
   }
 
+  // network must be in normal status
+  def networkSettingChange(oldNetwork: Network, newNetwork: Network): Unit = {
+    // only care about protocol, others will trigger push in future version.(after solved async push)
+    if (oldNetwork.setting.protocol != newNetwork.setting.protocol && newNetwork.status == NetworkStatus.Normal) {
+      val nodes = nodeDao.getAllAvailableNodes(oldNetwork.id).toList
+      for ((node, relativeNodes) <- nodeService.getNetworkAllRelativeNodes(nodes)) {
+        val wrConfig = EntityConvert.nodeToWRConfig(node, newNetwork, relativeNodes)
+        // this would trigger all nodes restart.
+        connectionManager.sendClientMessage(
+          node.networkId,
+          node.id,
+          node.publicKey,
+          ClientMessage(networkId = newNetwork.id.secretId, ClientMessage.Info.Config(wrConfig))
+        )
+      }
+
+    }
+  }
+
+  // PS: Network would never recover from delete status
+  def networkDeleteNotify(networkId: IntID): Unit = {
+    connectionManager.sendNetworkMessage(
+      networkId,
+      NetworkMessage(
+        networkId = networkId.secretId,
+        NetworkMessage.Info.Status(PNetworkStatus.NETWORK_DELETE)
+      )
+    )
+  }
+
   def nodeStatusChangeNotify(
     node: Node,
     oldStatus: NodeStatus,
@@ -62,19 +91,19 @@ class NodeChangeNotifyService(
     import NodeStatus.*
     val networkId = node.networkId.secretId
     // notify self node status change
-    connectionManager.sendMessage(
+    connectionManager.sendClientMessage(
       node.networkId,
       node.id,
       node.publicKey,
       ClientMessage(
         networkId = networkId,
-        ClientMessage.Info.Status(status.gRPCNodeStatus)
+        ClientMessage.Info.Status(status.gRPCNodeStatus),
       )
     )
 
     (oldStatus, status) match {
       case (Normal, _) =>
-        connectionManager.sendMessage(
+        connectionManager.sendNetworkMessage(
           node.networkId,
           NetworkMessage(
             networkId = networkId,
@@ -90,7 +119,7 @@ class NodeChangeNotifyService(
         val network = networkDao.findById(node.networkId).get
         val peer = EntityConvert.toPeer(node, network)
 
-        connectionManager.sendMessage(
+        connectionManager.sendNetworkMessage(
           node.networkId,
           NetworkMessage(
             networkId = networkId,
@@ -102,7 +131,7 @@ class NodeChangeNotifyService(
 
         val notifyNodes = nodeService.getAllRelativeNodes(node)
 
-        connectionManager.sendMessage(
+        connectionManager.sendClientMessage(
           node.networkId,
           node.id,
           node.publicKey,
@@ -110,12 +139,11 @@ class NodeChangeNotifyService(
             networkId = networkId,
             ClientMessage.Info.Config(
               EntityConvert.nodeToWRConfig(node, network, notifyNodes)
-            )
+            ),
           )
         )
       case _ =>
       // do nothing.
     }
-
   }
 }

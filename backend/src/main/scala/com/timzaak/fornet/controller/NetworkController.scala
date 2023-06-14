@@ -3,7 +3,8 @@ package com.timzaak.fornet.controller
 import com.google.common.net.InetAddresses
 import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthSupport
-import com.timzaak.fornet.dao.{ DB, Network, NetworkDao, NetworkSetting }
+import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NetworkProtocol, NetworkSetting}
+import com.timzaak.fornet.pubsub.NodeChangeNotifyService
 import com.typesafe.config.Config
 import org.hashids.Hashids
 import very.util.security.IntID
@@ -22,7 +23,7 @@ import zio.json.{ DeriveJsonDecoder, JsonDecoder }
 
 import java.time.OffsetDateTime
 
-case class CreateNetworkReq(name: String, addressRange: String)
+case class CreateNetworkReq(name: String, addressRange: String, protocol:NetworkProtocol)
 given JsonDecoder[CreateNetworkReq] = DeriveJsonDecoder.gen
 case class UpdateNetworkReq(
   name: String,
@@ -32,6 +33,7 @@ case class UpdateNetworkReq(
 given JsonDecoder[UpdateNetworkReq] = DeriveJsonDecoder.gen
 trait NetworkController(
   networkDao: NetworkDao,
+  nodeChangeNotifyService: NodeChangeNotifyService,
   appConfig: AppConfig,
 )(using quill: DB, config: Config, hashId: Hashids)
   extends Controller
@@ -53,9 +55,12 @@ trait NetworkController(
             .filter(_.groupId == lift(groupId))
         )(_.sortBy(_.id)(Ord.desc))
       case _ =>
-        pageWithCount(
+        val r= pageWithCount(
           query[Network].filter(_.status == lift(NetworkStatus.Normal))
         )(_.sortBy(_.id)(Ord.desc))
+        import zio.json.*
+        val j = r.toJson
+        r
     }
   }
 
@@ -75,7 +80,7 @@ trait NetworkController(
               .insert(
                 _.name -> lift(req.name),
                 _.addressRange -> lift(req.addressRange),
-                _.setting -> lift(NetworkSetting()),
+                _.setting -> lift(NetworkSetting(protocol = req.protocol)),
                 _.groupId -> lift(groupId),
               )
               .returning(_.id)
@@ -113,17 +118,22 @@ trait NetworkController(
     for {
       _ <- ipV4Range(data.addressRange)
     } yield {
-      quill.run {
-        quote {
-          query[Network]
-            .filter(n => n.id == lift(id) && n.groupId == lift(groupId))
-            .update(
-              _.name -> lift(data.name),
-              _.addressRange -> lift(data.addressRange),
-              _.setting -> lift(data.setting),
-              _.updatedAt -> lift(OffsetDateTime.now()),
-            )
-        }
+      networkDao.findById(id) match {
+        case Some(oldNetwork) =>
+          quill.run {
+            quote {
+              query[Network]
+                .filter(n => n.id == lift(id) && n.groupId == lift(groupId))
+                .update(
+                  _.name -> lift(data.name),
+                  _.addressRange -> lift(data.addressRange),
+                  _.setting -> lift(data.setting),
+                  _.updatedAt -> lift(OffsetDateTime.now()),
+                )
+            }
+          }
+        nodeChangeNotifyService.networkSettingChange(oldNetwork, networkDao.findById(id).get)
+        case _ =>
       }
       Accepted()
     }
@@ -142,9 +152,7 @@ trait NetworkController(
       }
     }
     if (changeCount > 0) {
-      // TODO:
-      // kickoff all nodes in the network
-      // change all node status to Deleted
+      nodeChangeNotifyService.networkDeleteNotify(networkId)
     }
     Accepted()
   }

@@ -1,7 +1,7 @@
 package com.timzaak.fornet.controller
 
 import com.timzaak.fornet.config.AppConfig
-import com.timzaak.fornet.controller.auth.{ AppAuthSupport, User }
+import com.timzaak.fornet.controller.auth.{AppAuthSupport, User}
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
@@ -110,9 +110,9 @@ trait NodeController(
       }
     }
 
-    if (oldNode.setting != req.setting && oldNode.status == NodeStatus.Normal) {
-      // notify self change
-      nodeChangeNotifyService.nodeInfoChangeNotify(oldNode, req.setting)
+    val network = networkDao.findById(oldNode.networkId).get
+    if (oldNode.setting != req.setting && oldNode.realStatus(network.status) == NodeStatus.Normal) {
+      nodeChangeNotifyService.nodeInfoChangeNotify(oldNode, req.setting, network)
     }
     Accepted()
   }
@@ -140,26 +140,29 @@ trait NodeController(
         }
       }
       if (changeNumber > 0) {
-        nodeChangeNotifyService.nodeStatusChangeNotify(
-          oldNode,
-          oldNode.status,
-          req.status
-        )
+        val network = networkDao.findById(networkId).get
+        if (network.status == NetworkStatus.Normal) {
+          nodeChangeNotifyService.nodeStatusChangeNotify(
+            oldNode,
+            oldNode.status,
+            req.status
+          )
+        }
       }
       Accepted()
     }
   }
 
   get("/:networkId/:nodeId/active_code") {
+    val (_, networkId) = checkAuth
+    val nodeId = _nodeId
     nodeDao
-      .findById(_networkId, _nodeId)
+      .findById(networkId, nodeId)
       .filter(_.status == NodeStatus.Waiting)
       .map { _ =>
         String(
           Base64.getEncoder.encode(
-            s"1|${config.getString("server.grpc.endpoint")}|${hashId.encode(
-                params("networkId").toLong
-              )}|${hashId.encode(params("nodeId").toLong)}".getBytes
+            s"1|${config.getString("server.grpc.endpoint")}|${networkId.secretId}|${nodeId.secretId}".getBytes
           )
         )
       }
