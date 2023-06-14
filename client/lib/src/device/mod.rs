@@ -516,7 +516,7 @@ pub async fn udp_handler(udp: &UdpSocket,
     }
 }
 
-enum WriterState {
+pub enum WriterState {
     PureWriter(OwnedWriteHalf),
     PeerWriter(Arc<Mutex<Peer>>),
 }
