@@ -33,7 +33,7 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};//keep
-use tokio::net::tcp::OwnedWriteHalf;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
 use allowed_ips::AllowedIps;
 use peer::{AllowedIP, Peer};
@@ -353,12 +353,14 @@ pub async fn tcp_peers_timer(
                 None => continue,
             };
             match &mut p.endpoint.tcp_conn {
-                TcpConnection::Nothing| TcpConnection::ConnectedFailure(_) => {
+                TcpConnection::Nothing | TcpConnection::ConnectedFailure(_) => {
                     if node_type == NodeType::NodeClient || ip < &p.ip {
                         p.endpoint.tcp_conn = TcpConnection::Connecting(SystemTime::now());
                         match TcpStream::connect(&endpoint_addr).await {
                             Ok(conn) => {
-                                tcp_handler(conn, endpoint_addr, key_pair.clone(), rate_limiter.clone(), peers.clone(), iface.clone(), pi);
+                                let (reader, writer) = conn.into_split();
+                                p.endpoint.tcp_conn = TcpConnection::Connected(writer);
+                                tcp_handler(reader, WriterState::PeerWriter(peer.clone()), endpoint_addr, key_pair.clone(), rate_limiter.clone(), peers.clone(), iface.clone(), pi);
                             },
                             Err(error) => {
                                 tracing::debug!("connect {endpoint_addr:?} failure, error: {error:?}");
@@ -372,15 +374,13 @@ pub async fn tcp_peers_timer(
                     //TODO: add check of time, and reconnect
                     continue;
                 }
-                TcpConnection::Connected(connection) => {
-                    //connection
-
-                }
+                _ => {}
             };
             match p.update_timers(&mut dst_buf) {
                 TunnResult::Done => {}
                 TunnResult::Err(WireGuardError::ConnectionExpired) => {
-                    p.shutdown_endpoint(); // close open udp socket
+                    tracing::debug!("connection expired, should shutdown this endpoint");
+                    p.shutdown_endpoint();
                 }
                 TunnResult::Err(e) => tracing::error!(message = "Timer error", error = ?e),
                 TunnResult::WriteToNetwork(packet) => {
@@ -535,12 +535,15 @@ pub async fn tcp_listener_handler(
         let rate_limiter = rate_limiter.clone();
         let peers = peers.clone();
         let iface = iface.clone();
-        tcp_handler(socket, addr,key_pair, rate_limiter, peers, iface, pi);
+        let (reader, writer ) = socket.into_split();
+        tcp_handler(reader, WriterState::PureWriter(writer), addr,key_pair, rate_limiter, peers, iface, pi);
     }
     //Ok(())
 }
 pub fn tcp_handler(
-    socket: TcpStream,
+    //socket: TcpStream,
+    reader: OwnedReadHalf,
+    writer: WriterState,
     addr: SocketAddr,
     key_pair: Arc<(x25519_dalek::StaticSecret, x25519_dalek::PublicKey)>,
     rate_limiter: Arc<RateLimiter>,
@@ -550,8 +553,10 @@ pub fn tcp_handler(
 ) {
     tokio::spawn(async move {
         let (private_key, public_key) = key_pair.as_ref();
-        let (mut reader, writer ) = socket.into_split();
-        let mut writer = WriterState::PureWriter(writer);
+        let mut writer = writer;
+        let mut reader = reader;
+        //let (mut reader, writer ) = socket.into_split();
+        //let mut writer = WriterState::PureWriter(writer);
         let mut src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
         let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
         while let Ok(size) = reader.read(&mut src_buf).await {
