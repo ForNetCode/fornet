@@ -36,8 +36,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}, ${{ env.REGISTRY }}/fornetcode/fornet:latest
-      - name: copy data from docker
-        run: 'mkdir -p release && docker cp ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} '  
+      - name: copy binary from docker to release directory
+        run: |
+          mkdir -p release && docker run --rm  -v ./release:/release ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} cp /bin/fornet:/release/ && cp /bin/fornet-cli:/release
+            
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
