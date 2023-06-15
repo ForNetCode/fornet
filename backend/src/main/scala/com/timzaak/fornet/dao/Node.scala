@@ -1,16 +1,26 @@
 package com.timzaak.fornet.dao
 
 import io.getquill.MappedEncoding
+import org.hashids.Hashids
 import very.util.persistence.quill.DBSerializer
+import very.util.security.IntID
 import zio.json.*
 
 import java.time.OffsetDateTime
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 enum NodeType {
   // Normal: Fornet Client
 
   case Client, Relay
+
+  import com.timzaak.fornet.protobuf.config.NodeType as PNodeType
+  def gRPCNodeType: PNodeType = {
+    this match {
+      case NodeType.Client => PNodeType.NODE_CLIENT
+      case NodeType.Relay  => PNodeType.NODE_RELAY
+    }
+  }
 }
 
 object NodeType {
@@ -57,9 +67,9 @@ object NodeStatus {
 }
 
 case class Node(
-  id: Int,
+  id: IntID,
   name: String,
-  networkId: Int,
+  networkId: IntID,
   ip: String,
   publicKey: String,
   setting: NodeSetting,
@@ -76,16 +86,32 @@ case class Node(
     }
   }
 
-  def peerAddress: String = {
+  def realStatus(networkStatus: NetworkStatus): NodeStatus = {
+    if (networkStatus == NetworkStatus.Delete) {
+      NodeStatus.Delete
+    } else {
+      status
+    }
+  }
+
+  def peerAllowedIp: String = {
     nodeType match {
       case NodeType.Relay  => ip
       case NodeType.Client => s"$ip/32"
     }
   }
+
+  def peerAddress: String = {
+    nodeType match {
+      case NodeType.Relay  => ip.split("/").head
+      case NodeType.Client => ip
+    }
+  }
 }
 
 object Node {
-  given JsonCodec[Node] = DeriveJsonCodec.gen
+  import very.util.web.json.{ intIDDecoder, intIDEncoder }
+  given nodeCCodec(using hashId: Hashids): JsonCodec[Node] = DeriveJsonCodec.gen
 }
 
 case class NodeSetting(
@@ -106,23 +132,21 @@ object NodeSetting {
 
 import io.getquill.*
 
-class NodeDao(using quill: DB) {
+class NodeDao(using quill: DB, hashids: Hashids) {
 
-  import quill.{*, given}
+  import quill.{ *, given }
 
-  def findIdByPublicKey(publicKey: String, networkId: Int): Option[Int] =
+  def findIdByPublicKey(publicKey: String, networkId: IntID): Option[IntID] =
     quill.run {
       quote {
         query[Node]
-          .filter(n =>
-            n.publicKey == lift(publicKey) && n.networkId == lift(networkId)
-          )
+          .filter(n => n.publicKey == lift(publicKey) && n.networkId == lift(networkId))
           .map(_.id)
           .single
       }
     }.headOption
 
-  def findById(networkId: Int, nodeId: Int): Option[Node] = quill.run {
+  def findById(networkId: IntID, nodeId: IntID): Option[Node] = quill.run {
     quote {
       query[Node]
         .filter(n => n.networkId == lift(networkId) && n.id == lift(nodeId))
@@ -137,7 +161,7 @@ class NodeDao(using quill: DB) {
     }
   }
 
-  def getUsedIps(networkId: Int): Seq[String] = quill.run {
+  def getUsedIps(networkId: IntID): Seq[String] = quill.run {
     quote {
       query[Node]
         .filter(n =>
@@ -149,19 +173,22 @@ class NodeDao(using quill: DB) {
     }
   }
 
-  def getAllAvailableNodeIds(networkId: Int): Seq[Int] = quill.run {
+  def getAllAvailableNodeIds(networkId: IntID): Seq[IntID] = quill.run {
     quote {
       query[Node]
-        .filter(n =>
-          n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal)
-        )
+        .filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal))
         .map(_.id)
     }
   }
 
+  def getAllAvailableNodes(networkId: IntID): Seq[Node] = quill.run {
+    quote {
+      query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal))
+    }
+  }
   def getAllAvailableNodes(
-    networkId: Int,
-    exceptNodeId: Int,
+    networkId: IntID,
+    exceptNodeId: IntID,
     nodeType: NodeType
   ): Seq[Node] = quill.run {
     quote {
@@ -172,5 +199,9 @@ class NodeDao(using quill: DB) {
           && n.nodeType == lift(nodeType)
       )
     }
+  }
+
+  def countByNetwork(networkId: IntID): Long = quill.run {
+    query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal)).size
   }
 }

@@ -1,20 +1,17 @@
 package com.timzaak.fornet.di
 
+import com.timzaak.fornet.config.{AppConfig, AppConfigImpl}
 import com.timzaak.fornet.controller.*
 import com.timzaak.fornet.grpc.AuthGRPCController
 import com.timzaak.fornet.mqtt.MqttCallbackController
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
 import com.timzaak.fornet.pubsub.{MqttConnectionManager, NodeChangeNotifyService}
 import com.timzaak.fornet.service.*
-import com.typesafe.config.{Config, ConfigFactory}
-import org.hashids.Hashids
 import very.util.keycloak.{JWKPublicKeyLocator, JWKTokenVerifier, KeycloakJWTAuthStrategy}
 import very.util.web.auth.{AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy}
 object DI extends DaoDI { di =>
-  given config: Config = ConfigFactory.load()
 
-  object hashId extends Hashids(config.getString("server.hashId"), 5)
-  given Hashids = hashId
+  object appConfig extends AppConfigImpl(config)
 
   // connection Manager
   // object connectionManager extends ConnectionManager
@@ -53,7 +50,8 @@ object DI extends DaoDI { di =>
         List(
           KeycloakJWTAuthStrategy(
             JWKTokenVerifier(publicKeyLocator.get, keycloakUrl, realm),
-            config.get[String]("auth.keycloak.role"),
+            config.getOptional[String]("auth.keycloak.adminRole"),
+            config.getOptional[String]("auth.keycloak.clientRole"),
           )
         )
       } else {
@@ -66,28 +64,37 @@ object DI extends DaoDI { di =>
       }
     )
   // web controller
-  object networkController extends NetworkController(networkDao = di.networkDao)
+  object appInfoController extends AppInfoController(appConfig = di.appConfig)
+  object networkController
+    extends NetworkController(
+      networkDao = di.networkDao,
+      appConfig = di.appConfig,
+      nodeChangeNotifyService = di.nodeChangeNotifyService,
+    )
+
   object nodeController
     extends NodeController(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
+      appConfig = di.appConfig,
     )
 
   object authController
     extends AuthController(
-      networkDao = di.networkDao
+      networkDao = di.networkDao,
+      appConfig = di.appConfig,
     )
 
   object nodeAuthService extends NodeAuthService
 
   object authGRPCController
     extends AuthGRPCController(
-      hashId = di.hashId,
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
       config = di.config,
+      appConfig = di.appConfig,
       nodeAuthService = di.nodeAuthService,
       authStrategyProvider = di.authStrategyProvider,
     )
@@ -100,5 +107,5 @@ object DI extends DaoDI { di =>
       nodeService = di.nodeService,
       mqttConnectionManager = di.connectionManager
     )
-  
+
 }

@@ -36,7 +36,7 @@ log.file = "rmqtt.log"
 ## Plugins
 ##--------------------------------------------------------------------
 #Plug in configuration file directory
-plugins.dir = "rmqtt-plugins/"
+plugins.dir = "plugin/"
 #Plug in started by default, when the mqtt server is started
 plugins.default_startups = [
         "rmqtt-auth-http",

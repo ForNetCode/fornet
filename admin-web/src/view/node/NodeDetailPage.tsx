@@ -71,8 +71,7 @@ export default function NodeDetailPage() {
 
     useEffect(() => {
         if (networkId && nodeId) {
-            const networkIdNum = parseInt(networkId)
-            Promise.all([getNetwork(networkIdNum), getNode(networkIdNum, parseInt(nodeId))]).then(r => {
+            Promise.all([getNetwork(networkId), getNode(networkId, nodeId)]).then(r => {
                 setNetwork(r[0])
                 form.setFieldsValue(r[1])
             })
@@ -91,7 +90,7 @@ export default function NodeDetailPage() {
             name: data.name,
             setting: data.setting,
         }
-        await updateNode(parseInt(networkId as string), parseInt(nodeId as string), updateData)
+        await updateNode(networkId!, nodeId!, updateData)
         message.info(intl.formatMessage({id: 'result.updateSuccess'}, {'0': intl.formatMessage({id: 'nav.node'})}))
     }
 

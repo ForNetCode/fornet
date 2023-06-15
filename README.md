@@ -21,5 +21,4 @@ If you are interested with the project future, please refer to [Roadmap](https:/
 
 ## License
 [BSL 1.1](https://github.com/fornetcode/fornet/blob/main/LICENSE)
----
 <sub><sub><sub><sub>WireGuard is a registered trademark of Jason A. Donenfeld. ForNet is not sponsored or endorsed by Jason A. Donenfeld.</sub></sub></sub></sub>

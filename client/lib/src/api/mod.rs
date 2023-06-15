@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -6,19 +5,19 @@ use anyhow::{anyhow, bail};
 use serde_derive::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
-use crate::config::{Config, Identity, ServerConfig};
+use crate::config::{Config, Identity, NodeInfo, ServerConfig};
 use crate::sc_manager::SCManager;
-use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest};
+use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
 use crate::server_api::APISocket;
 use crate::server_manager::{ServerManager, ServerMessage};
 use std::time::Duration;
-use auto_launch_extra::AutoLaunchBuilder;
 use cfg_if::cfg_if;
 use tonic::{
     transport::Channel,
     Request,
 };
 use crate::{APP_NAME, MAC_OS_PACKAGE_NAME};
+use crate::protobuf::auth::action_response::Response;
 
 pub mod command_api;
 
@@ -69,14 +68,12 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
         )
             .await
         {
-            Ok(mqtt_url) => {
-                let mut map = HashMap::new();
-                map.insert(invite_token.network_id, mqtt_url);
+            Ok(resp) => {
 
                 //This must be success
                 let server_config = ServerConfig {
                     server: invite_token.endpoint,
-                    mqtt: map,
+                    info: vec![NodeInfo {network_id: invite_token.network_id, mqtt_url:resp.mqtt_url, node_id:  resp.client_id}],
                 };
                 server_config.save_config(&config_dir)?;
                 change_config_and_init_sync_manger();
@@ -89,12 +86,10 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
     } else if version == 2u32 { // keycloak login
         let (mut client,sso_login) = SSOLogin::get_login_info(data).await?;
         match handle_oauth(identity, &mut client, &sso_login, stream).await {
-            Ok(mqtt_url) => {
-                let mut map = HashMap::new();
-                map.insert(sso_login.network_id, mqtt_url);
+            Ok(resp) => {
                 let server_config = ServerConfig {
                     server: sso_login.endpoint,
-                    mqtt: map,
+                    info: vec![NodeInfo {network_id: sso_login.network_id.clone(), mqtt_url: resp.mqtt_url, node_id: resp.client_id}],
                 };
                 server_config.save_config(&config_dir)?;
                 change_config_and_init_sync_manger();
@@ -219,7 +214,7 @@ struct OAuthDeviceJWToken {
 }
 
 // https://github.com/keycloak/keycloak-community/blob/main/design/oauth2-device-authorization-grant.md
-async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket) -> anyhow::Result<String> {
+async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket) -> anyhow::Result<SuccessResponse> {
 
     let network_id = sso_login.network_id.clone();
 
@@ -252,11 +247,11 @@ async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_l
                 network_id,
                 encrypt:Some(encrypt),
             });
-            let response= client.oauth_device_code_confirm(request).await?.into_inner();
-            return if response.is_ok {
-                Ok(response.mqtt_url.unwrap().clone())
-            } else {
-                Err(anyhow!(response.message.unwrap()))
+            let response= client.oauth_device_code_confirm(request).await?.into_inner().response;
+            return match response {
+                Some(Response::Error(message)) => Err(anyhow!(message)),
+                Some(Response::Success(resp))=> Ok(resp),
+                _ => Err(anyhow!("analyse auth response error")),
             }
         } else {
             tracing::debug!("check login status: not login, will try to check after {} seconds...", response.interval + 1);
@@ -271,7 +266,7 @@ async fn server_invite_confirm(
     endpoint: &String,
     network_id: &String,
     node_id: Option<String>,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<SuccessResponse> {
     tracing::debug!("endpoint: {endpoint}");
     let channel = Channel::from_shared(endpoint.clone())?.connect().await?;
     let mut client = AuthClient::new(channel);
@@ -291,11 +286,10 @@ async fn server_invite_confirm(
     });
     let response = client.invite_confirm(request).await?;
 
-    let response = response.into_inner();
-    if response.is_ok {
-        Ok(response.mqtt_url.unwrap().clone())
-    } else {
-        Err(anyhow!(response.message.unwrap()))
+    match response.into_inner().response {
+        Some(Response::Error(message)) => Err(anyhow!(message)),
+        Some(Response::Success(resp))=> Ok(resp),
+        _ => Err(anyhow!("analyse auth response error")),
     }
 }
 

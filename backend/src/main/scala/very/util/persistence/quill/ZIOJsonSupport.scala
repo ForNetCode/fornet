@@ -22,9 +22,8 @@ trait ZIOJsonSupport {
   }
 
   given decodeJsonb[T<:DBSerializer](using JsonDecoder[T]):Decoder[T] =
-    decoder{(index,row, _) =>
+    decoder{(index,row, session) =>
       val data = row.getString(index)
-      // println(s"data convert:${data},${data.fromJson[T]}")
       data.fromJson[T].toOption.get
     }
 }

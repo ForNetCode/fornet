@@ -1,19 +1,15 @@
-use std::convert::identity;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use paho_mqtt as mqtt;
-use paho_mqtt::SslVersion::Default;
 use prost::Message;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::StreamExt;
-use tonic::metadata::{Ascii, MetadataValue};
-use tonic::Request;
-use tonic::transport::Channel;
+use crate::config::{NodeInfo, Config as AppConfig};
 
-use crate::protobuf::config::{ClientMessage, NetworkMessage, NodeStatus, PeerChange, WrConfig};
+use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
-use crate::protobuf::config::network_message::Info::Peer;
+use crate::protobuf::config::network_message::Info::{Peer, Status as NStatus};
 use crate::server_manager::ServerMessage;
 
 //Sync Config Manager
@@ -34,107 +30,131 @@ impl SCManager {
         }
     }
 
-    pub async fn mqtt_connect(&mut self, config: Arc<crate::config::Config>) -> anyhow::Result<()> {
-        let mut deduplication = Duplication {
-            wr_config: None,
-            status: None,
-        };
+    async fn mqtt_reconnect(sender:Sender<ServerMessage>, node_info: &NodeInfo, config:Arc<AppConfig>, deduplication:&mut Duplication) -> anyhow::Result<()> {
+        let mut client = mqtt::CreateOptionsBuilder::new()
+            .server_uri(&node_info.mqtt_url)
+            .client_id(
+                &config.identity.pk_base64,
+            ).create_client()?;
+        let mut stream = client.get_stream(25);
 
-        for (_, mqtt_url) in &config.server_config.mqtt {
-            let mut client = mqtt::CreateOptionsBuilder::new()
-                .server_uri(mqtt_url)
-                .client_id(
-                    &config.identity.pk_base64,
-                ).create_client()?;
-            let mut stream = client.get_stream(25);
+        let encrypt = config.identity.sign2(Vec::new())?;
+        let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
 
-            let encrypt = config.identity.sign2(Vec::new())?;
-            let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
+        let conn_ops = mqtt::ConnectOptionsBuilder::new_v5()
+            .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 3600])
+            .user_name(&node_info.node_id)
+            .password(password)
+            .finalize();
+        //client
 
-            let conn_ops = mqtt::ConnectOptionsBuilder::new_v5()
-                .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 3600])
-                .password(password)
-                .finalize();
-            //client
+        //tokio spawn
 
-            //tokio spawn
+        client.connect(conn_ops).await?;
+        let client_topic = format!("client/{}",&node_info.node_id);
+        let network_topic = format!("network/{}", &node_info.network_id);
+        let topics = vec!(&client_topic, &network_topic);
+        let sub_opts = vec![mqtt::SubscribeOptions::with_retain_as_published(); topics.len()];
 
-            client.connect(conn_ops).await?;
-            let mut topics = config.server_config.mqtt.iter().map(|(key,_)| format!("network/{key}")).collect::<Vec<String>>();
-            topics.push("client".to_owned());
-            let sub_opts = vec![mqtt::SubscribeOptions::with_retain_as_published(); topics.len()];
+        let qos = vec![1i32; topics.len()];
 
-            let qos = vec![1i32; topics.len()];
+        client.subscribe_many_with_options(&topics, &qos, &sub_opts, None)
+            .await?;
 
-            client.subscribe_many_with_options(&topics, &qos, &sub_opts, None)
-                .await?;
+        while let Some(msg_opt) = stream.next().await {
+            if let Some(msg) = msg_opt {
+                tracing::debug!("receive message, topic: {}",msg.topic());
+                match msg.topic() {
+                    topic if topic == &client_topic => {
+                        if let Ok(client_message) = ClientMessage::decode(msg.payload()) {
+                            if let Some(info) = client_message.info {
+                                match info {
+                                    Config(wr_config) => {
+                                        if deduplication.wr_config == Some(wr_config.clone()) {
+                                            continue;
+                                        }
 
-            while let Some(msg_opt) = stream.next().await {
-                if let Some(msg) = msg_opt {
-                    tracing::debug!("receive message, topic: {}",msg.topic());
-                    match msg.topic() {
-                        "client" => {
-                            if let Ok(client_message) = ClientMessage::decode(msg.payload()) {
-                                if let Some(info) = client_message.info {
-                                    match info {
-                                        Config(wr_config) => {
-                                            if deduplication.wr_config == Some(wr_config.clone()) {
+                                        let _ = sender.send(ServerMessage::SyncConfig(wr_config.clone())).await;
+                                        deduplication.wr_config = Some(wr_config);
+                                    }
+                                    Status(status) => {
+                                        if let Some(node_status) = NodeStatus::from_i32(status) {
+                                            if deduplication.status == Some(node_status) {
                                                 continue;
                                             }
-
-                                            let _ = self.sender.send(ServerMessage::SyncConfig(wr_config.clone())).await;
-                                            deduplication.wr_config = Some(wr_config);
-                                        }
-                                        Status(status) => {
-                                            if let Some(node_status) = NodeStatus::from_i32(status) {
-                                                if deduplication.status == Some(node_status) {
-                                                    continue;
+                                            match node_status {
+                                                NodeStatus::NodeForbid => {
+                                                    let _ = sender.send(
+                                                        ServerMessage::StopWR("node has been forbid or delete".to_owned())
+                                                    ).await;
                                                 }
-                                                match node_status {
-                                                    NodeStatus::NodeForbid => {
-                                                        let _ = self.sender.send(
-                                                            ServerMessage::StopWR("node has been forbid or delete".to_owned())
-                                                        ).await;
-                                                    }
-                                                    _ => {
-                                                        // this would conflict with Info::Config message, so ignore this.
-                                                    }
+                                                _ => {
+                                                    // this would conflict with Info::Config message, so ignore this.
                                                 }
-                                                deduplication.status = Some(node_status)
                                             }
+                                            deduplication.status = Some(node_status)
                                         }
                                     }
                                 }
-                            } else {
-                                tracing::warn!("client message can not decode, may should update software");
                             }
-                        }
-                        "network" => {
-                            if let Ok(network_message) = NetworkMessage::decode(msg.payload()) {
-                                if let Some(info) = network_message.info {
-                                    match info {
-                                        Peer(peer_change) => {
-                                            let _ = self.sender.send(ServerMessage::SyncPeers(peer_change)).await;
-                                        }
-                                    }
-                                }
-                            } else {
-                                tracing::warn!("network message can not decode, may should update software");
-                            }
-                        }
-                        _ => {
-                            tracing::warn!("topic:{} message can not decode, may should update software", msg.topic());
+                        } else {
+                            tracing::warn!("client message can not decode, may should update software");
                         }
                     }
-                } else {
-                    // A "None" means we were disconnected. Try to reconnect...
-                    while let Err(err) = client.reconnect().await {
-                        tracing::debug!("mqtt reconnect error: {}", err);
-                        tokio::time::sleep(Duration::from_secs(2)).await;
+                    topic if topic == &network_topic => {
+                        if let Ok(network_message) = NetworkMessage::decode(msg.payload()) {
+                            if let Some(info) = network_message.info {
+                                match info {
+                                    Peer(peer_change) => {
+                                        let _ = sender.send(ServerMessage::SyncPeers(peer_change)).await;
+                                    }
+                                    NStatus(status) => {
+                                        if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
+                                            let _ = sender.send(
+                                                ServerMessage::StopWR("network has been delete".to_owned())
+                                            ).await;
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            tracing::warn!("network message can not decode, may should update software");
+                        }
+                    }
+                    _ => {
+                        tracing::warn!("topic:{} message can not decode, may should update software", msg.topic());
                     }
                 }
+            } else {
+                // A "None" means we were disconnected. Try to reconnect...
+                while let Err(err) = client.reconnect().await {
+                    tracing::debug!("mqtt reconnect error: {}", err);
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
             }
-            break;
+        }
+        Ok(())
+    }
+
+    pub async fn mqtt_connect(&mut self, config: Arc<crate::config::Config>) -> anyhow::Result<()> {
+        for node_info in &config.server_config.info {
+            let mut deduplication = Duplication {
+                wr_config: None,
+                status: None,
+            };
+            let node_info = node_info.clone();
+            let _config = config.clone();
+            let _sender = self.sender.clone();
+            tokio::spawn(async move{
+                loop {
+                    let _config = _config.clone();
+                    let _sender = _sender.clone();
+                    let _ = SCManager::mqtt_reconnect(_sender, &node_info, _config, &mut deduplication).await;
+                    tracing::debug!("mqtt connect error");
+                    tokio::time::sleep(Duration::from_secs(10)).await;
+                }
+            });
+
         }
         Ok(())
     }

@@ -9,8 +9,9 @@ import 'dayjs/locale/zh-cn'
 import 'dayjs/locale/en'
 import {RawIntlProvider} from 'react-intl'
 import intl, {antdLocale} from './local/intl'
-import {clearPersistenceToken, getAuthType, getPersistenceToken} from "./api/authAPI";
+import {clearPersistenceToken, getPersistenceToken} from "./api/authAPI";
 import {initKeycloak} from "./api/keycloakAPI";
+import {getAppInfo} from "./api/infoAPI";
 
 const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement
@@ -35,7 +36,7 @@ window.onbeforeunload = () => {
 const init = () => {
     const token = getPersistenceToken()
     if (token != null && token.startsWith('Bearer')) {
-        getAuthType().then(r => {
+        getAppInfo().then(r => {
             //admin changes auth type
             if (r.data.type === 'ST') {
                 clearPersistenceToken()

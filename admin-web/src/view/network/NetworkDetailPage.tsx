@@ -1,10 +1,11 @@
 import {useEffect} from "react";
-import {getNetwork, Network, updateNetwork} from "../../api/networkAPI";
+import {getNetwork, Network, NetworkProtocol, updateNetwork} from "../../api/networkAPI";
 import {useParams} from "react-router-dom";
-import {Button, Col, Form, Input, InputNumber, Row} from "antd";
+import {Button, Col, Form, Input, InputNumber, message, Row, Select} from "antd";
 import {useIntl} from "react-intl";
 import {useForm} from "antd/es/form/Form";
 
+const {Option} = Select;
 
 export default function NetworkDetailPage() {
     const {networkId} = useParams<{ networkId: string }>()
@@ -12,14 +13,15 @@ export default function NetworkDetailPage() {
     const [form] = useForm<Network>()
 
     useEffect(() => {
-        getNetwork(parseInt(networkId!)).then((d) => {
+        getNetwork(networkId!).then((d) => {
             form.setFieldsValue(d)
         })
     }, [networkId, form])
 
     const submit = async () => {
         const data = await form.validateFields()
-        await updateNetwork(parseInt(networkId!), data)
+        await updateNetwork(networkId!, data)
+        message.info(intl.formatMessage({id: 'result.updateSuccess'}, {'0': intl.formatMessage({id: 'nav.network'})}))
     }
     return (
         <>
@@ -62,6 +64,15 @@ export default function NetworkDetailPage() {
                                          max={600}/>
                         </Form.Item>
                     </Col>
+                    <Col span={8}>
+                        <Form.Item rules={[{required: true}]} name={['setting','protocol']}
+                                   label="Protocol">
+                            <Select disabled>
+                                <Option value={NetworkProtocol.TCP}>TCP</Option>
+                                <Option value={NetworkProtocol.UDP}>UDP</Option>
+                            </Select>
+                        </Form.Item>
+                    </Col>
                 </Row>
             </Form>
             <div style={{textAlign: 'center', marginTop: '20px'}}>
@@ -70,6 +81,7 @@ export default function NetworkDetailPage() {
         </>
     )
 }
+// add Nodes Navigator, Invite Code
 // <Col span={8}>
 //     <Form.Item name={['setting', 'dns']} label="Default DNS"><Input/></Form.Item>
 // </Col>

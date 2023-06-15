@@ -7,9 +7,12 @@ const instance = axios.create({
     timeout: 5 * 1000,
 })
 
+
+export type ID = string;
 export interface CreatedSuccess {
-    id: number
+    id: ID
 }
+
 
 export interface Page<T> {
     total: number
