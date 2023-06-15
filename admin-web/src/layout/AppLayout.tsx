@@ -14,7 +14,7 @@ export default function AppLayout() {
     return (
         <Layout style={{height: 'calc(100vh)'}}>
             <Header style={{textAlign: 'center'}}>
-                <span style={{fontWeight: 'bold', fontSize: '20px'}}>ForNet Admin</span>
+                <span style={{fontWeight: 'bold', fontSize: '20px'}}>ForNet Manager (BETA)</span>
             </Header>
             <Content style={{padding: '0 50px'}}>
                 <AppBreadcrumb/>

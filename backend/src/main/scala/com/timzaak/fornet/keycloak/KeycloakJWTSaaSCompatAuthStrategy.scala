@@ -1,16 +1,21 @@
-package very.util.keycloak
+package com.timzaak.fornet.keycloak
 
 import org.scalatra.auth.ScentrySupport
 import org.scalatra.auth.strategy.BasicAuthSupport
 import com.typesafe.scalalogging.LazyLogging
 import org.keycloak.TokenVerifier
 import com.typesafe.scalalogging.Logger
+import very.util.keycloak.{ JWKTokenVerifier, KeycloakJWTAuthStrategy }
 import very.util.web.auth.AuthStrategy
 
-import scala.util.{ Success, Failure }
+import scala.util.{ Failure, Success }
 
-class KeycloakJWTAuthStrategy(jwkTokenVerifier: JWKTokenVerifier, adminRole: Option[String], clientRole: Option[String])
-  extends AuthStrategy[String] with LazyLogging {
+class KeycloakJWTSaaSCompatAuthStrategy(
+  jwkTokenVerifier: JWKTokenVerifier,
+  adminRole: Option[String],
+  clientRole: Option[String]
+) extends AuthStrategy[String]
+  with LazyLogging {
   // JWT
   def name: String = KeycloakJWTAuthStrategy.name
 
@@ -18,7 +23,7 @@ class KeycloakJWTAuthStrategy(jwkTokenVerifier: JWKTokenVerifier, adminRole: Opt
     jwkTokenVerifier.verify(token) match {
       case Success(accessToken) =>
         if (adminRole.fold(true)(role => accessToken.getRealmAccess.getRoles.contains(role))) {
-          Some(accessToken.getSubject)
+          Some(adminRole.getOrElse("admin"))
         } else {
           logger.info(
             s"the user:${accessToken.getSubject} could not pass admin auth"
@@ -48,8 +53,4 @@ class KeycloakJWTAuthStrategy(jwkTokenVerifier: JWKTokenVerifier, adminRole: Opt
     }
   }
 
-}
-
-object KeycloakJWTAuthStrategy {
-  val name: String = "Bearer"
 }
