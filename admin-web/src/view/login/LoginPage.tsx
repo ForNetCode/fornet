@@ -1,12 +1,13 @@
 import React, {useEffect, useState} from 'react';
 import {Button, Form, Input} from "antd";
 import {FormattedMessage, useIntl} from "react-intl";
-import {checkSampleTokenCorrect, getAuthType, savePersistenceToken} from "../../api/authAPI";
+import {checkSampleTokenCorrect, savePersistenceToken} from "../../api/authAPI";
 import {updateHttpToken} from "../../api/http";
 import {Navigate, useLocation} from "react-router-dom";
 import './LoginPage.less'
 import {useAuth} from "../../auth";
 import {initKeycloak} from "../../api/keycloakAPI";
+import {getAppInfo} from "../../api/infoAPI";
 
 export default function LoginPage() {
     const [authType, setAuthType] = useState<string>()
@@ -26,7 +27,7 @@ export default function LoginPage() {
     }
     useEffect(() => {
         if (!auth.isLogin) {
-            getAuthType().then(r => {
+            getAppInfo().then(r => {
                 setAuthType(r.data.type)
                 if (r.data.type !== 'ST') {
                     initKeycloak(r.data).then(() => {

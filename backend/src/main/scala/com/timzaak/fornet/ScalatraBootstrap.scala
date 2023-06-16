@@ -14,10 +14,11 @@ class ScalatraBootstrap extends LifeCycle {
   override def init(context: ServletContext): Unit = {
     // Disables cookies, but required because browsers will not allow passing credentials to wildcard domains
     // context.setInitParameter("org.scalatra.cors.allowCredentials", "false")
-    
+
     context mount (DI.networkController, "/api/network")
     context mount (DI.nodeController, "/api/node")
     context mount (DI.authController, "/api/auth")
+    context mount (DI.appInfoController, "/api/info")
     context mount (DI.mqttCallbackController, "/mqtt")
     context mount (PingServlet(), "/ping")
   }

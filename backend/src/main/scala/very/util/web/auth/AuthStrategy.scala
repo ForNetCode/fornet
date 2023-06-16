@@ -4,5 +4,6 @@ import jakarta.servlet.http.HttpServletRequest
 
 trait AuthStrategy[User] {
   def name:String
-  def auth(token:String): Option[User]
+  def adminAuth(token:String): Option[User]
+  def clientAuth(token:String): Option[User]
 }

@@ -1,4 +1,4 @@
-import http, {CreatedSuccess} from "./http";
+import http, {CreatedSuccess, ID} from "./http";
 
 
 export enum NodeStatus {
@@ -10,11 +10,11 @@ export enum NodeType {
 }
 
 export interface Node {
-    id: number,
+    id: ID,
     nodeType: NodeType,
     status: NodeStatus,
     setting: NodeSetting,
-    networkId: number,
+    networkId: ID,
     name: string,
 }
 
@@ -34,7 +34,7 @@ export interface UpdateNode {
     setting: NodeSetting,
 }
 
-export function getNodeList(networkId: number, page: number = 1, pageSize: number = 10) {
+export function getNodeList(networkId: ID, page: number = 1, pageSize: number = 10) {
     return http.get<Node[]>(`/node/${networkId}`, {
         params: {
             page,
@@ -50,22 +50,22 @@ export interface CreateNode {
     setting: NodeSetting,
 }
 
-export function createNode(networkId: number, data: CreateNode) {
+export function createNode(networkId: ID, data: CreateNode) {
     return http.post<CreatedSuccess>(`/node/${networkId}`, data)
 }
 
-export function getNode(networkId: number, nodeId: number) {
+export function getNode(networkId: ID, nodeId: ID) {
     return http.get<Node>(`/node/${networkId}/${nodeId}`).then(r => r.data)
 }
 
-export function updateNode(networkId: number, nodeId: number, data: UpdateNode) {
+export function updateNode(networkId: ID, nodeId: ID, data: UpdateNode) {
     return http.put(`/node/${networkId}/${nodeId}`, data)
 }
 
-export function getNodeActiveCode(networkId: number, nodeId: number) {
+export function getNodeActiveCode(networkId: ID, nodeId: ID) {
     return http.get<string>(`/node/${networkId}/${nodeId}/active_code`).then(r => r.data)
 }
 
-export function updateNodeStatus(networkId: number, nodeId: number, status: NodeStatus.Forbid | NodeStatus.Normal) {
+export function updateNodeStatus(networkId: ID, nodeId: ID, status: NodeStatus.Forbid | NodeStatus.Normal) {
     return http.put(`/node/${networkId}/${nodeId}/status`, {status})
 }

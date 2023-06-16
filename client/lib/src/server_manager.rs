@@ -33,10 +33,8 @@ impl ServerManager {
             let mut sc_manager = SCManager::new(tx.clone());
             let config = config.clone();
             let _ = tokio::spawn(async move {
-                match sc_manager.mqtt_connect(config).await {
-                    Ok(()) => tracing::warn!("sync config manager close, now can not receive any update from server"),
-                    Err(e) => tracing::error!("sync config manager connect server result:{:?}", e),
-                };
+                tracing::debug!("mqtt connect");
+                let _ = sc_manager.mqtt_connect(config).await;
             });
         } else {
             if start_method == StartMethod::CommandLine {
@@ -82,13 +80,41 @@ impl ServerManager {
                             }
                             ServerMessage::SyncPeers(peer_change_message) => {
                                 if let Some(public_key) = peer_change_message.remove_public_key {
-                                    match Identity::get_pub_identity_from_base64(&public_key) {
-                                        Ok((x_pub_key, _)) => {
-                                            server_manager.wr_manager.remove_peer(&x_pub_key).await;
+                                    if server_manager.config.map(|x|x.identity.pk_base64 != public_key).unwrap_or_else(true) {
+                                        match Identity::get_pub_identity_from_base64(&public_key) {
+                                            Ok((x_pub_key, _)) => {
+                                                server_manager.wr_manager.remove_peer(&x_pub_key).await;
+                                            }
+                                            Err(_) => {
+                                                tracing::warn!("peer identity parse error")
+                                            }
                                         }
-                                        Err(_) => {
-                                            tracing::warn!("peer identity parse error")
-                                        }
+                                    }
+                                }
+                                if let Some(peer) = peer_change_message.add_peer {
+                                    let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
+                                    let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+                                    server_manager.wr_manager.add_peer(
+                                        peer.public_key,
+                                        false,
+                                        peer.endpoint,
+                                        &allowed_ip,
+                                        ip,
+                                        Some(peer.persistence_keep_alive as u16),
+                                    ).await;
+                                }
+                                if let Some(peer) = peer_change_message.change_peer {
+                                    if server_manager.config.map(|x|x.identity.pk_base64 != public_key).unwrap_or_else(true) {
+                                        let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
+                                        let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+                                        server_manager.wr_manager.add_peer(
+                                            peer.public_key,
+                                            false,
+                                            peer.endpoint,
+                                            &allowed_ip,
+                                            ip,
+                                            Some(peer.persistence_keep_alive as u16),
+                                        ).await;
                                     }
                                 }
                             }

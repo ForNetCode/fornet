@@ -1,11 +1,10 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
-use std::time::Duration;
 use anyhow::anyhow;
 use serde_derive::{Deserialize, Serialize};
 use crate::config::{Config, Identity};
 use crate::device::peer::AllowedIP;
-use crate::protobuf::config::WrConfig;
+use crate::protobuf::config::{Protocol, WrConfig, NodeType};
 use crate::device::Device;
 use crate::device::script_run::Scripts;
 
@@ -34,6 +33,7 @@ impl WRManager {
                           pub_key: x25519_dalek::PublicKey,
                           endpoint: Option<SocketAddr>,
                           allowed_ips: &[AllowedIP],
+                          ip:IpAddr,
                           keepalive: Option<u16>) {
         if let Some(device) = &mut self.device {
             device.update_peer(
@@ -42,6 +42,7 @@ impl WRManager {
                 endpoint,
                 allowed_ips,
                 keepalive,
+                ip,
                 None,
             ).await;
         } else {
@@ -54,6 +55,7 @@ impl WRManager {
         let interface = wr_config.interface.unwrap();
         //let address = AllowedIP::from_str(interface.address.as_str()).map_err(|e| anyhow!(e))?;
         let mut address: Vec<AllowedIP> = Vec::new();
+
         for addr in &interface.address {
             address.push(AllowedIP::from_str(addr).map_err(|e| anyhow!(e))?);
         }
@@ -64,13 +66,20 @@ impl WRManager {
         self.close().await;
         tracing::info!("close device before restart");
         let tun_name = config.get_tun_name();
+        let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
+        let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
 
         let scripts = Scripts::load_from_interface(&interface);
         let key_pair = (config.identity.x25519_sk.clone(), config.identity.x25519_pk.clone());
-        let wr_interface = Device::new(&tun_name, &address, key_pair, Some(interface.listen_port as u16),
-                                           interface.mtu.unwrap_or(1420) as u32,
-                                       config.identity.pk_base64.clone(),
-                                       scripts,
+        let wr_interface = Device::new(
+            &tun_name,
+            &address,
+            key_pair,
+            Some(interface.listen_port as u16),
+            interface.mtu.unwrap_or(1420) as u32,
+            scripts,
+            protocol,
+            node_type,
         )?;
 
         self.device = Some(wr_interface);
@@ -78,10 +87,12 @@ impl WRManager {
             let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key)?;
             let endpoint = peer.endpoint.map(|v| SocketAddr::from_str(&v).unwrap());
             let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+            let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
             self.add_peer(
                 x_pub_key,
                 endpoint,
                 allowed_ip.as_slice(),
+                ip,
                 Some(peer.persistence_keep_alive as u16),
             ).await;
             tracing::debug!("peer: {} join network", peer.public_key);
@@ -90,6 +101,7 @@ impl WRManager {
     }
 
     pub fn is_alive(&self) -> bool { self.device.is_some() }
+
     pub async fn close(&mut self) {
         if let Some(ref mut device) = self.device.take() {
             device.close().await
@@ -97,7 +109,6 @@ impl WRManager {
     }
 
     pub fn device_info(&self) -> Vec<DeviceInfoResp> {
-
         self.device.as_ref().map_or(vec![], |device| {
             vec![DeviceInfoResp {
                 name: device.name.clone()

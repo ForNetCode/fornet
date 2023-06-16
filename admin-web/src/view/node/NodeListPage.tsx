@@ -7,6 +7,7 @@ import {useIntl} from "react-intl";
 import {enumToDesc} from "../../local/intl";
 import {QRCodeCanvas} from "qrcode.react";
 import copy from "copy-to-clipboard";
+import {ID} from "../../api/http";
 
 export default function NodeListPage() {
     const {networkId} = useParams<{ networkId: string }>()
@@ -14,14 +15,14 @@ export default function NodeListPage() {
     const [data, setData] = useState<Node[]>([])
     const intl = useIntl()
     useEffect(() => {
-        getNodeList(parseInt(networkId!)).then((d) => setData(d.data))
+        getNodeList(networkId!).then((d) => setData(d.data))
     }, [networkId])
 
-    const showActiveModalAction = async (networkId: number, nodeId: number) => {
+    const showActiveModalAction = async (networkId: ID, nodeId: ID) => {
         const activeCode = await getNodeActiveCode(networkId, nodeId)
         setShowActiveCode(activeCode)
     }
-    const updateNodeStatusAction = async (networkId: number, nodeId: number, status: NodeStatus.Forbid | NodeStatus.Normal) => {
+    const updateNodeStatusAction = async (networkId: ID, nodeId: ID, status: NodeStatus.Forbid | NodeStatus.Normal) => {
         await updateNodeStatus(networkId, nodeId, status)
         message.info(intl.formatMessage({id: 'result.updateSuccess'}, {'0': intl.formatMessage({id: 'status'})}))
         getNodeList(networkId).then((d) => setData(d.data))

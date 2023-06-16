@@ -16,7 +16,7 @@ export function CreateNodePage() {
     const intl = useIntl()
     useEffect(() => {
         if (networkId) {
-            getNetwork(parseInt(networkId)).then(r => setNetwork(r))
+            getNetwork(networkId).then(r => setNetwork(r))
         }
     }, [networkId])
 
@@ -36,7 +36,7 @@ export function CreateNodePage() {
             delete data.ip
         }
 
-        const {id} = (await createNode(parseInt(networkId as string), data)).data
+        const {id} = (await createNode(networkId!, data)).data
         message.info(intl.formatMessage({id: 'result.createSuccess'}, {'0': intl.formatMessage({id: 'nav.node'})}))
         navi(`/network/${networkId}/node/${id}`, {replace: true})
     }

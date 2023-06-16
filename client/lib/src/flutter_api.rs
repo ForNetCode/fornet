@@ -8,7 +8,7 @@
 use std::str::FromStr;
 use once_cell::sync::OnceCell;
 
-use tokio::runtime::{Handle, Runtime};
+use tokio::runtime::Runtime;
 use tracing::Level;
 use crate::{default_config_path, server_manager};
 use crate::server_manager::StartMethod;
