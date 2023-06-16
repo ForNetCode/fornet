@@ -20,7 +20,7 @@ jobs:
             cache-dependency-path: 'admin-web/package-lock.json'
 
         - name: build admin-web
-          run: cd admin-web && npm run build && cd ../
+          run: cd admin-web && npm run build:prod && cd ../
 
         - uses: coursier/cache-action@v6
         - uses: coursier/setup-action@v1
