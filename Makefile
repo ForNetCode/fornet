@@ -1,5 +1,5 @@
 # This is for .github/workflows.
-.PHONY: release-mac-x86_64, release-mac-aarch64, release-linux, release-backend
+.PHONY: release-mac-x86_64, release-mac-aarch64, release-linux, release-backend, release-linux-aarch64
 
 #base_dir := $(shell pwd)
 
@@ -19,13 +19,22 @@ release-mac-x86_64:
 release-mac-aarch64:
 	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-aarch_64.zip && unzip protoc-21.9-osx-aarch_64.zip && sudo cp bin/protoc /usr/local/bin
 	cp -r protoc/include/* protobuf/
-	mkdir -p release 	
+	mkdir -p release
 	cd client && cargo build --release --target=aarch64-apple-darwin
 	strip client/target/aarch64-apple-darwin/release/fornet
 	otool -L client/target/aarch64-apple-darwin/release/fornet
 	strip client/target/aarch64-apple-darwin/release/fornet-cli
 	otool -L client/target/aarch64-apple-darwin/release/fornet-cli	
 	tar -C client/target/aarch64-apple-darwin/release/ -czvf release/fornet-mac-aarch64.tar.gz ./fornet ./fornet-cli
+
+# This is for self-hosted arm64-linux
+release-linux-aarch64:
+	cd client && cargo build --release
+	strip client/target/aarch64-unknown-linux-gnu/release/fornet
+	strip client/target/aarch64-unknown-linux-gnu/release/fornet-cli
+	tar -C client/target/aarch64-unknown-linux-gnu/release/ -czvf release/fornet-linux-x86_64.tar.gz ./fornet ./fornet-cli
+
+
 
 release-linux:	
 	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-x86_64.zip && unzip protoc-21.9-linux-x86_64.zip && sudo cp bin/protoc /usr/bin
@@ -36,6 +45,7 @@ release-linux:
 	strip client/target/x86_64-unknown-linux-gnu/release/fornet
 	strip client/target/x86_64-unknown-linux-gnu/release/fornet-cli
 	tar -C client/target/x86_64-unknown-linux-gnu/release/ -czvf release/fornet-linux-x86_64.tar.gz ./fornet ./fornet-cli
+
 
 release-backend:
 	cd admin-web && npm ci && npm run build:prod && cd ../
