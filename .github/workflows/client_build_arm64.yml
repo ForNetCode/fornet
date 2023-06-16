@@ -38,8 +38,10 @@ jobs:
           tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}, ${{ env.REGISTRY }}/fornetcode/fornet:latest
       - name: copy binary from docker to release directory
         run: |
-          mkdir -p release && docker run --rm  -v ./release:/release ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} cp /bin/fornet:/release/ && cp /bin/fornet-cli:/release
-            
+          mkdir -p release 
+          docker run --rm  -v ./release:/release ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} cp /bin/fornet:/release/ && cp /bin/fornet-cli:/release
+          cd release && tar  -czvf release/fornet-linux-aarch64.tar.gz ./fornet ./fornet-cli && rm fornet && rm fornet-cli
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
