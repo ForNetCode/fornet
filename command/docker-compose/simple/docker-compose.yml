@@ -3,7 +3,7 @@ version: "3"
 services:
 
   mqtt:
-    image: rmqtt/rmqtt:0.2.11
+    image: rmqtt/rmqtt:latest
     container_name: mqtt
     ports:
       - 1883:1883
