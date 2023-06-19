@@ -21,7 +21,7 @@ pub  enum TcpConnection {
     Nothing,
     Connecting(SystemTime),
     Connected(OwnedWriteHalf),
-    ConnectedFailure(std::io::Error)
+    ConnectedFailure(std::io::Error, SystemTime),
 }
 #[derive(Debug)]
 pub struct Endpoint {
@@ -39,7 +39,7 @@ impl Endpoint {
                 },
                 Err(e) => {
                     tracing::error!("tcp conn of {:?} fail, error: {}", conn.peer_addr(), e);
-                    self.tcp_conn = TcpConnection::ConnectedFailure(e);
+                    self.tcp_conn = TcpConnection::ConnectedFailure(e, SystemTime::now());
                 }
             };
         }

@@ -341,6 +341,7 @@ pub async fn tcp_peers_timer(
 ) {
     let mut interval = time::interval(Duration::from_millis(250));
     let mut dst_buf: Vec<u8>= vec![0; MAX_UDP_SIZE];
+    let error_recovery_duration = Duration::from_secs(10);
 
     loop {
         interval.tick().await;
@@ -352,7 +353,10 @@ pub async fn tcp_peers_timer(
                 None => continue,
             };
             match &mut p.endpoint.tcp_conn {
-                TcpConnection::Nothing | TcpConnection::ConnectedFailure(_) => {
+                TcpConnection::ConnectedFailure(_, time) if time.elapsed().map(|x| x < error_recovery_duration).unwrap_or(false) => {
+                    continue;
+                }
+                TcpConnection::Nothing | TcpConnection::ConnectedFailure(..) => {
                     if node_type == NodeType::NodeClient || ip < &p.ip {
                         p.endpoint.tcp_conn = TcpConnection::Connecting(SystemTime::now());
                         match TcpStream::connect(&endpoint_addr).await {
@@ -363,7 +367,7 @@ pub async fn tcp_peers_timer(
                             },
                             Err(error) => {
                                 tracing::debug!("connect {endpoint_addr:?} failure, error: {error:?}");
-                                p.endpoint.tcp_conn = TcpConnection::ConnectedFailure(error)
+                                p.endpoint.tcp_conn = TcpConnection::ConnectedFailure(error, SystemTime::now());
                             }
                         };
                     }
@@ -567,7 +571,7 @@ pub fn tcp_handler(
                                 },
                                 WriterState::PeerWriter(peer)=> {
                                     let mut p = peer.lock().await;
-                                    p.endpoint.tcp_write(packet).await;
+                                    p.endpoint.tcp_write(cookie).await;
                                 }
                             }
                             continue;
@@ -593,7 +597,7 @@ pub fn tcp_handler(
                 };
 
                 let mut p = peer.lock().await;
-                if let TcpConnection::Nothing | TcpConnection::ConnectedFailure(_) = p.endpoint.tcp_conn {
+                if let TcpConnection::Nothing | TcpConnection::ConnectedFailure(..) = p.endpoint.tcp_conn {
                     if let WriterState::PureWriter(_) = &mut writer {
                         let pure_writer = mem::replace(&mut writer,WriterState::PeerWriter(peer.clone()));
                         if let WriterState::PureWriter(_writer) = pure_writer {
