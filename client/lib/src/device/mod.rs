@@ -709,7 +709,6 @@ impl Default for Peers {
 #[cfg(test)]
 mod test {
     use std::time::Duration;
-    use ed25519_compact::KeyPair;
     use crate::device::Device;
     //use tracing_test::traced_test;
     use crate::config::Identity;
@@ -718,24 +717,6 @@ mod test {
     use crate::device::script_run::Scripts;
     use crate::protobuf::config::{NodeType, Protocol};
 
-    fn new_udp_client_device() -> Device{
-        let allowed_addr = vec![AllowedIP::from_str("10.0.0.1/32").unwrap()];
-        let identity = Identity::new();
-        let key_pair = (identity.x25519_sk, identity.x25519_pk);
-        let port = Some(25516);
-        let mtu = 1000;
-        let scripts = Scripts::default();
-        let protocol = Protocol::Tcp;
-        let node_type = NodeType::NodeClient;
-
-        let mut device = Device::new(
-            "for0",
-            &allowed_addr,
-            key_pair,
-            port, mtu, scripts, protocol, node_type,
-        ).unwrap();
-        device
-    }
 
     fn new_client(protocol: Protocol, node_type:NodeType, allowed_ip:&str) ->Device {
         let allowed_addr = vec![AllowedIP::from_str(allowed_ip).unwrap()];
@@ -758,11 +739,11 @@ mod test {
     //sudo cargo test  --lib device::test::udp_client_device_new_and_close
     #[tokio::test]
     pub async fn udp_client_device_new_and_close() {
-        let mut device = new_udp_client_device();
+        let mut device = new_client(Protocol::Udp, NodeType::NodeClient, "10.0.0.1:32");
         tokio::time::sleep(Duration::from_secs(5)).await;
         device.close().await;
         tokio::time::sleep(Duration::from_secs(5)).await;
-        let mut device = new_udp_client_device();
+        let mut device = new_client(Protocol::Udp, NodeType::NodeClient, "10.0.0.1:32");
         tokio::time::sleep(Duration::from_secs(5)).await;
         device.close().await;
     }
