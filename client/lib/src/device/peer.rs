@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use boringtun::noise::{Tunn, TunnResult};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{UdpSocket};
 use tokio::net::tcp::OwnedWriteHalf;
 use crate::device::allowed_ips::AllowedIps;
@@ -27,6 +28,22 @@ pub struct Endpoint {
     pub addr: Option<SocketAddr>,
     pub udp_conn: Option<Arc<UdpSocket>>,
     pub tcp_conn: TcpConnection,
+}
+
+impl Endpoint {
+    pub async fn tcp_write(&mut self, bytes:&[u8]) {
+        if let TcpConnection::Connected(conn) = &mut self.tcp_conn {
+            match conn.write_all(bytes).await {
+                Ok(_) =>  {
+                    // do nothing
+                },
+                Err(e) => {
+                    tracing::error!("tcp conn of {:?} fail, error: {}", conn.peer_addr(), e);
+                    self.tcp_conn = TcpConnection::ConnectedFailure(e);
+                }
+            };
+        }
+    }
 }
 
 pub struct Peer {
@@ -104,8 +121,7 @@ impl Peer {
     pub fn shutdown_endpoint(&mut self) {
         if let Some(_) = &mut self.endpoint.udp_conn.take() {
             tracing::info!("disconnecting from endpoint");
-        }
-        if let TcpConnection::Connected(_) = &mut self.endpoint.tcp_conn {
+        } else if let TcpConnection::Connected(_) = &mut self.endpoint.tcp_conn {
             tracing::info!("disconnecting tcp connection");
         }
         self.endpoint.tcp_conn = TcpConnection::Nothing;
