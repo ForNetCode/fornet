@@ -1,5 +1,6 @@
 name: fornet arm64 client build
 # run at self-hosted mac min M2
+# But it does not success for SSL timeout. we may try other methods to do this
 on:
   workflow_dispatch:
     inputs:
