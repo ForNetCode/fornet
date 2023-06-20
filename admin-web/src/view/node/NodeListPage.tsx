@@ -2,7 +2,7 @@ import {Button, message, Modal, Space, Table} from "antd";
 import {useEffect, useState} from "react";
 import {getNodeActiveCode, getNodeList, Node, NodeStatus, updateNodeStatus} from "../../api/nodeAPI";
 import {Link, useParams} from "react-router-dom";
-import {ColumnsType} from "antd/es/table/Table";
+import {ColumnsType} from "antd/es/table";
 import {useIntl} from "react-intl";
 import {enumToDesc} from "../../local/intl";
 import {QRCodeCanvas} from "qrcode.react";
