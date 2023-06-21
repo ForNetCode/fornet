@@ -1,4 +1,4 @@
-name: admin web check
+name: simple ci
 on:
   push:
     branches:
