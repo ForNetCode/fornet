@@ -12,4 +12,4 @@ fi
 
 wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-linux-$architecture.zip && unzip protoc-21.9-linux-$architecture.zip && cp bin/* /usr/bin/
 
-cp -r /protoc/include/* /source/protobuf/
+#cp -r /protoc/include/* /source/protobuf/
