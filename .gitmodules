@@ -5,3 +5,9 @@
 [submodule "third/rust-tun"]
 	path = third/rust-tun
 	url = https://github.com/timzaak/rust-tun.git
+[submodule "third/web-sugar"]
+	path = third/web-sugar
+	url = git@github.com:ForNetCode/web-sugar.git
+[submodule "third/simple-windows-tun"]
+	path = third/simple-windows-tun
+	url = git@github.com:ForNetCode/simple-windows-tun.git
