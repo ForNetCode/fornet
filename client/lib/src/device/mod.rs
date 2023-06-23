@@ -256,7 +256,6 @@ pub async fn tun_read_handle(peers: &Arc<RwLock<Peers>>, udp4: &UdpSocket, udp6:
                     } else {
                         tracing::error!("No endpoint");
                     }
-                    //TODO: get tcp socket from peers and send
                 }
                 _ => panic!("Unexpected result from encapsulate"),
             };
@@ -341,7 +340,9 @@ pub async fn tcp_peers_timer(
     node_type: NodeType,
 ) {
     let mut interval = time::interval(Duration::from_millis(250));
+
     let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
+    let error_recovery_duration = Duration::from_secs(10);
 
     loop {
         interval.tick().await;
@@ -353,7 +354,10 @@ pub async fn tcp_peers_timer(
                 None => continue,
             };
             match &mut p.endpoint.tcp_conn {
-                TcpConnection::Nothing | TcpConnection::ConnectedFailure(_) => {
+                TcpConnection::ConnectedFailure(_, time) if time.elapsed().map(|x| x < error_recovery_duration).unwrap_or(false) => {
+                    continue;
+                }
+                TcpConnection::Nothing | TcpConnection::ConnectedFailure(..) => {
                     if node_type == NodeType::NodeClient || ip < &p.ip {
                         p.endpoint.tcp_conn = TcpConnection::Connecting(SystemTime::now());
                         match TcpStream::connect(&endpoint_addr).await {
@@ -364,7 +368,7 @@ pub async fn tcp_peers_timer(
                             }
                             Err(error) => {
                                 tracing::debug!("connect {endpoint_addr:?} failure, error: {error:?}");
-                                p.endpoint.tcp_conn = TcpConnection::ConnectedFailure(error)
+                                p.endpoint.tcp_conn = TcpConnection::ConnectedFailure(error, SystemTime::now());
                             }
                         };
                     }
@@ -384,9 +388,7 @@ pub async fn tcp_peers_timer(
                 }
                 TunnResult::Err(e) => tracing::error!(message = "Timer error", error = ?e),
                 TunnResult::WriteToNetwork(packet) => {
-                    if let TcpConnection::Connected(connection) = &mut p.endpoint.tcp_conn {
-                        let _ = connection.write_all(packet).await;
-                    }
+                    p.endpoint.tcp_write(packet).await;
                 }
                 _ => tracing::warn!("Unexpected result from update_timers"),
             };
@@ -568,11 +570,7 @@ pub fn tcp_handler(
                                 }
                                 WriterState::PeerWriter(peer) => {
                                     let mut p = peer.lock().await;
-                                    if let TcpConnection::Connected(w) = &mut p.endpoint.tcp_conn {
-                                        let _ = w.write_all(cookie).await;
-                                    } else {
-                                        tracing::warn!("should not come here");
-                                    }
+                                    p.endpoint.tcp_write(cookie).await;
                                 }
                             }
                             continue;
@@ -598,7 +596,7 @@ pub fn tcp_handler(
                 };
 
                 let mut p = peer.lock().await;
-                if let TcpConnection::Nothing | TcpConnection::ConnectedFailure(_) = p.endpoint.tcp_conn {
+                if let TcpConnection::Nothing | TcpConnection::ConnectedFailure(..) = p.endpoint.tcp_conn {
                     if let WriterState::PureWriter(_) = &mut writer {
                         let pure_writer = mem::replace(&mut writer, WriterState::PeerWriter(peer.clone()));
                         if let WriterState::PureWriter(_writer) = pure_writer {
@@ -616,10 +614,7 @@ pub fn tcp_handler(
                     TunnResult::Err(_) => continue,
                     TunnResult::WriteToNetwork(packet) => {
                         flush = true;
-
-                        if let TcpConnection::Connected(conn) = &mut p.endpoint.tcp_conn {
-                            let _ = conn.write_all(packet).await;
-                        }
+                        p.endpoint.tcp_write(packet).await;
                     }
                     TunnResult::WriteToTunnelV4(packet, addr) => {
                         // tracing::debug!("{addr:?}");
@@ -672,20 +667,18 @@ pub fn tcp_handler(
                     }
                 };
 
-                if flush {
-                    // Flush pending queue
-                    while let TunnResult::WriteToNetwork(packet) =
-                        p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
-                    {
-                        if let TcpConnection::Connected(conn) = &mut p.endpoint.tcp_conn {
-                            let _ = conn.write_all(packet).await;
+                    if flush {
+                        // Flush pending queue
+                        while let TunnResult::WriteToNetwork(packet) =
+                            p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
+                        {
+                            p.endpoint.tcp_write(packet).await;
                         }
                     }
                 }
             }
-        }
-        tracing::info!("tcp: {addr:?} close");
-    });
+            tracing::info!("tcp: {addr:?} close");
+        });
 }
 
 
