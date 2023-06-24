@@ -559,7 +559,7 @@ pub fn tcp_handler(
         let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
         while let Ok(size) = reader.read(&mut src_buf).await {
             if size > 0 {
-                tracing::debug!("tcp receive message");
+                //tracing::debug!("tcp receive message");
                 let parsed_packet =
                     match rate_limiter.as_ref().verify_packet(Some(addr.ip()), &src_buf[..size], &mut dst_buf) {
                         Ok(packet) => packet,
@@ -675,21 +675,20 @@ pub fn tcp_handler(
                     }
                 };
 
-                    if flush {
+                if flush {
                         // Flush pending queue
-                        while let TunnResult::WriteToNetwork(packet) =
-                            p.tunnel.decapsulate(None, &[], &mut dst_buf[..])
-                        {
-                            p.endpoint.tcp_write(packet).await;
-                        }
+                    while let TunnResult::WriteToNetwork(packet) =
+                        p.tunnel.decapsulate(None, &[], &mut dst_buf[..]) {
+                        p.endpoint.tcp_write(packet).await;
                     }
-                } else {
-                // if writer drop ,size would be zero, this may change in future  tokio!!
+                }
+            } else {
+                  // if writer drop ,size would be zero, this may change in future  tokio!!
                 break;
             }
-            }
-            tracing::info!("tcp read: {addr:?} close");
-        });
+        }
+        tracing::info!("tcp read: {addr:?} close");
+    });
 }
 
 

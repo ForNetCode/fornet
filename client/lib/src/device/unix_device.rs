@@ -87,7 +87,7 @@ impl Device {
                     loop {
 
                         tokio::select! {
-                            _ = device::rate_limiter_timer(&rate_limiter) => {println!("rate_limiter_timer");}
+                            _ = device::rate_limiter_timer(&rate_limiter) => {}
                             _ = device::tcp_peers_timer(
                                 &ip,
                                 &peers,
@@ -96,7 +96,7 @@ impl Device {
                                 iface_writer.clone(),
                                 pi,
                                 node_type,
-                            ) => {println!("tcp_peers_timer");}
+                            ) => {}
                             // iface listen
                             Ok(len) = iface_reader.read(&mut tun_src_buf) => {
                                 if len > 0 {
@@ -107,11 +107,9 @@ impl Device {
                                     };
                                     device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
                                 }
-                            println!("tun_read_tcp_handle");
                             }
                             //_ = device::tcp_listener_handler(&tcp4, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
                             _ = device::tcp_listener_handler(&tcp6, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {
-                                println!("tcp_listener_handler");
                                 break;
                             }
 
