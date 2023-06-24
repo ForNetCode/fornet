@@ -16,48 +16,43 @@ async fn main() -> anyhow::Result<()> {
 
     let matches = Command::new(APP_NAME)
         .version(env!("CARGO_PKG_VERSION"))
-        .author("timzaak <zsy.evan@gmail.com>")
+        .author("ForNetCode <zsy.evan@gmail.com>")
         .args(&[
             Arg::new("config")
                 .long("config")
                 .short('c')
                 .env("FORNET_CONFIG")
                 .help("config directory path")
-                .default_value(&default_config_path)
+                .default_value(&default_config_path),
         ])
         .get_matches();
 
+
     let config_dir = matches.value_of("config").unwrap().to_owned();
 
-    match matches.subcommand() {
-        None => {
-            let log_level = if cfg!(debug_assertions) {
-                "debug"
-            } else {
-                "info"
-            };
-            let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::from_str(log_level).unwrap());
-            if cfg!(debug_assertions) {
-                tracing_subscriber::fmt()
-                    .with_env_filter(env_filter)
-                    .init();
-            } else {
-                tracing_subscriber::fmt()
-                    .with_env_filter(env_filter)
-                    .with_target(false)
-                    .with_ansi(false)
-                    .init();
-            }
 
-            //tracing::info!("log level: {log_level}");
-            ServerManager::start_server(config_dir, StartMethod::CommandLine).await?;
-            tokio::signal::ctrl_c().await.unwrap();
-            //TODO: add signal
-        }
-        _ => {
-            println!("please type: fornet --help for more information.")
-        }
+    //console_subscriber::init();
+
+    let log_level = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "info"
     };
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::from_str(log_level).unwrap());
+    if cfg!(debug_assertions) {
+        tracing_subscriber::fmt()
+            .with_env_filter(env_filter)
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(env_filter)
+            .with_target(false)
+            .with_ansi(false)
+            .init();
+    }
+
+    ServerManager::start_server(config_dir, StartMethod::CommandLine).await?;
+    tokio::signal::ctrl_c().await.unwrap();
     Ok(())
 }
 
