@@ -1,5 +1,6 @@
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
+use std::time::Duration;
 use anyhow::anyhow;
 use serde_derive::{Deserialize, Serialize};
 use crate::config::{Config, Identity};
@@ -63,14 +64,20 @@ impl WRManager {
         //TODO: check if need restart
         // if interface not equal, restart
         // check peers, remove or add new ones.
-        self.close().await;
-        tracing::info!("close device before restart");
+        let has_alive = self.is_alive();
+        if has_alive {
+            tracing::info!("close device");
+            self.close().await;
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        }
+
         let tun_name = config.get_tun_name();
         let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
         let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
 
         let scripts = Scripts::load_from_interface(&interface);
         let key_pair = (config.identity.x25519_sk.clone(), config.identity.x25519_pk.clone());
+        tracing::debug!("begin to start device");
         let wr_interface = Device::new(
             &tun_name,
             &address,
