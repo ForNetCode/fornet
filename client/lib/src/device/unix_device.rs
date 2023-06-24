@@ -120,7 +120,7 @@ impl Device {
             }
         };
         let device = Device {
-            device_data: DeviceData::new(name,peers1, key_pair1, port, scripts,
+            device_data: DeviceData::new(name,peers1, key_pair1, port, scripts, node_type,
             ),
             task,
             protocol,

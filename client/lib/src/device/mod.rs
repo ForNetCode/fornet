@@ -141,6 +141,7 @@ pub struct DeviceData {
     pub key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
     pub listen_port: u16,
     pub scripts: Scripts,
+    pub node_type: NodeType,
 }
 
 impl DeviceData {
@@ -149,6 +150,7 @@ impl DeviceData {
                key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
                listen_port: u16,
                scripts: Scripts,
+               node_type:NodeType,
     ) -> Self {
         Self {
             name,
@@ -157,6 +159,7 @@ impl DeviceData {
             key_pair,
             listen_port,
             scripts,
+            node_type,
         }
     }
     pub fn next_index(&mut self) -> u32 {

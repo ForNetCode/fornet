@@ -66,9 +66,11 @@ impl WRManager {
         // check peers, remove or add new ones.
         let has_alive = self.is_alive();
         if has_alive {
+            let node_type = self.device.as_ref().map(|x|x.node_type).unwrap_or(NodeType::NodeClient);
             tracing::info!("close device");
             self.close().await;
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            let  sleep_time = if node_type == NodeType::NodeRelay {10} else {20};
+            tokio::time::sleep(Duration::from_secs(sleep_time)).await;
         }
 
         let tun_name = config.get_tun_name();
