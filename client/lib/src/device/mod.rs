@@ -230,11 +230,6 @@ impl DeviceData {
 impl Drop for DeviceData {
     fn drop(&mut self) {
         let _ = run_opt_script(&self.scripts.post_down);
-        //TODO: iface should be destroy
-        #[cfg(target_os = "macos")]
-        if let Err(e) = tun::sys::destroy_iface(&self.name) {
-            tracing::error!("remove route error: {e}");
-        }
     }
 }
 
@@ -383,7 +378,7 @@ pub async fn tcp_peers_timer(
                     continue;
                 }
                 _ => {
-                    tracing::warn!("should not come here");
+
                 }
             };
             match p.update_timers(&mut dst_buf) {
@@ -560,12 +555,11 @@ pub fn tcp_handler(
         let (private_key, public_key) = key_pair.as_ref();
         let mut writer = writer;
         let mut reader = reader;
-        //let (mut reader, writer ) = socket.into_split();
-        //let mut writer = WriterState::PureWriter(writer);
         let mut src_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
         let mut dst_buf: Vec<u8> = vec![0; MAX_UDP_SIZE];
         while let Ok(size) = reader.read(&mut src_buf).await {
             if size > 0 {
+                tracing::debug!("tcp receive message");
                 let parsed_packet =
                     match rate_limiter.as_ref().verify_packet(Some(addr.ip()), &src_buf[..size], &mut dst_buf) {
                         Ok(packet) => packet,
@@ -689,9 +683,12 @@ pub fn tcp_handler(
                             p.endpoint.tcp_write(packet).await;
                         }
                     }
-                }
+                } else {
+                // if writer drop ,size would be zero, this may change in future  tokio!!
+                break;
             }
-            tracing::info!("tcp: {addr:?} close");
+            }
+            tracing::info!("tcp read: {addr:?} close");
         });
 }
 
@@ -765,10 +762,5 @@ mod test {
         let mut device = new_client(Protocol::Tcp, NodeType::NodeClient, "10.0.0.1/32");
         tokio::time::sleep(Duration::from_secs(5)).await;
         device.close().await;
-    }
-
-    #[tokio::test]
-    pub async fn tcp_split_can_close() {
-
     }
 }

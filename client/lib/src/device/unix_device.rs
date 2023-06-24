@@ -85,8 +85,9 @@ impl Device {
 
                 let task:JoinHandle<()> = tokio::spawn(async move {
                     loop {
+
                         tokio::select! {
-                            _ = device::rate_limiter_timer(&rate_limiter) => {}
+                            _ = device::rate_limiter_timer(&rate_limiter) => {println!("rate_limiter_timer");}
                             _ = device::tcp_peers_timer(
                                 &ip,
                                 &peers,
@@ -95,25 +96,31 @@ impl Device {
                                 iface_writer.clone(),
                                 pi,
                                 node_type,
-                            ) => {}
+                            ) => {println!("tcp_peers_timer");}
                             // iface listen
                             Ok(len) = iface_reader.read(&mut tun_src_buf) => {
-                                let src_buf = if pi {
-                                    &tun_src_buf[4..(len+4)]
-                                } else {
-                                    &tun_src_buf[0..len]
-                                };
-                                device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
+                                if len > 0 {
+                                    let src_buf = if pi {
+                                        &tun_src_buf[4..(len+4)]
+                                    } else {
+                                        &tun_src_buf[0..len]
+                                    };
+                                    device::tun_read_tcp_handle(&peers, src_buf, &mut tun_dst_buf).await;
+                                }
+                            println!("tun_read_tcp_handle");
                             }
                             //_ = device::tcp_listener_handler(&tcp4, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
-                            _ = device::tcp_listener_handler(&tcp6, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {break}
+                            _ = device::tcp_listener_handler(&tcp6, key_pair.clone(), rate_limiter.clone(), Arc::clone(&peers), Arc::clone(&iface_writer), pi) => {
+                                println!("tcp_listener_handler");
+                                break;
+                            }
+
                         }
                     }
                 });
                 (port, task)
             }
         };
-
         let device = Device {
             device_data: DeviceData::new(name,peers1, key_pair1, port, scripts,
             ),
@@ -129,6 +136,7 @@ impl Device {
 
     pub async fn close(&mut self) {
         self.task.abort();// close all connections.
+        //tracing::debug!("tun/rpc task is finish: {}", self.task.is_finished());
         self.device_data.close().await;
         // task abort would cost some time.
         tokio::time::sleep(Duration::from_secs(2)).await;

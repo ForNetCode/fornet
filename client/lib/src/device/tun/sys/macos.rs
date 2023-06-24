@@ -24,8 +24,3 @@ pub fn remove_route(iface_name:&str, allowed_ip:&AllowedIP) -> anyhow::Result<()
     //Command::new("route").args(&["-q", "-n", "delete", inet, &allowed_ip.to_string(), "-interface", iface_name]).status()?;
     Ok(())
 }
-
-pub fn destroy_iface(iface_name:&str) -> anyhow::Result<()> {
-    let r = run_cmd!(ifconfig ${iface_name} delete)?;
-    Ok(())
-}

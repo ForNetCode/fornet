@@ -8,7 +8,7 @@ use fornet_lib::wr_manager::DeviceInfoResp;
 pub async fn main() -> anyhow::Result<()> {
     let mut command = Command::new("fornet-cli")
         .version(env!("CARGO_PKG_VERSION"))
-        .author("timzaak <zsy.evan@gmail.com>")
+        .author("ForNetCode <zsy.evan@gmail.com>")
         .subcommand(
             Command::new("join").arg(Arg::new("invite_token").help("base64 token").required(true)),
         ).subcommand(

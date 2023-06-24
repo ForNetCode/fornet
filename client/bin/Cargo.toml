@@ -18,9 +18,10 @@ fornet-lib = {path = "../lib"}
 clap = { version = "3.2.20", features = ["env"] }
 anyhow = "1.0"
 
-tokio = { version = "1.20.1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tokio = { version = "1.20.1", features = ["macros", "rt-multi-thread", "net", "signal", "tracing"] }
 tracing = "0.1.36"
 tracing-subscriber = {version = "0.3.15",  features = ["env-filter"]}
+console-subscriber = "0.1.9"
 
 serde = { version = "1.0.144" }
 serde_json = "1.0.85"
