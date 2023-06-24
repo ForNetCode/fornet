@@ -17,7 +17,7 @@ pub fn set_route(iface_name:&str, allowed_ip: &AllowedIP) -> anyhow::Result<()> 
 }
 
 pub fn remove_route(iface_name:&str, allowed_ip:&AllowedIP) -> anyhow::Result<()> {
-    let inet = if allowed_ip.addr.is_ipv4() { "-net" } else { "-6net" };
-    Command::new("route").args(&["del", inet,&allowed_ip.to_string(),"dev", iface_name]).status()?;
+    //let inet = if allowed_ip.addr.is_ipv4() { "-net" } else { "-6net" };
+    //Command::new("route").args(&["del", inet,&allowed_ip.to_string(),"dev", iface_name]).status()?;
     Ok(())
 }

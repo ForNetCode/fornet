@@ -115,7 +115,8 @@ impl Device {
         };
 
         let device = Device {
-            device_data: DeviceData::new(name,peers1, key_pair1, port, scripts),
+            device_data: DeviceData::new(name,peers1, key_pair1, port, scripts,
+            ),
             task,
             protocol,
         };
@@ -145,6 +146,12 @@ impl Deref for Device {
 impl DerefMut for Device {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.device_data
+    }
+}
+
+impl Drop for Device {
+    fn drop(&mut self) {
+        tracing::debug!("device has been dropped");
     }
 }
 

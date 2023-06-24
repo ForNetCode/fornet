@@ -231,6 +231,11 @@ impl DeviceData {
 impl Drop for DeviceData {
     fn drop(&mut self) {
         let _ = run_opt_script(&self.scripts.post_down);
+        //TODO: iface should be destroy
+        #[cfg(target_os = "macos")]
+        if let Err(e) = tun::sys::destroy_iface(&self.name) {
+            tracing::error!("remove route error: {e}");
+        }
     }
 }
 
