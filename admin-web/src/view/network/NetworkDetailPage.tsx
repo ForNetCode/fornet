@@ -67,7 +67,7 @@ export default function NetworkDetailPage() {
                     <Col span={8}>
                         <Form.Item rules={[{required: true}]} name={['setting','protocol']}
                                    label="Protocol">
-                            <Select disabled>
+                            <Select>
                                 <Option value={NetworkProtocol.TCP}>TCP</Option>
                                 <Option value={NetworkProtocol.UDP}>UDP</Option>
                             </Select>

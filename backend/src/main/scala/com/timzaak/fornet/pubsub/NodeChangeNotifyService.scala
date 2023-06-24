@@ -119,16 +119,6 @@ class NodeChangeNotifyService(
         val network = networkDao.findById(node.networkId).get
         val peer = EntityConvert.toPeer(node, network)
 
-        connectionManager.sendNetworkMessage(
-          node.networkId,
-          NetworkMessage(
-            networkId = networkId,
-            NetworkMessage.Info.Peer(
-              PeerChange(addPeer = Some(peer))
-            )
-          )
-        )
-
         val notifyNodes = nodeService.getAllRelativeNodes(node)
 
         connectionManager.sendClientMessage(
@@ -140,6 +130,16 @@ class NodeChangeNotifyService(
             ClientMessage.Info.Config(
               EntityConvert.nodeToWRConfig(node, network, notifyNodes)
             ),
+          )
+        )
+
+        connectionManager.sendNetworkMessage(
+          node.networkId,
+          NetworkMessage(
+            networkId = networkId,
+            NetworkMessage.Info.Peer(
+              PeerChange(addPeer = Some(peer))
+            )
           )
         )
       case _ =>
