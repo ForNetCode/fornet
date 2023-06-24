@@ -208,14 +208,13 @@ impl DeviceData {
         let peer = Peer::new(tunn, next_index, endpoint, allowed_ips, ip, preshared_key);
         let peer = Arc::new(Mutex::new(peer));
         let mut peers = self.peers.write().await;
-
-        peers.by_key.insert(pub_key, Arc::clone(&peer));
         peers.by_idx.insert(next_index, Arc::clone(&peer));
 
         for AllowedIP { addr, cidr } in allowed_ips {
             peers.by_ip
                 .insert(*addr, *cidr as _, Arc::clone(&peer));
         }
+        peers.by_key.insert(pub_key, peer.clone());
         tracing::info!("Peer added");
     }
 
@@ -379,11 +378,13 @@ pub async fn tcp_peers_timer(
                     }
                     continue;
                 }
-                TcpConnection::Connecting(_) => {
+                TcpConnection::Connecting(_)| TcpConnection::End => {
                     //TODO: add check of time, and reconnect
                     continue;
                 }
-                _ => {}
+                _ => {
+                    tracing::warn!("should not come here");
+                }
             };
             match p.update_timers(&mut dst_buf) {
                 TunnResult::Done => {}
@@ -600,15 +601,23 @@ pub fn tcp_handler(
                     Some(peer) => peer,
                 };
 
+
                 let mut p = peer.lock().await;
-                if let TcpConnection::Nothing | TcpConnection::ConnectedFailure(..) = p.endpoint.tcp_conn {
-                    if let WriterState::PureWriter(_) = &mut writer {
-                        let pure_writer = mem::replace(&mut writer, WriterState::PeerWriter(peer.clone()));
-                        if let WriterState::PureWriter(_writer) = pure_writer {
-                            p.endpoint.tcp_conn = TcpConnection::Connected(_writer);
+                match p.endpoint.tcp_conn {
+                    TcpConnection::Nothing | TcpConnection::ConnectedFailure(..) => {
+                        if let WriterState::PureWriter(_) = &mut writer {
+                            let pure_writer = mem::replace(&mut writer, WriterState::PeerWriter(peer.clone()));
+                            if let WriterState::PureWriter(_writer) = pure_writer {
+                                p.endpoint.tcp_conn = TcpConnection::Connected(_writer);
+                            }
                         }
                     }
+                    TcpConnection::End => {
+                        break;
+                    }
+                    _ => {}
                 }
+
                 // We found a peer, use it to decapsulate the message+
                 let mut flush = false; // Are there packets to send from the queue?
                 match p
@@ -756,5 +765,10 @@ mod test {
         let mut device = new_client(Protocol::Tcp, NodeType::NodeClient, "10.0.0.1/32");
         tokio::time::sleep(Duration::from_secs(5)).await;
         device.close().await;
+    }
+
+    #[tokio::test]
+    pub async fn tcp_split_can_close() {
+
     }
 }

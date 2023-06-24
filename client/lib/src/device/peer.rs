@@ -22,6 +22,7 @@ pub  enum TcpConnection {
     Connecting(SystemTime),
     Connected(OwnedWriteHalf),
     ConnectedFailure(std::io::Error, SystemTime),
+    End,
 }
 #[derive(Debug)]
 pub struct Endpoint {
@@ -42,6 +43,8 @@ impl Endpoint {
                     self.tcp_conn = TcpConnection::ConnectedFailure(e, SystemTime::now());
                 }
             };
+        } else if let TcpConnection::End = self.tcp_conn {
+            tracing::debug!("the tcp conn has ended");
         }
     }
 }
@@ -55,6 +58,11 @@ pub struct Peer {
     allowed_ips: AllowedIps<()>,
     pub ip: IpAddr,
     preshared_key: Option<[u8; 32]>,
+}
+impl Drop for Peer {
+    fn drop(&mut self) {
+        tracing::debug!("peer: {} has been dropped", self.index);
+    }
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -122,9 +130,9 @@ impl Peer {
         if let Some(_) = &mut self.endpoint.udp_conn.take() {
             tracing::info!("disconnecting from endpoint");
         } else if let TcpConnection::Connected(_) = &mut self.endpoint.tcp_conn {
+            self.endpoint.tcp_conn = TcpConnection::End;
             tracing::info!("disconnecting tcp connection");
         }
-        self.endpoint.tcp_conn = TcpConnection::Nothing;
     }
 
     pub fn set_endpoint(&mut self, addr: SocketAddr) {

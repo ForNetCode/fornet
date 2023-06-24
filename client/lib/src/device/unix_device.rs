@@ -151,6 +151,7 @@ impl DerefMut for Device {
 
 impl Drop for Device {
     fn drop(&mut self) {
+        self.task.abort();
         tracing::debug!("device has been dropped");
     }
 }

@@ -42,9 +42,18 @@ pub fn create_async_tun(name: &str, mtu: u32, address:&[AllowedIP],
     let name = device.get_ref().name().to_string();
 
     for add in address {
-        sys::set_alias(&name, add)?;
-        sys::set_route(&name, add)?;
-        tracing::info!("set alias and route:{}", &add.to_string());
+        #[cfg(target_os = "macos")]
+        {
+            sys::set_alias(&name, add)?;
+            sys::set_route(&name, add)?;
+            tracing::info!("set alias and route:{}", &add.to_string());
+        }
+        #[cfg(target_os = "linux")]
+        {
+            sys::set_address(&name, add)?;
+            tracing::info!("set address:{}", &add.to_string());
+        }
+
     }
 
     let (tun_read,tun_write) = tokio::io::split(device);

@@ -6,6 +6,6 @@ cfg_if! {
         pub use macos::{set_route,set_alias, destroy_iface, remove_route};
     } else if #[cfg(target_os = "linux")]{
         mod linux;
-        pub use macos::{set_route,set_alias, remove_route};
+        pub use linux::{set_address};
     }
 }
