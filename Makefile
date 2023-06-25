@@ -16,6 +16,7 @@ release-mac-x86_64:
 	otool -L client/target/x86_64-apple-darwin/release/fornet-cli
 	tar -C client/target/x86_64-apple-darwin/release/ -czvf release/fornet-mac-x86_64.tar.gz ./fornet ./fornet-cli	
 
+# brew install cmake wget
 release-mac-aarch64:
 	mkdir protoc && cd protoc && wget https://github.com/protocolbuffers/protobuf/releases/download/v21.9/protoc-21.9-osx-aarch_64.zip && unzip protoc-21.9-osx-aarch_64.zip && sudo cp bin/protoc /usr/local/bin
 	cp -r protoc/include/* protobuf/
@@ -51,4 +52,6 @@ release-backend:
 	cd admin-web && npm ci && npm run build:prod && cd ../
 	cp -r admin-web/build/ command/docker/backend/web
 	cd backend && sbt universal:packageBin && cd ../
+	mkdir release
+	cp backend/target/universal/app-*.zip release/
 	cp backend/target/universal/app-*.zip command/docker/backend/app.zip && cd command/docker/backend && unzip app.zip && rm app.zip && mv app-* app
