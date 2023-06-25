@@ -1,7 +1,7 @@
 # ForNet
 
----
-<sub>[English](./README.md) | 中文</sub>
+
+[English](./README.md) | 中文
 
 ForNet 基于 [BoringTun](https://github.com/cloudflare/boringtun)：WireGuard Rust 实现，做了第三层协议组网工具。
 
@@ -19,5 +19,5 @@ ForNet 基于 [BoringTun](https://github.com/cloudflare/boringtun)：WireGuard R
 
 ## License
 [BSL 1.1](https://github.com/fornetcode/fornet/blob/main/LICENSE)
----
-<sub><sub><sub><sub>WireGuard is a registered trademark of Jason A. Donenfeld. ForNet is not sponsored or endorsed by Jason A. Donenfeld.</sub></sub></sub></sub>
+
+<sub>WireGuard is a registered trademark of Jason A. Donenfeld. ForNet is not sponsored or endorsed by Jason A. Donenfeld.</sub>

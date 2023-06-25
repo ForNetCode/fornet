@@ -1,11 +1,11 @@
 # ForNet
 
----
-<sub>English | [中文](./README_CN.md)</sub>
+
+English | [中文](./README_CN.md)
 
 ForNet is another Layer3 Virtual Private Network software, built on top of [BoringTun](https://github.com/cloudflare/boringtun).
 
-currently, it's in `beta` stage
+Currently, it's in `beta` stage
 
 ## Feature
 - client code 100% open source, written with Rust.
@@ -21,4 +21,5 @@ If you are interested with the project future, please refer to [Roadmap](https:/
 
 ## License
 [BSL 1.1](https://github.com/fornetcode/fornet/blob/main/LICENSE)
-<sub><sub><sub><sub>WireGuard is a registered trademark of Jason A. Donenfeld. ForNet is not sponsored or endorsed by Jason A. Donenfeld.</sub></sub></sub></sub>
+
+<sub>WireGuard is a registered trademark of Jason A. Donenfeld. ForNet is not sponsored or endorsed by Jason A. Donenfeld.</sub>
