@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use boringtun::noise::{Tunn, TunnResult};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{UdpSocket};
 use tokio::net::tcp::OwnedWriteHalf;
 use crate::device::allowed_ips::AllowedIps;
@@ -20,13 +21,32 @@ pub  enum TcpConnection {
     Nothing,
     Connecting(SystemTime),
     Connected(OwnedWriteHalf),
-    ConnectedFailure(std::io::Error)
+    ConnectedFailure(std::io::Error, SystemTime),
+    End,
 }
 #[derive(Debug)]
 pub struct Endpoint {
     pub addr: Option<SocketAddr>,
     pub udp_conn: Option<Arc<UdpSocket>>,
     pub tcp_conn: TcpConnection,
+}
+
+impl Endpoint {
+    pub async fn tcp_write(&mut self, bytes:&[u8]) {
+        if let TcpConnection::Connected(conn) = &mut self.tcp_conn {
+            match conn.write_all(bytes).await {
+                Ok(_) =>  {
+                    // do nothing
+                },
+                Err(e) => {
+                    tracing::error!("tcp conn of {:?} fail, error: {}", conn.peer_addr(), e);
+                    self.tcp_conn = TcpConnection::ConnectedFailure(e, SystemTime::now());
+                }
+            };
+        } else if let TcpConnection::End = self.tcp_conn {
+            tracing::debug!("the tcp conn has ended");
+        }
+    }
 }
 
 pub struct Peer {
@@ -38,6 +58,11 @@ pub struct Peer {
     allowed_ips: AllowedIps<()>,
     pub ip: IpAddr,
     preshared_key: Option<[u8; 32]>,
+}
+impl Drop for Peer {
+    fn drop(&mut self) {
+        tracing::debug!("peer: {} has been dropped", self.index);
+    }
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -104,11 +129,10 @@ impl Peer {
     pub fn shutdown_endpoint(&mut self) {
         if let Some(_) = &mut self.endpoint.udp_conn.take() {
             tracing::info!("disconnecting from endpoint");
-        }
-        if let TcpConnection::Connected(_) = &mut self.endpoint.tcp_conn {
+        } else if let TcpConnection::Connected(_) = &mut self.endpoint.tcp_conn {
+            self.endpoint.tcp_conn = TcpConnection::End;
             tracing::info!("disconnecting tcp connection");
         }
-        self.endpoint.tcp_conn = TcpConnection::Nothing;
     }
 
     pub fn set_endpoint(&mut self, addr: SocketAddr) {

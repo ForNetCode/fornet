@@ -3,27 +3,26 @@ package com.timzaak.fornet.controller
 import com.google.common.net.InetAddresses
 import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthSupport
-import com.timzaak.fornet.dao.{DB, Network, NetworkDao, NetworkProtocol, NetworkSetting}
+import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
 import com.typesafe.config.Config
 import org.hashids.Hashids
 import very.util.security.IntID
 
 import java.util.Base64
-//import org.json4s.Formats
 import com.timzaak.fornet.dao.NetworkStatus
 import io.getquill.*
+import org.scalatra.*
 import org.scalatra.i18n.I18nSupport
 import org.scalatra.json.*
-import org.scalatra.*
+import very.util.security.IntID.toIntID
 import very.util.web.Controller
 import very.util.web.validate.ValidationExtra
-import very.util.security.IntID.toIntID
 import zio.json.{ DeriveJsonDecoder, JsonDecoder }
 
 import java.time.OffsetDateTime
 
-case class CreateNetworkReq(name: String, addressRange: String, protocol:NetworkProtocol)
+case class CreateNetworkReq(name: String, addressRange: String, protocol: NetworkProtocol)
 given JsonDecoder[CreateNetworkReq] = DeriveJsonDecoder.gen
 case class UpdateNetworkReq(
   name: String,
@@ -55,8 +54,8 @@ trait NetworkController(
             .filter(_.groupId == lift(groupId))
         )(_.sortBy(_.id)(Ord.desc))
       case _ =>
-        val r= pageWithCount(
-          query[Network].filter(_.status == lift(NetworkStatus.Normal))
+        val r = pageWithCount(
+          query[Network].filter(_.status == lift(NetworkStatus.Normal)).filter(_.groupId == lift(groupId))
         )(_.sortBy(_.id)(Ord.desc))
         import zio.json.*
         val j = r.toJson
@@ -132,7 +131,7 @@ trait NetworkController(
                 )
             }
           }
-        nodeChangeNotifyService.networkSettingChange(oldNetwork, networkDao.findById(id).get)
+          nodeChangeNotifyService.networkSettingChange(oldNetwork, networkDao.findById(id).get)
         case _ =>
       }
       Accepted()

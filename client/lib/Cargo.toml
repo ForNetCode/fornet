@@ -61,8 +61,6 @@ paho-mqtt = "0.12"
 
 
 
-
-
 [dependencies.boringtun]
 version = "0.5.2"
 path = "../../third/boringtun/boringtun"
@@ -71,10 +69,14 @@ path = "../../third/boringtun/boringtun"
 tun = { version = "0.5", features = ["async"], path = "../../third/rust-tun"}
 nix = { version = "0.25" } #compatible with boringtun
 [target.'cfg(windows)'.dependencies]
-fortun-cli = {version = "0.0.1", path = "../../win-tun-driver/ForTunCli" }
+fortun-cli = {version = "0.0.1", path = "../../third/simple-windows-tun/ForTunCli" }
 windows = {version = "0.44", features=["Win32_Networking_WinSock"]}
 cidr-utils = "0.5.10"
 #winapi = {version = "0.3", features=["ws2def"]}
+
+
+
+
 
 [build-dependencies]
 tonic-build = "0.8"

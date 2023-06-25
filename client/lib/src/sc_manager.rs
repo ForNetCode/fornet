@@ -87,6 +87,7 @@ impl SCManager {
                                                     let _ = sender.send(
                                                         ServerMessage::StopWR("node has been forbid or delete".to_owned())
                                                     ).await;
+                                                    deduplication.wr_config = None;
                                                 }
                                                 _ => {
                                                     // this would conflict with Info::Config message, so ignore this.

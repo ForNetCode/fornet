@@ -6,10 +6,13 @@ use tokio::io::AsyncWriteExt;
 // this is for pip
 use std::path::PathBuf;
 use std::process::exit;
+use std::str::FromStr;
 use std::sync::Arc;
+use std::net::{IpAddr, SocketAddr};
 use tokio::sync::mpsc;
 use tokio::io::AsyncReadExt;
 use crate::server_api::APISocket;
+use crate::device::peer::AllowedIP;
 
 pub struct ServerManager {
     pub wr_manager: WRManager,
@@ -80,7 +83,7 @@ impl ServerManager {
                             }
                             ServerMessage::SyncPeers(peer_change_message) => {
                                 if let Some(public_key) = peer_change_message.remove_public_key {
-                                    if server_manager.config.map(|x|x.identity.pk_base64 != public_key).unwrap_or_else(true) {
+                                    if server_manager.config.as_ref().map(|x|x.identity.pk_base64 != public_key).unwrap_or(true) {
                                         match Identity::get_pub_identity_from_base64(&public_key) {
                                             Ok((x_pub_key, _)) => {
                                                 server_manager.wr_manager.remove_peer(&x_pub_key).await;
@@ -94,23 +97,25 @@ impl ServerManager {
                                 if let Some(peer) = peer_change_message.add_peer {
                                     let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
                                     let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+                                    let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
+                                    let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key).unwrap();
                                     server_manager.wr_manager.add_peer(
-                                        peer.public_key,
-                                        false,
-                                        peer.endpoint,
+                                        x_pub_key,
+                                        endpoint,
                                         &allowed_ip,
                                         ip,
                                         Some(peer.persistence_keep_alive as u16),
                                     ).await;
                                 }
                                 if let Some(peer) = peer_change_message.change_peer {
-                                    if server_manager.config.map(|x|x.identity.pk_base64 != public_key).unwrap_or_else(true) {
+                                    if server_manager.config.as_ref().map(|x|x.identity.pk_base64 != peer.public_key).unwrap_or(true) {
                                         let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
                                         let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+                                        let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
+                                        let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key).unwrap();
                                         server_manager.wr_manager.add_peer(
-                                            peer.public_key,
-                                            false,
-                                            peer.endpoint,
+                                            x_pub_key,
+                                            endpoint,
                                             &allowed_ip,
                                             ip,
                                             Some(peer.persistence_keep_alive as u16),
