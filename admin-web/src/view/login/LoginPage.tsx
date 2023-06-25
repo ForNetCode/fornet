@@ -57,7 +57,6 @@ export default function LoginPage() {
                 <Form form={form}>
                     <Form.Item label={intl.formatMessage({id: 'admin_token'})}
                                name="token"
-                               requiredMark='optional'
                                tooltip={intl.formatMessage({id: 'admin_token_desc'})}
                                rules={[{required: true}]}
                     >
