@@ -36,7 +36,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: build
-        run: make release-backend${{ env.REGISTRY }}/fornetcode/fornet-backend:
+        run: make release-backend
       -
         name: build and push docker image
         uses: docker/build-push-action@v2
