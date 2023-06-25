@@ -36,7 +36,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: build
-        run: make release-backend
+        run: make release-backend${{ env.REGISTRY }}/fornetcode/fornet-backend:
       -
         name: build and push docker image
         uses: docker/build-push-action@v2
@@ -46,7 +46,7 @@ jobs:
           push: true        
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: ${{ env.REGISTRY }}/fornetcode/fornet-backend:${{github.event.inputs.version}}
+          tags: ${{ env.REGISTRY }}/fornetcode/fornet-backend:${{github.event.inputs.version}}, ${{ env.REGISTRY }}/fornetcode/fornet-backend:latest
       - name: Upload jar to artifact
         uses: actions/upload-artifact@v2
         with:
