@@ -24,6 +24,14 @@ struct Duplication {
 
 }
 
+impl Default for Duplication {
+    fn default() -> Self {
+        Duplication {
+            ..Default::default()
+        }
+    }
+}
+
 struct MqttWrapper {
     pub client:MqttClient,
     pub client_topic: String,
@@ -120,19 +128,34 @@ impl SCManager {
         }
     }
 
-    async fn mqtt2_reconnect(sender:Sender<ServerMessage>,node_info: &NodeInfo, config:Arc<AppConfig>, deduplication:&mut Duplication) -> anyhow::Result<()> {
+    async fn mqtt2_reconnect(sender:Sender<ServerMessage>,node_info: &NodeInfo, config:Arc<AppConfig>) -> anyhow::Result<()> {
         let client_id = config.identity.pk_base64.clone();
         let options = ConnectOptions::new(client_id);
         let (mut network, client) = new_tokio(options);
+        let client_topic = format!("client/{}",&node_info.node_id);
+        let network_topic = format!("network/{}", &node_info.network_id);
+        let deduplication =  Duplication::default();
+
+        let mut mqtt_wrapper = MqttWrapper {
+            client,
+            client_topic,
+            network_topic,
+            deduplication,
+            sender,
+        };
         if node_info.mqtt_url.starts_with("mqtts") {
             let root_certs = rustls::RootCertStore::empty();
             let config = ClientConfig::builder().with_safe_defaults().with_root_certificates(root_certs).with_no_client_auth();
             let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
 
+
             let stream = tokio::net::TcpStream::connect(node_info.mqtt_url.clone()).await?;
             let connection = connector.connect(domain, stream).await?;
-            
-            //network.connect(connection,)
+
+            network.connect(connection,&mut mqtt_wrapper);
+        } else {
+            let stream = tokio::net::TcpStream::connect(node_info.mqtt_url.clone()).await?;
+
         }
         Ok(())
 
