@@ -26,10 +26,10 @@ RUN chmod +x /script.sh && /script.sh
 #RUN ls -al && cd protobuf && ls -al && cd ../
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    rustup toolchain install $(uname -m)-unknown-linux-musl && cd /source/client && cargo build --release --platform=$(uname -m)-unknown-linux-musl 
+    rustup target install $(uname -m)-unknown-linux-musl && cd /source/client && cargo build  --target=$(uname -m)-unknown-linux-musl  --release
 
-RUN  mv /source/client/target/release/$(uname -m)-unknown-linux-musl/fornet /fornet \
-    mv /source/client/target/release/$(uname -m)-unknown-linux-musl/fornet-cli /fornet-cli
+RUN  mv /source/client/target/$(uname -m)-unknown-linux-musl/release/fornet /fornet \
+    mv /source/client/target/$(uname -m)-unknown-linux-musl/release/fornet-cli /fornet-cli
 FROM ${RUNTIME_IMAGE}
 
 ENV FORNET_CONFIG=/config
