@@ -4,7 +4,7 @@
 
 # You can override this `--build-arg BASE_IMAGE=...` to use different
 # version of Rust
-ARG BASE_IMAGE=rust:1.65
+ARG BASE_IMAGE=rust:1.70-alpine
 
 #ARG RUNTIME_IMAGE=alpine
 ARG RUNTIME_IMAGE=alpine:latest
