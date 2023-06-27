@@ -897,6 +897,7 @@ version = "0.0.4"
 dependencies = [
  "anyhow",
  "arrayref",
+ "async-trait",
  "auto-launch",
  "base64 0.13.1",
  "boringtun",
