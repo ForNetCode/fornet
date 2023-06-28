@@ -33,7 +33,7 @@ FROM ${RUNTIME_IMAGE}
 
 ENV FORNET_CONFIG=/config
 
-RUN mkdir /config && apk run --no-cache libc6-compat
+RUN mkdir /config && apk add --no-cache libc6-compat
 
 COPY --from=builder /fornet /usr/bin
 COPY --from=builder /fornet-cli /usr/bin
