@@ -12,7 +12,7 @@ import org.scalatra.json.JsonResult.apply
 import org.scalatra.{ BadRequest, Ok }
 import very.util.config.get
 import very.util.web.Controller
-import very.util.security.IntID.toIntID
+import very.util.security.ID.toIntID
 import zio.json.{ DeriveJsonDecoder, JsonDecoder }
 
 import java.net.URLEncoder

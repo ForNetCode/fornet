@@ -15,7 +15,7 @@ import org.scalatra.Accepted
 import very.util.web.Controller
 import very.util.web.json.JsonResponse
 import very.util.security.IntID
-import very.util.security.IntID.toIntID
+import very.util.security.ID.toIntID
 import zio.json.*
 import zio.prelude.Validation
 

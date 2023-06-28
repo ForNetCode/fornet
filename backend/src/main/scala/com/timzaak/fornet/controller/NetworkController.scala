@@ -15,7 +15,7 @@ import io.getquill.*
 import org.scalatra.*
 import org.scalatra.i18n.I18nSupport
 import org.scalatra.json.*
-import very.util.security.IntID.toIntID
+import very.util.security.ID.toIntID
 import very.util.web.Controller
 import very.util.web.validate.ValidationExtra
 import zio.json.{ DeriveJsonDecoder, JsonDecoder }

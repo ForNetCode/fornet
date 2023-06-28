@@ -9,7 +9,7 @@ import very.util.security.IntID
 import zio.json.*
 
 import java.time.OffsetDateTime
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 enum NetworkStatus {
   case Normal, Delete
@@ -29,7 +29,7 @@ enum NetworkProtocol {
   case TCP, UDP
 
   import com.timzaak.fornet.protobuf.config.Protocol as PProtocol
-  def gRPCProtocol:PProtocol = {
+  def gRPCProtocol: PProtocol = {
     this match {
       case TCP => PProtocol.Protocol_TCP
       case UDP => PProtocol.Protocol_UDP
@@ -59,6 +59,7 @@ object NetworkProtocol {
 case class Network(
   id: IntID,
   name: String,
+  token: String,
   groupId: String,
   addressRange: String,
   setting: NetworkSetting,
@@ -73,23 +74,22 @@ case class NetworkSetting(
   port: Int = 51820,
   keepAlive: Int = 30,
   mtu: Int = 1420,
-  protocol:NetworkProtocol = NetworkProtocol.UDP,
+  protocol: NetworkProtocol = NetworkProtocol.UDP,
   dns: Option[Seq[String]] = None,
 ) extends DBSerializer
 
 object Network {
-  import very.util.web.json.{ intIDDecoder, intIDEncoder }
+  import very.util.web.json.{intIDDecoder, intIDEncoder}
   given networkDerive(using hashId: Hashids): JsonCodec[Network] = DeriveJsonCodec.gen
 }
 object NetworkSetting {
   given JsonCodec[NetworkSetting] = DeriveJsonCodec.gen
 }
 
-
 import io.getquill.*
 import org.hashids.Hashids
 
-class NetworkDao(using quill: DB, hashIds:Hashids) {
+class NetworkDao(using quill: DB, hashIds: Hashids) {
   import quill.{*, given}
 
   def findById(id: IntID): Option[Network] = {

@@ -14,7 +14,7 @@ import inet.ipaddr.IPAddressString
 import inet.ipaddr.ipv4.IPv4Address
 import org.hashids.Hashids
 import org.scalatra.*
-import very.util.security.IntID.toIntID
+import very.util.security.ID.toIntID
 import very.util.web.LogSupport
 import very.util.web.json.{JsonResponse, ZIOJsonSupport}
 import very.util.web.validate.ValidationExtra
@@ -91,7 +91,7 @@ class MqttCallbackController(
     // {"action":"client_subscribe","clientid":"C5yG28uwzTumy6PpBEGqvvEWLJ8dYzF1uSFGziJG6Q8Jl+DPCRZZX05MPXb/s9GWsuO2JXzADAHz70WVbD2lew==","ipaddress":"127.0.0.1:56588","node":1,"opts":{"qos":1},"topic":"client","username":"undefined"}
 
     Try {
-      if (action == "client_subscribe" && topic == s"client/${req.username}") {
+      if (action == "client_subscribe" && topic == s"client/${req.clientId}") {
         // send wr config
         val nodes =
           nodeDao

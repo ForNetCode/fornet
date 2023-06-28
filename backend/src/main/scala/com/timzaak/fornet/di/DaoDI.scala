@@ -1,6 +1,6 @@
 package com.timzaak.fornet.di
 
-import com.timzaak.fornet.dao.{DB, NetworkDao, NodeDao}
+import com.timzaak.fornet.dao.{DB, DeviceDao, NetworkDao, NodeDao}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.hashids.Hashids
 
@@ -23,4 +23,6 @@ trait DaoDI {
   object networkDao extends NetworkDao
 
   object nodeDao extends NodeDao
+  
+  object deviceDao extends DeviceDao
 }
