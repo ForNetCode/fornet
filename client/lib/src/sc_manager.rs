@@ -6,8 +6,8 @@ use mqrstt::packets::{Packet, QoS};
 
 use prost::Message;
 use tokio::sync::mpsc::Sender;
-use tokio_rustls::rustls;
-use tokio_rustls::rustls::{ClientConfig, ServerName};
+//use tokio_rustls::rustls;
+//use tokio_rustls::rustls::{ClientConfig, ServerName};
 
 use tokio_stream::StreamExt;
 use crate::config::{NodeInfo, Config as AppConfig};
@@ -158,15 +158,21 @@ impl SCManager {
                 deduplication,
                 sender,
             };
-            let root_certs = rustls::RootCertStore::empty();
-            let config = ClientConfig::builder().with_safe_defaults().with_root_certificates(root_certs).with_no_client_auth();
-            let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-            let domain = ServerName::try_from(host)?;
 
+            //let root_certs = rustls::RootCertStore::empty();
+            //let config = ClientConfig::builder().with_safe_defaults().with_root_certificates(root_certs).with_no_client_auth();
+            //let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+            //let domain = ServerName::try_from(host)?;
+
+
+            //let connection = connector.connect(domain, stream).await?;
+
+            let cx = tokio_native_tls::native_tls::TlsConnector::builder().build()?;
+            let cx = tokio_native_tls::TlsConnector::from(cx);
 
             let stream = tokio::net::TcpStream::connect((host, port)).await?;
 
-            let connection = connector.connect(domain, stream).await?;
+            let connection = cx.connect(host, stream).await?;
 
             network.connect(connection,&mut mqtt_wrapper).await?;
             client.subscribe(subscribe_topics).await?;
