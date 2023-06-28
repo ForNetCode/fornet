@@ -57,9 +57,9 @@ tempfile = "3.5"
 auto-launch-extra = {version = "0.4.0", package = "auto-launch"}
 once_cell = "1.17"
 
-paho-mqtt = "0.12"
-
-
+mqrstt = "0.2.1"
+tokio-native-tls = "0.3.1"
+async-trait = "0.1.68"
 
 [dependencies.boringtun]
 version = "0.5.2"
