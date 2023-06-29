@@ -27,7 +27,7 @@ message EncryptRequest {
 }
 
 message InviteConfirmRequest {
-  string network_id = 1;
+  string network_token_id = 1;
   optional string node_id = 2;
   EncryptRequest encrypt = 3;
   optional string device_id = 4;
@@ -36,7 +36,7 @@ message InviteConfirmRequest {
 message OAuthDeviceCodeRequest {
   string access_token = 1;
   string device_code = 2;
-  string network_id = 3;
+  string network_token_id = 3;
   EncryptRequest encrypt = 4;
   optional string device_id = 5;
 }
