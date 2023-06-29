@@ -30,6 +30,7 @@ object DI extends DaoDI { di =>
     extends NodeChangeNotifyService(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
+      deviceDao = di.deviceDao,
       connectionManager = di.connectionManager,
       nodeService = di.nodeService,
     )

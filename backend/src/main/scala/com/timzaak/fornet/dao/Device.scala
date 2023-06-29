@@ -11,10 +11,22 @@ import io.getquill.*
 class DeviceDao(using quill: DB, hashids: Hashids) {
   import quill.{*, given}
 
-  def findByIdWithToken(tokenIdStr: String): Unit = {
-    val tokenId = TokenID(tokenIdStr)
+  def findByTokenID(tokenId: TokenID): Option[Device] = {
     quill
       .run(quote(query[Device]).filter(v => v.id == lift(tokenId.intId) && v.token == lift(tokenId.token)).single)
-      .head
+      .headOption
+  }
+  def getTokenId(id:IntID):Option[TokenID]= {
+    quill
+      .run(quote(query[Device]).filter(v => v.id == lift(id)).single)
+      .headOption.map(v => TokenID(v.id, v.token))
+  }
+
+  def getTokenIds(ids:List[IntID]):Map[Int, TokenID]= {
+    if(ids.isEmpty) {
+      Map.empty
+    } else {
+      quill.run(quote(query[Device])).filter(v => liftQuery(ids).contains(v.id)).map(v => v.id.id -> TokenID(v.id, v.token)).toMap
+    }
   }
 }

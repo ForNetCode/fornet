@@ -3,11 +3,11 @@ package com.timzaak.fornet.dao
 import io.getquill.MappedEncoding
 import org.hashids.Hashids
 import very.util.persistence.quill.DBSerializer
-import very.util.security.IntID
+import very.util.security.{IntID, TokenID}
 import zio.json.*
 
 import java.time.OffsetDateTime
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 enum NodeType {
   // Normal: Fornet Client
@@ -70,6 +70,7 @@ case class Node(
   id: IntID,
   name: String,
   networkId: IntID,
+  deviceId: IntID,
   ip: String,
   publicKey: String,
   setting: NodeSetting,
@@ -204,4 +205,14 @@ class NodeDao(using quill: DB, hashids: Hashids) {
   def countByNetwork(networkId: IntID): Long = quill.run {
     query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal)).size
   }
+
+  def findByDeviceWithNetwork(networkId:IntID, deviceTokenId:TokenID):List[Node] = quill.run {
+    query[Node].filter(n => n.deviceId == lift(deviceTokenId.intId) && n.networkId == lift(networkId))
+  }
+
+  def findByDeviceId(deviceTokenId: TokenID): List[Node] = quill.run {
+    query[Node].filter(n => n.deviceId == lift(deviceTokenId.intId))
+  }
+
+
 }

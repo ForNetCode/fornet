@@ -10,6 +10,7 @@ import very.util.security.IntID
 class NodeChangeNotifyService(
   nodeDao: NodeDao,
   networkDao: NetworkDao,
+  deviceDao: DeviceDao,
   // connectionManager: ConnectionManager,
   connectionManager: MqttConnectionManager,
   nodeService: NodeService,
@@ -21,16 +22,16 @@ class NodeChangeNotifyService(
     // TODO: FIXIT
     val networkId = network.id.secretId
 
+
     val relativeNodes = nodeService.getAllRelativeNodes(oldNode)
     val fixedNode = oldNode.copy(setting = setting)
     // notify self change
     val wrConfig: WRConfig =
       EntityConvert.nodeToWRConfig(fixedNode, network, relativeNodes)
-
+    val deviceTokenId = deviceDao.getTokenId(oldNode.deviceId).get
     connectionManager.sendClientMessage(
       oldNode.networkId,
-      oldNode.id,
-      oldNode.publicKey,
+      deviceTokenId,
       ClientMessage(networkId = networkId, ClientMessage.Info.Config(wrConfig))
     )
     fixedNode.nodeType match {
@@ -58,13 +59,14 @@ class NodeChangeNotifyService(
     // only care about protocol, others will trigger push in future version.(after solved async push)
     if (oldNetwork.setting.protocol != newNetwork.setting.protocol && newNetwork.status == NetworkStatus.Normal) {
       val nodes = nodeDao.getAllAvailableNodes(oldNetwork.id).toList
+      val deviceMap = deviceDao.getTokenIds(nodes.map(_.id))
       for ((node, relativeNodes) <- nodeService.getNetworkAllRelativeNodes(nodes)) {
         val wrConfig = EntityConvert.nodeToWRConfig(node, newNetwork, relativeNodes)
+        val deviceTokenId = deviceMap(node.id.id)
         // this would trigger all nodes restart.
         connectionManager.sendClientMessage(
           node.networkId,
-          node.id,
-          node.publicKey,
+          deviceTokenId,
           ClientMessage(networkId = newNetwork.id.secretId, ClientMessage.Info.Config(wrConfig))
         )
       }
@@ -90,11 +92,11 @@ class NodeChangeNotifyService(
   ) = {
     import NodeStatus.*
     val networkId = node.networkId.secretId
+    val deviceTokenId = deviceDao.getTokenId(node.deviceId).get
     // notify self node status change
     connectionManager.sendClientMessage(
       node.networkId,
-      node.id,
-      node.publicKey,
+      deviceTokenId,
       ClientMessage(
         networkId = networkId,
         ClientMessage.Info.Status(status.gRPCNodeStatus),
@@ -123,8 +125,7 @@ class NodeChangeNotifyService(
 
         connectionManager.sendClientMessage(
           node.networkId,
-          node.id,
-          node.publicKey,
+          deviceTokenId,
           ClientMessage(
             networkId = networkId,
             ClientMessage.Info.Config(
