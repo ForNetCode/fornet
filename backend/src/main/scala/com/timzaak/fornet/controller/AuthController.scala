@@ -49,12 +49,12 @@ trait AuthController(networkDao: NetworkDao, appConfig: AppConfig)(using config:
       networkDao
         .findById(networkId)
         .filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
-        .map { _ =>
+        .map { network =>
           val nId =
             URLEncoder.encode(networkId.secretId, Charsets.UTF_8)
           String(
             Base64.getEncoder.encode(
-              s"2|${config.getString("server.grpc.endpoint")}|${nId}"
+              s"2|${config.getString("server.grpc.endpoint")}|${network.tokenId.secretId}|$nId"
                 .getBytes()
             )
           )

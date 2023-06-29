@@ -101,6 +101,7 @@ object DI extends DaoDI { di =>
     extends AuthGRPCController(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
+      deviceDao = di.deviceDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
       config = di.config,
       appConfig = di.appConfig,

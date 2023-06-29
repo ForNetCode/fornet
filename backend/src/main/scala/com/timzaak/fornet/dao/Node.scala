@@ -72,7 +72,7 @@ case class Node(
   networkId: IntID,
   deviceId: IntID,
   ip: String,
-  publicKey: String,
+  publicKey: String, // TODO: rm it
   setting: NodeSetting,
   nodeType: NodeType,
   status: NodeStatus,
@@ -136,16 +136,7 @@ import io.getquill.*
 class NodeDao(using quill: DB, hashids: Hashids) {
 
   import quill.{ *, given }
-
-  def findIdByPublicKey(publicKey: String, networkId: IntID): Option[IntID] =
-    quill.run {
-      quote {
-        query[Node]
-          .filter(n => n.publicKey == lift(publicKey) && n.networkId == lift(networkId))
-          .map(_.id)
-          .single
-      }
-    }.headOption
+  
 
   def findById(networkId: IntID, nodeId: IntID): Option[Node] = quill.run {
     quote {
@@ -154,13 +145,6 @@ class NodeDao(using quill: DB, hashids: Hashids) {
         .single
     }
   }.headOption
-
-  def findByPublicKey(publicKey: String): List[Node] = quill.run {
-    quote {
-      query[Node]
-        .filter(_.publicKey == lift(publicKey))
-    }
-  }
 
   def getUsedIps(networkId: IntID): Seq[String] = quill.run {
     quote {

@@ -8,7 +8,8 @@ option java_package = "com.timzaak.fornet.protobuf";
 
 message SuccessResponse {
   string mqtt_url = 1;
-  string client_id = 2;
+  string device_id = 2;
+  string node_id = 3;
 }
 
 message ActionResponse {
@@ -29,6 +30,7 @@ message InviteConfirmRequest {
   string network_id = 1;
   optional string node_id = 2;
   EncryptRequest encrypt = 3;
+  optional string device_id = 4;
 }
 
 message OAuthDeviceCodeRequest {
@@ -36,6 +38,7 @@ message OAuthDeviceCodeRequest {
   string device_code = 2;
   string network_id = 3;
   EncryptRequest encrypt = 4;
+  optional string device_id = 5;
 }
 
 message SSOLoginInfoRequest {

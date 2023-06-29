@@ -5,7 +5,7 @@ package com.timzaak.fornet.dao
 import com.timzaak.fornet.dao.NetworkProtocol.TCP
 import org.hashids.Hashids
 import very.util.persistence.quill.DBSerializer
-import very.util.security.IntID
+import very.util.security.{IntID, TokenID}
 import zio.json.*
 
 import java.time.OffsetDateTime
@@ -66,7 +66,9 @@ case class Network(
   status: NetworkStatus,
   createdAt: OffsetDateTime,
   updatedAt: OffsetDateTime,
-)
+) {
+  def tokenId:TokenID = TokenID(id, token)
+}
 //object Network {
 //  given networkUpdateMeta:UpdateMeta[Network] = updateMeta[Network](_.id)
 //}

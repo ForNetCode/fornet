@@ -7,7 +7,7 @@ import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
 import com.typesafe.config.Config
 import org.hashids.Hashids
-import very.util.security.IntID
+import very.util.security.{IntID, TokenID}
 
 import java.util.Base64
 import com.timzaak.fornet.dao.NetworkStatus
@@ -18,7 +18,7 @@ import org.scalatra.json.*
 import very.util.security.ID.toIntID
 import very.util.web.Controller
 import very.util.web.validate.ValidationExtra
-import zio.json.{ DeriveJsonDecoder, JsonDecoder }
+import zio.json.{DeriveJsonDecoder, JsonDecoder}
 
 import java.time.OffsetDateTime
 
@@ -81,6 +81,7 @@ trait NetworkController(
                 _.addressRange -> lift(req.addressRange),
                 _.setting -> lift(NetworkSetting(protocol = req.protocol)),
                 _.groupId -> lift(groupId),
+                _.token -> lift(TokenID.randomToken()),
               )
               .returning(_.id)
           }
@@ -101,10 +102,10 @@ trait NetworkController(
     networkDao
       .findById(networkId)
       .filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
-      .map { _ =>
+      .map { network =>
         String(
           Base64.getEncoder.encode(
-            s"1|${config.getString("server.grpc.endpoint")}|${networkId.secretId}"
+            s"1|${config.getString("server.grpc.endpoint")}|${network.tokenId.secretId}"
               .getBytes()
           )
         )

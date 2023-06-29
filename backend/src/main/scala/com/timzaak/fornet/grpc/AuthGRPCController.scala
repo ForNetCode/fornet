@@ -31,6 +31,7 @@ import scala.concurrent.Future
 class AuthGRPCController(
   nodeDao: NodeDao,
   networkDao: NetworkDao,
+  deviceDao: DeviceDao,
   nodeChangeNotifyService: NodeChangeNotifyService,
   config: Config,
   nodeAuthService: NodeAuthService,
@@ -60,6 +61,8 @@ class AuthGRPCController(
     if (request.nodeId.nonEmpty) {
       params = params.appended(request.nodeId.get)
     }
+
+    request.deviceId.foreach(deviceTokenId => params = params.appended(deviceTokenId))
 
     if (request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
       val networkId = IntID(request.networkId)
