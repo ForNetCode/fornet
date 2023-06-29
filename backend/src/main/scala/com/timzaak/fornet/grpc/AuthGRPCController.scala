@@ -8,7 +8,7 @@ import com.timzaak.fornet.controller.auth.AppAuthStrategyProvider
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.protobuf.auth.*
 import com.timzaak.fornet.pubsub.NodeChangeNotifyService
-import com.timzaak.fornet.service.{ GRPCAuth, NodeAuthService }
+import com.timzaak.fornet.service.{GRPCAuth, NodeAuthService}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import inet.ipaddr.IPAddress.IPVersion
@@ -17,16 +17,17 @@ import inet.ipaddr.ipv4.IPv4Address
 import io.getquill.*
 import org.hashids.Hashids
 import very.util.keycloak.KeycloakJWTAuthStrategy
+import very.util.security.{IntID, TokenID}
 import very.util.web.LogSupport
-import very.util.security.IntID
 import zio.json.*
-import zio.json.ast.{ Json, JsonCursor }
+import zio.json.ast.{Json, JsonCursor}
 
 import java.net.http.HttpRequest.BodyPublishers
-import java.net.http.{ HttpClient, HttpRequest }
-import java.net.{ URI, URLEncoder }
-import java.time.{ LocalDateTime, OffsetDateTime }
+import java.net.http.{HttpClient, HttpRequest}
+import java.net.{URI, URLEncoder}
+import java.time.{LocalDateTime, OffsetDateTime}
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 class AuthGRPCController(
   nodeDao: NodeDao,
@@ -44,7 +45,7 @@ class AuthGRPCController(
   import very.util.config.get
   private val mqttClientUrl = config.get[String]("mqtt.clientUrl")
 
-  import quill.{ *, given }
+  import quill.{*, given}
   private def errorResponse(message: String) = ActionResponse(ActionResponse.Response.Error(message))
   private def successResponse(secretId:String) = ActionResponse(
     ActionResponse.Response.Success(
@@ -52,27 +53,38 @@ class AuthGRPCController(
     )
   )
 
+  private def getDeviceTokenId(deviceId:Option[String], publicKey:String):Try[TokenID]  = {
+    deviceId.map { deviceIdStr =>
+      Try(TokenID(deviceIdStr)).flatMap { deviceTokenId =>
+        deviceDao.findByTokenID(deviceTokenId).map(_ => Success(deviceTokenId)).getOrElse(Failure(new Exception("device TokenId invalid")))
+      }
+    }.getOrElse {
+      // publicKey always be unique!
+      val token = TokenID.randomToken();
+      val (deviceId, realToken) = quill.run(query[Device].insert(
+        _.token -> lift(token),
+        _.publicKey -> lift(publicKey),
+      ).onConflictIgnore(_.publicKey).returning(v => (v.id, v.token)))
+      Success(TokenID(deviceId, realToken))
+    }
+  }
   override def inviteConfirm(
     request: InviteConfirmRequest
   ): Future[ActionResponse] = {
-
-
     var params = Seq(request.networkId)
+    request.deviceId.foreach(deviceTokenId => params = params.appended(deviceTokenId))
     if (request.nodeId.nonEmpty) {
       params = params.appended(request.nodeId.get)
     }
-
-    request.deviceId.foreach(deviceTokenId => params = params.appended(deviceTokenId))
 
     if (request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
       val networkId = IntID(request.networkId)
       val publicKey = request.encrypt.get.publicKey
 
-      val response = request.nodeId match {
-        case Some(nodeIdStr) =>
-          // confirm node exists and change status
+      val response = (request.nodeId, getDeviceTokenId(request.deviceId, request.encrypt.get.publicKey)) match {
+        case (_, Failure(e)) => errorResponse("Illegal Arguments")
+        case (Some(nodeIdStr), Success(deviceTokenId)) =>
           val nodeId = IntID(nodeIdStr)
-
           val changeCount = quill.run {
             quote {
               query[Node]
@@ -82,28 +94,28 @@ class AuthGRPCController(
                   ) && n.status == lift(NodeStatus.Waiting)
                 )
                 .update(
+                  _.deviceId -> lift(deviceTokenId.intId),
                   _.status -> lift(NodeStatus.Normal),
                   _.publicKey -> lift(request.encrypt.get.publicKey),
                   _.updatedAt -> lift(OffsetDateTime.now()),
                 )
             }
           }
-
           if (changeCount > 0) {
             // notify relay node online
             val node = nodeDao.findById(networkId, nodeId).get
             nodeChangeNotifyService.nodeStatusChangeNotify(
               node,
+              deviceTokenId,
               NodeStatus.Waiting,
               NodeStatus.Normal
             )
             successResponse(node.id.secretId)
-
           } else {
             errorResponse("already active or error response")
           }
-        case None =>
-          createNode(networkId, publicKey) match {
+        case (None, Success(deviceTokenId))=>
+          createNode(networkId, publicKey, deviceTokenId) match {
             case Left(value) => errorResponse(value)
             case Right(id) =>
               successResponse(id.secretId)
@@ -122,7 +134,10 @@ class AuthGRPCController(
   override def oauthDeviceCodeConfirm(
     request: OAuthDeviceCodeRequest
   ): Future[ActionResponse] = {
-    val params = Seq(request.accessToken, request.deviceCode, request.networkId)
+    var params = Seq(request.accessToken, request.deviceCode)
+    request.deviceId.foreach(deviceId => params = params.appended(deviceId))
+    params = params.appended(request.networkId)
+
     if (!appConfig.enableSAAS && request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
       if (config.hasPath("auth.keycloak")) {
         val authResult = authStrategyProvider
@@ -140,12 +155,15 @@ class AuthGRPCController(
             logger.info(
               s"user:${userId},networkId:${request.networkId}, publicKey:${request.encrypt.get.publicKey} register device with code:${request.deviceCode}"
             )
-            Future.successful(
-              createNode(networkId, publicKey) match {
-                case Left(value) => errorResponse(value)
-                case Right(id) => successResponse(id.secretId)
-              }
-            )
+            val response = getDeviceTokenId(request.deviceId, request.encrypt.get.publicKey) match {
+              case Success(deviceTokenId) =>
+                createNode(networkId, publicKey, deviceTokenId) match {
+                  case Left(value) => errorResponse(value)
+                  case Right(id) => successResponse(id.secretId)
+                }
+              case Failure(_) => errorResponse("Illegal Arguments")
+            }
+            Future.successful(response)
         }
       } else {
         Future.successful(
@@ -159,7 +177,8 @@ class AuthGRPCController(
     }
   }
 
-  private def createNode(networkId: IntID, publicKey: String):Either[String, IntID] = {
+  //TODO: create node trigger state change push?
+  private def createNode(networkId: IntID, publicKey: String, deviceTokenId: TokenID):Either[String, IntID] = {
     val network = networkDao.findById(networkId).get
     // network create node
     val usedIp = nodeDao
@@ -188,6 +207,7 @@ class AuthGRPCController(
                   s"${hashId.encode(System.currentTimeMillis()).take(3)}_$ipAddress"
                 ),
                 _.publicKey -> lift(publicKey),
+                _.deviceId -> lift(deviceTokenId.intId),
                 _.networkId -> lift(network.id),
                 _.setting -> lift(NodeSetting()),
                 _.ip -> lift(ipAddress),

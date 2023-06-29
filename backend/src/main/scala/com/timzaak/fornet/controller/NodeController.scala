@@ -12,10 +12,10 @@ import inet.ipaddr.ipv4.IPv4Address
 import io.getquill.*
 import org.hashids.Hashids
 import org.scalatra.Accepted
+import very.util.security.ID.toIntID
+import very.util.security.IntID
 import very.util.web.Controller
 import very.util.web.json.JsonResponse
-import very.util.security.IntID
-import very.util.security.ID.toIntID
 import zio.json.*
 import zio.prelude.Validation
 
@@ -48,12 +48,13 @@ given JsonDecoder[UpdateNodeStatusReq] = DeriveJsonDecoder.gen
 trait NodeController(
   nodeDao: NodeDao,
   networkDao: NetworkDao,
+  deviceDao: DeviceDao,
   nodeChangeNotifyService: NodeChangeNotifyService,
   appConfig: AppConfig,
 )(using quill: DB, hashId: Hashids, config: Config)
   extends Controller
   with AppAuthSupport {
-  import quill.{ *, given }
+  import quill.{*, given}
 
   private def _networkId: IntID = params("networkId").toIntID
   private def _nodeId: IntID = params("nodeId").toIntID
@@ -144,6 +145,7 @@ trait NodeController(
         if (network.status == NetworkStatus.Normal) {
           nodeChangeNotifyService.nodeStatusChangeNotify(
             oldNode,
+            deviceDao.findById(oldNode.deviceId).get.tokenID,
             oldNode.status,
             req.status
           )

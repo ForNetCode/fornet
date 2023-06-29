@@ -5,7 +5,7 @@ import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.protobuf.config.{NetworkStatus as PNetworkStatus, NodeStatus as PNodeStatus, NodeType as PNodeType, *}
 import com.timzaak.fornet.service.NodeService
 import org.hashids.Hashids
-import very.util.security.IntID
+import very.util.security.{IntID, TokenID}
 
 class NodeChangeNotifyService(
   nodeDao: NodeDao,
@@ -87,12 +87,12 @@ class NodeChangeNotifyService(
 
   def nodeStatusChangeNotify(
     node: Node,
+    deviceTokenId: TokenID,
     oldStatus: NodeStatus,
     status: NodeStatus,
   ) = {
     import NodeStatus.*
     val networkId = node.networkId.secretId
-    val deviceTokenId = deviceDao.getTokenId(node.deviceId).get
     // notify self node status change
     connectionManager.sendClientMessage(
       node.networkId,

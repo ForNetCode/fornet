@@ -20,3 +20,5 @@ create table device
     mqtt_last_leave timestamptz, -- would use in future version.
     created_at      timestamptz not null default now()
 );
+
+create  unique index if not exists  device_public_key_index on device(public_key);

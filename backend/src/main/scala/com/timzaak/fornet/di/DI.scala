@@ -85,6 +85,7 @@ object DI extends DaoDI { di =>
     extends NodeController(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
+      deviceDao = di.deviceDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
       appConfig = di.appConfig,
     )

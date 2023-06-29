@@ -5,7 +5,9 @@ import very.util.security.{IntID, TokenID}
 
 import java.time.OffsetDateTime
 
-case class Device(id: IntID, token: String, publicKey: String, createdAt: OffsetDateTime)
+case class Device(id: IntID, token: String, publicKey: String, createdAt: OffsetDateTime) {
+  def tokenID: TokenID = TokenID(id, token)
+}
 
 import io.getquill.*
 class DeviceDao(using quill: DB, hashids: Hashids) {
@@ -16,6 +18,12 @@ class DeviceDao(using quill: DB, hashids: Hashids) {
       .run(quote(query[Device]).filter(v => v.id == lift(tokenId.intId) && v.token == lift(tokenId.token)).single)
       .headOption
   }
+  def findById(id:IntID): Option[Device] = {
+    quill
+      .run(quote(query[Device]).filter(v => v.id == lift(id)).single)
+      .headOption
+  }
+
   def getTokenId(id:IntID):Option[TokenID]= {
     quill
       .run(quote(query[Device]).filter(v => v.id == lift(id)).single)
