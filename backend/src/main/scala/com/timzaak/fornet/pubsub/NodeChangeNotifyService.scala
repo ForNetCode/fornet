@@ -16,7 +16,7 @@ class NodeChangeNotifyService(
   nodeService: NodeService,
 )(using quill: DB, hashid: Hashids) {
 
-  import quill.{ *, given }
+  import quill.{*, given}
 
   def nodeInfoChangeNotify(oldNode: Node, setting: NodeSetting, network: Network) = {
     // TODO: FIXIT
@@ -25,13 +25,14 @@ class NodeChangeNotifyService(
 
     val relativeNodes = nodeService.getAllRelativeNodes(oldNode)
     val fixedNode = oldNode.copy(setting = setting)
+    val deviceMap = deviceDao.getAllDevices(oldNode.deviceId::relativeNodes.map(_.deviceId))
     // notify self change
     val wrConfig: WRConfig =
-      EntityConvert.nodeToWRConfig(fixedNode, network, relativeNodes)
-    val deviceTokenId = deviceDao.getTokenId(oldNode.deviceId).get
+      EntityConvert.nodeToWRConfig(fixedNode, network, relativeNodes, deviceMap)
+    val device = deviceMap(fixedNode.deviceId.id)
     connectionManager.sendClientMessage(
       oldNode.networkId,
-      deviceTokenId,
+      device.tokenID,
       ClientMessage(networkId = networkId, ClientMessage.Info.Config(wrConfig))
     )
     fixedNode.nodeType match {
@@ -46,7 +47,7 @@ class NodeChangeNotifyService(
             networkId = networkId,
             NetworkMessage.Info.Peer(
               PeerChange(
-                changePeer = Some(EntityConvert.toPeer(fixedNode, network))
+                changePeer = Some(EntityConvert.toPeer(fixedNode, network, device.publicKey))
               )
             )
           )
@@ -59,10 +60,12 @@ class NodeChangeNotifyService(
     // only care about protocol, others will trigger push in future version.(after solved async push)
     if (oldNetwork.setting.protocol != newNetwork.setting.protocol && newNetwork.status == NetworkStatus.Normal) {
       val nodes = nodeDao.getAllAvailableNodes(oldNetwork.id).toList
-      val deviceMap = deviceDao.getTokenIds(nodes.map(_.id))
-      for ((node, relativeNodes) <- nodeService.getNetworkAllRelativeNodes(nodes)) {
-        val wrConfig = EntityConvert.nodeToWRConfig(node, newNetwork, relativeNodes)
-        val deviceTokenId = deviceMap(node.id.id)
+      val allRelativeNodes = nodeService.getNetworkAllRelativeNodes(nodes)
+      val deviceIds = allRelativeNodes.map(_::_).flatMap(_.map(_.deviceId)).distinctBy(_.id)
+      val deviceMap = deviceDao.getAllDevices(deviceIds)
+      for ((node, relativeNodes) <-allRelativeNodes) {
+        val wrConfig = EntityConvert.nodeToWRConfig(node, newNetwork, relativeNodes, deviceMap)
+        val deviceTokenId = deviceMap(node.id.id).tokenID
         // this would trigger all nodes restart.
         connectionManager.sendClientMessage(
           node.networkId,
@@ -87,7 +90,7 @@ class NodeChangeNotifyService(
 
   def nodeStatusChangeNotify(
     node: Node,
-    deviceTokenId: TokenID,
+    device: Device,
     oldStatus: NodeStatus,
     status: NodeStatus,
   ) = {
@@ -96,7 +99,7 @@ class NodeChangeNotifyService(
     // notify self node status change
     connectionManager.sendClientMessage(
       node.networkId,
-      deviceTokenId,
+      device.tokenID,
       ClientMessage(
         networkId = networkId,
         ClientMessage.Info.Status(status.gRPCNodeStatus),
@@ -111,7 +114,7 @@ class NodeChangeNotifyService(
             networkId = networkId,
             NetworkMessage.Info.Peer(
               PeerChange(
-                removePublicKey = Some(node.publicKey)
+                removePublicKey = Some(device.publicKey)
               )
             )
           )
@@ -119,17 +122,17 @@ class NodeChangeNotifyService(
 
       case (_, Normal) =>
         val network = networkDao.findById(node.networkId).get
-        val peer = EntityConvert.toPeer(node, network)
+        val peer = EntityConvert.toPeer(node, network, device.publicKey)
 
         val notifyNodes = nodeService.getAllRelativeNodes(node)
-
+        val deviceMap = deviceDao.getAllDevices(notifyNodes.map(_.deviceId))
         connectionManager.sendClientMessage(
           node.networkId,
-          deviceTokenId,
+          device.tokenID,
           ClientMessage(
             networkId = networkId,
             ClientMessage.Info.Config(
-              EntityConvert.nodeToWRConfig(node, network, notifyNodes)
+              EntityConvert.nodeToWRConfig(node, network, notifyNodes, deviceMap)
             ),
           )
         )

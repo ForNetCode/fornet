@@ -53,19 +53,19 @@ class AuthGRPCController(
     )
   )
 
-  private def getDeviceTokenId(deviceId:Option[String], publicKey:String):Try[TokenID]  = {
+  private def getDevice(deviceId:Option[String], publicKey:String):Try[Device]  = {
     deviceId.map { deviceIdStr =>
       Try(TokenID(deviceIdStr)).flatMap { deviceTokenId =>
-        deviceDao.findByTokenID(deviceTokenId).map(_ => Success(deviceTokenId)).getOrElse(Failure(new Exception("device TokenId invalid")))
+        deviceDao.findByTokenID(deviceTokenId).map(Success(_)).getOrElse(Failure(new Exception("device TokenId invalid")))
       }
     }.getOrElse {
       // publicKey always be unique!
-      val token = TokenID.randomToken();
-      val (deviceId, realToken) = quill.run(query[Device].insert(
+      val token = TokenID.randomToken()
+      val device = quill.run(query[Device].insert(
         _.token -> lift(token),
         _.publicKey -> lift(publicKey),
-      ).onConflictIgnore(_.publicKey).returning(v => (v.id, v.token)))
-      Success(TokenID(deviceId, realToken))
+      ).onConflictIgnore(_.publicKey).returning(v => v))
+      Success(device)
     }
   }
   override def inviteConfirm(
@@ -81,9 +81,9 @@ class AuthGRPCController(
       val networkId = IntID(request.networkId)
       val publicKey = request.encrypt.get.publicKey
 
-      val response = (request.nodeId, getDeviceTokenId(request.deviceId, request.encrypt.get.publicKey)) match {
+      val response = (request.nodeId, getDevice(request.deviceId, request.encrypt.get.publicKey)) match {
         case (_, Failure(e)) => errorResponse("Illegal Arguments")
-        case (Some(nodeIdStr), Success(deviceTokenId)) =>
+        case (Some(nodeIdStr), Success(device)) =>
           val nodeId = IntID(nodeIdStr)
           val changeCount = quill.run {
             quote {
@@ -94,9 +94,8 @@ class AuthGRPCController(
                   ) && n.status == lift(NodeStatus.Waiting)
                 )
                 .update(
-                  _.deviceId -> lift(deviceTokenId.intId),
+                  _.deviceId -> lift(device.id),
                   _.status -> lift(NodeStatus.Normal),
-                  _.publicKey -> lift(request.encrypt.get.publicKey),
                   _.updatedAt -> lift(OffsetDateTime.now()),
                 )
             }
@@ -106,7 +105,7 @@ class AuthGRPCController(
             val node = nodeDao.findById(networkId, nodeId).get
             nodeChangeNotifyService.nodeStatusChangeNotify(
               node,
-              deviceTokenId,
+              device,
               NodeStatus.Waiting,
               NodeStatus.Normal
             )
@@ -114,8 +113,8 @@ class AuthGRPCController(
           } else {
             errorResponse("already active or error response")
           }
-        case (None, Success(deviceTokenId))=>
-          createNode(networkId, publicKey, deviceTokenId) match {
+        case (None, Success(device))=>
+          createNode(networkId, publicKey, device) match {
             case Left(value) => errorResponse(value)
             case Right(id) =>
               successResponse(id.secretId)
@@ -155,9 +154,9 @@ class AuthGRPCController(
             logger.info(
               s"user:${userId},networkId:${request.networkId}, publicKey:${request.encrypt.get.publicKey} register device with code:${request.deviceCode}"
             )
-            val response = getDeviceTokenId(request.deviceId, request.encrypt.get.publicKey) match {
-              case Success(deviceTokenId) =>
-                createNode(networkId, publicKey, deviceTokenId) match {
+            val response = getDevice(request.deviceId, request.encrypt.get.publicKey) match {
+              case Success(device) =>
+                createNode(networkId, publicKey, device) match {
                   case Left(value) => errorResponse(value)
                   case Right(id) => successResponse(id.secretId)
                 }
@@ -178,7 +177,7 @@ class AuthGRPCController(
   }
 
   //TODO: create node trigger state change push?
-  private def createNode(networkId: IntID, publicKey: String, deviceTokenId: TokenID):Either[String, IntID] = {
+  private def createNode(networkId: IntID, publicKey: String, device: Device):Either[String, IntID] = {
     val network = networkDao.findById(networkId).get
     // network create node
     val usedIp = nodeDao
@@ -206,8 +205,7 @@ class AuthGRPCController(
                 _.name -> lift(
                   s"${hashId.encode(System.currentTimeMillis()).take(3)}_$ipAddress"
                 ),
-                _.publicKey -> lift(publicKey),
-                _.deviceId -> lift(deviceTokenId.intId),
+                _.deviceId -> lift(device.id),
                 _.networkId -> lift(network.id),
                 _.setting -> lift(NodeSetting()),
                 _.ip -> lift(ipAddress),

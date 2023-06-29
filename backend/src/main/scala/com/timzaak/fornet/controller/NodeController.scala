@@ -145,7 +145,7 @@ trait NodeController(
         if (network.status == NetworkStatus.Normal) {
           nodeChangeNotifyService.nodeStatusChangeNotify(
             oldNode,
-            deviceDao.findById(oldNode.deviceId).get.tokenID,
+            deviceDao.findById(oldNode.deviceId).get,
             oldNode.status,
             req.status
           )

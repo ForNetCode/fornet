@@ -23,18 +23,12 @@ class DeviceDao(using quill: DB, hashids: Hashids) {
       .run(quote(query[Device]).filter(v => v.id == lift(id)).single)
       .headOption
   }
-
-  def getTokenId(id:IntID):Option[TokenID]= {
-    quill
-      .run(quote(query[Device]).filter(v => v.id == lift(id)).single)
-      .headOption.map(v => TokenID(v.id, v.token))
-  }
-
-  def getTokenIds(ids:List[IntID]):Map[Int, TokenID]= {
+  
+  def getAllDevices(ids:List[IntID]):Map[Int, Device]= {
     if(ids.isEmpty) {
       Map.empty
     } else {
-      quill.run(quote(query[Device])).filter(v => liftQuery(ids).contains(v.id)).map(v => v.id.id -> TokenID(v.id, v.token)).toMap
+      quill.run(quote(query[Device])).filter(v => liftQuery(ids).contains(v.id)).map(v => v.id.id -> v).toMap
     }
   }
 }

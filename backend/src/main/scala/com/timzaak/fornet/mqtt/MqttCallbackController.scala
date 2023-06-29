@@ -114,18 +114,20 @@ class MqttCallbackController(
             .map(v => v.id -> v)
             .toMap
         }
+        
         nodes.foreach { node =>
           val network: Network = networks(node.networkId)
           if (node.realStatus(network.status) == NodeStatus.Normal) {
             val notifyNodes = nodeService.getAllRelativeNodes(node)
             val network = networks(node.networkId)
+            val deviceMap = deviceDao.getAllDevices(nodes.map(_.deviceId))
             mqttConnectionManager.sendClientMessage(
               networkId = node.networkId,
               deviceTokenId,
               ClientMessage(
                 networkId = node.networkId.secretId,
                 ClientMessage.Info.Config(
-                  EntityConvert.nodeToWRConfig(node, network, notifyNodes)
+                  EntityConvert.nodeToWRConfig(node, network, notifyNodes, deviceMap)
                 ),
               )
             )
