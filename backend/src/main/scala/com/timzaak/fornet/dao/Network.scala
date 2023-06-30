@@ -107,6 +107,8 @@ class NetworkDao(using quill: DB, hashIds: Hashids) {
 
   def existGroupNetwork(networkId: IntID, groupId: String): Boolean = {
     quill.run(quote(query[Network]).filter(n => n.id == lift(networkId) && n.groupId == lift(groupId)).nonEmpty)
-
   }
+
+  def findByTokenId(tokenId:TokenID): Option[Network] = 
+    quill.run(quote(query[Network]).filter(n => n.id == lift(tokenId.intId) && n.name == lift(tokenId.token)).single).headOption
 }
