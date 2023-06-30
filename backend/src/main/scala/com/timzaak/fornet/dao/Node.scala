@@ -198,5 +198,4 @@ class NodeDao(using quill: DB, hashids: Hashids) {
     query[Node].filter(n => n.deviceId == lift(deviceTokenId.intId))
   }
 
-
 }

@@ -31,7 +31,6 @@ message InviteConfirmRequest {
   optional string node_id = 2;
   EncryptRequest encrypt = 3;
   optional string device_id = 4;
-  repeated string joined_ip_range = 5;
 }
 
 message OAuthDeviceCodeRequest {

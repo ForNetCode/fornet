@@ -53,7 +53,19 @@ class AuthGRPCController(
     )
   )
 
-  private def getNetworkTokenID(tokenID: String, joinedIpRange: Seq[String]): Either[String, TokenID] = {
+  private def findAllNetworkAddressRange(publicKey: String): List[String] = {
+    // TODO: test this. may have problems.
+    val addressRange = quill.run {
+      val q1 = quote(query[Device].filter(_.publicKey == lift(publicKey)).map(_.id))
+      val q2 = quote(query[Node].filter(node => q1.contains(node.deviceId)).map(_.networkId))
+      quote(query[Network].filter(network => q2.contains(network.id)).map(_.addressRange))
+    }
+    addressRange
+  }
+  private def getNetworkTokenID(
+    tokenID: String,
+    publicKey: String,
+  ): Either[String, TokenID] = {
     Try(TokenID(tokenID)) match {
       case Failure(e) => Left("Illegal Arguments")
       case Success(tokenID) =>
@@ -67,7 +79,8 @@ class AuthGRPCController(
           .headOption
           .fold(Left("Invalid params")) { addressRange =>
             val networkAddressRange = IPAddressString(addressRange)
-            val isConflicted = joinedIpRange.exists { _address =>
+            // port conflict move to client resolve
+            val isConflicted = findAllNetworkAddressRange(publicKey).exists { _address =>
               val address = IPAddressString(_address)
               address.prefixContains(networkAddressRange) || networkAddressRange.prefixContains(address)
             }
@@ -114,7 +127,7 @@ class AuthGRPCController(
     }
 
     if (request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
-      val networkTokenId = getNetworkTokenID(request.networkTokenId, request.joinedIpRange)
+      val networkTokenId = getNetworkTokenID(request.networkTokenId, request.encrypt.get.publicKey)
       val publicKey = request.encrypt.get.publicKey
 
       val response =
@@ -187,7 +200,7 @@ class AuthGRPCController(
             Future.successful(errorResponse(value))
           case Right(userId) =>
             val publicKey = request.encrypt.get.publicKey
-            val networkTokenId = getNetworkTokenID(request.networkTokenId, request.joinedIpRange)
+            val networkTokenId = getNetworkTokenID(request.networkTokenId, request.encrypt.get.publicKey)
 
             val response = (getDevice(request.deviceId, request.encrypt.get.publicKey), networkTokenId) match {
               case (Success(device), Right(networkTokenId)) =>
