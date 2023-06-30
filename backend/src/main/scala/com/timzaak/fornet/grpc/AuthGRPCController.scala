@@ -47,33 +47,62 @@ class AuthGRPCController(
 
   import quill.{*, given}
   private def errorResponse(message: String) = ActionResponse(ActionResponse.Response.Error(message))
-  private def successResponse(secretId:String) = ActionResponse(
+  private def successResponse(secretId: String) = ActionResponse(
     ActionResponse.Response.Success(
       com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, secretId)
     )
   )
 
-  private def getNetworkTokenID(tokenID: String):Try[TokenID] = {
-    Try(TokenID(tokenID)).map { tokenID =>
-      quill.run(quote(query[Network]).filter(n => n.id == lift(tokenID.intId) && n.token == lift(tokenID.token)).map(n=> n.name).single).headOption.map(_ => Success(tokenID))
-        .getOrElse(Failure(nwe Exception("Invalid params")))
-
+  private def getNetworkTokenID(tokenID: String, joinedIpRange: Seq[String]): Either[String, TokenID] = {
+    Try(TokenID(tokenID)) match {
+      case Failure(e) => Left("Illegal Arguments")
+      case Success(tokenID) =>
+        quill
+          .run(
+            quote(query[Network])
+              .filter(n => n.id == lift(tokenID.intId) && n.token == lift(tokenID.token))
+              .single
+              .map(_.addressRange)
+          )
+          .headOption
+          .fold(Left("Invalid params")) { addressRange =>
+            val networkAddressRange = IPAddressString(addressRange)
+            val isConflicted = joinedIpRange.exists { _address =>
+              val address = IPAddressString(_address)
+              address.prefixContains(networkAddressRange) || networkAddressRange.prefixContains(address)
+            }
+            if (isConflicted) {
+              Left("network address range conflict")
+            } else {
+              Right(tokenID)
+            }
+          }
     }
   }
-  private def getDevice(deviceId: Option[String], publicKey:String):Try[Device]  = {
-    deviceId.map { deviceIdStr =>
-      Try(TokenID(deviceIdStr)).flatMap { deviceTokenId =>
-        deviceDao.findByTokenID(deviceTokenId).map(Success(_)).getOrElse(Failure(new Exception("device TokenId invalid")))
+  private def getDevice(deviceId: Option[String], publicKey: String): Try[Device] = {
+    deviceId
+      .map { deviceIdStr =>
+        Try(TokenID(deviceIdStr)).flatMap { deviceTokenId =>
+          deviceDao
+            .findByTokenID(deviceTokenId)
+            .map(Success(_))
+            .getOrElse(Failure(new Exception("device TokenId invalid")))
+        }
       }
-    }.getOrElse {
-      // publicKey always be unique!
-      val token = TokenID.randomToken()
-      val device = quill.run(query[Device].insert(
-        _.token -> lift(token),
-        _.publicKey -> lift(publicKey),
-      ).onConflictIgnore(_.publicKey).returning(v => v))
-      Success(device)
-    }
+      .getOrElse {
+        // publicKey always be unique!
+        val token = TokenID.randomToken()
+        val device = quill.run(
+          query[Device]
+            .insert(
+              _.token -> lift(token),
+              _.publicKey -> lift(publicKey),
+            )
+            .onConflictIgnore(_.publicKey)
+            .returning(v => v)
+        )
+        Success(device)
+      }
   }
   override def inviteConfirm(
     request: InviteConfirmRequest
@@ -85,48 +114,50 @@ class AuthGRPCController(
     }
 
     if (request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
-      val networkTokenId = getNetworkTokenID(request.networkTokenId)
+      val networkTokenId = getNetworkTokenID(request.networkTokenId, request.joinedIpRange)
       val publicKey = request.encrypt.get.publicKey
 
-      val response = (request.nodeId, getDevice(request.deviceId, request.encrypt.get.publicKey), networkTokenId) match {
-        case (_, Failure(_),_)|(_,_, Failure(_)) => errorResponse("Illegal Arguments")
-        case (Some(nodeIdStr), Success(device), Success(networkTokenId)) =>
-          val nodeId = IntID(nodeIdStr)
-          val changeCount = quill.run {
-            quote {
-              query[Node]
-                .filter(n =>
-                  n.networkId == lift(networkTokenId.intId) && n.id == lift(
-                    nodeId
-                  ) && n.status == lift(NodeStatus.Waiting)
-                )
-                .update(
-                  _.deviceId -> lift(device.id),
-                  _.status -> lift(NodeStatus.Normal),
-                  _.updatedAt -> lift(OffsetDateTime.now()),
-                )
+      val response =
+        (request.nodeId, getDevice(request.deviceId, request.encrypt.get.publicKey), networkTokenId) match {
+          case (_, Failure(_), _)    => errorResponse("Illegal Arguments")
+          case (_, _, Left(message)) => errorResponse(message)
+          case (Some(nodeIdStr), Success(device), Right(networkTokenId)) =>
+            val nodeId = IntID(nodeIdStr)
+            val changeCount = quill.run {
+              quote {
+                query[Node]
+                  .filter(n =>
+                    n.networkId == lift(networkTokenId.intId) && n.id == lift(
+                      nodeId
+                    ) && n.status == lift(NodeStatus.Waiting)
+                  )
+                  .update(
+                    _.deviceId -> lift(device.id),
+                    _.status -> lift(NodeStatus.Normal),
+                    _.updatedAt -> lift(OffsetDateTime.now()),
+                  )
+              }
             }
-          }
-          if (changeCount > 0) {
-            // notify relay node online
-            val node = nodeDao.findById(networkTokenId.intId, nodeId).get
-            nodeChangeNotifyService.nodeStatusChangeNotify(
-              node,
-              device,
-              NodeStatus.Waiting,
-              NodeStatus.Normal
-            )
-            successResponse(node.id.secretId)
-          } else {
-            errorResponse("already active or error response")
-          }
-        case (None, Success(device), Success(networkTokenId))=>
-          createNode(networkTokenId.intId, publicKey, device) match {
-            case Left(value) => errorResponse(value)
-            case Right(id) =>
-              successResponse(id.secretId)
-          }
-      }
+            if (changeCount > 0) {
+              // notify relay node online
+              val node = nodeDao.findById(networkTokenId.intId, nodeId).get
+              nodeChangeNotifyService.nodeStatusChangeNotify(
+                node,
+                device,
+                NodeStatus.Waiting,
+                NodeStatus.Normal
+              )
+              successResponse(node.id.secretId)
+            } else {
+              errorResponse("already active or error response")
+            }
+          case (None, Success(device), Right(networkTokenId)) =>
+            createNode(networkTokenId.intId, publicKey, device) match {
+              case Left(value) => errorResponse(value)
+              case Right(id) =>
+                successResponse(id.secretId)
+            }
+        }
       Future.successful(response)
     } else {
       Future.successful(
@@ -156,19 +187,19 @@ class AuthGRPCController(
             Future.successful(errorResponse(value))
           case Right(userId) =>
             val publicKey = request.encrypt.get.publicKey
-            val networkTokenId = getNetworkTokenID(request.networkTokenId)
+            val networkTokenId = getNetworkTokenID(request.networkTokenId, request.joinedIpRange)
 
-
-            val response = (getDevice(request.deviceId, request.encrypt.get.publicKey),networkTokenId) match {
-              case (Success(device), Success(networkTokenId)) =>
+            val response = (getDevice(request.deviceId, request.encrypt.get.publicKey), networkTokenId) match {
+              case (Success(device), Right(networkTokenId)) =>
                 logger.info(
                   s"user:${userId},networkId:${networkTokenId.intId}, publicKey:${request.encrypt.get.publicKey} register device with code:${request.deviceCode}"
                 )
                 createNode(networkTokenId.intId, publicKey, device) match {
                   case Left(value) => errorResponse(value)
-                  case Right(id) => successResponse(id.secretId)
+                  case Right(id)   => successResponse(id.secretId)
                 }
-              case _ => errorResponse("Illegal Arguments")
+              case (_, Left(message)) => errorResponse(message)
+              case _                  => errorResponse("Illegal Arguments")
             }
             Future.successful(response)
         }
@@ -184,8 +215,8 @@ class AuthGRPCController(
     }
   }
 
-  //TODO: create node trigger state change push?
-  private def createNode(networkId: IntID, publicKey: String, device: Device):Either[String, IntID] = {
+  // TODO: create node trigger state change push?
+  private def createNode(networkId: IntID, publicKey: String, device: Device): Either[String, IntID] = {
     val network = networkDao.findById(networkId).get
     // network create node
     val usedIp = nodeDao
