@@ -183,23 +183,8 @@ impl Identity {
         let ed25519_pk = ed25519_compact::PublicKey::new(array_ref![public_key, 32, 32].clone());
         Ok((x25519_pk, ed25519_pk))
     }
-    pub fn sign(&self, network_id: &str) -> anyhow::Result<GRPCAuth> {
-        let mut raw = vec![0; 16];
-        OsRng.fill_bytes(&mut raw);
-        let nonce = base64::encode_config(raw, base64::STANDARD);
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-        let plain_text = format!("{}-{}-{}", timestamp, network_id, nonce);
-        let signature = self.ed25519_sk.sign(plain_text, None);
-        let signature = base64::encode(*signature);
-        Ok(GRPCAuth {
-            timestamp,
-            network_id: network_id.to_owned(),
-            nonce,
-            sign: signature,
-            public_key: self.pk_base64.clone(),
-        })
-    }
-    pub fn sign2(&self, params:Vec<String>) -> anyhow::Result<EncryptRequest> {
+
+    pub fn sign(&self, params:Vec<String>) -> anyhow::Result<EncryptRequest> {
         let mut raw = vec![0; 16];
         OsRng.fill_bytes(&mut raw);
         let nonce = base64::encode_config(raw, base64::STANDARD);
@@ -242,22 +227,21 @@ pub struct NodeInfo {
     pub node_id: String,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct NetworkInfo {
+    pub network_id: String,
+    pub tun_name: Option<String>,
+
+}
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ServerConfig {
     pub server: String,
+    pub device_id: String,
+    pub mqtt_url: String,
     //networkId, mqttUrl, clientId
-    pub info: Vec<NodeInfo>
+    pub info: Vec<NetworkInfo>
 }
 
-/* impl default for serverconfig {
-    fn default() -> self {
-        serverconfig {
-            server: "http://127.0.0.1:9000".to_owned(),
-            network_id: "".to_owned(),
-        }
-    }
-}
- */
 const SERVER_SAVE_NAME: &str = "config.json";
 
 impl ServerConfig {

@@ -120,12 +120,7 @@ class AuthGRPCController(
   override def inviteConfirm(
     request: InviteConfirmRequest
   ): Future[ActionResponse] = {
-    var params = Seq(request.networkTokenId)
-    request.deviceId.foreach(deviceTokenId => params = params.appended(deviceTokenId))
-    if (request.nodeId.nonEmpty) {
-      params = params.appended(request.nodeId.get)
-    }
-
+    val params = Seq(request.deviceId, Some(request.networkTokenId), request.nodeId).collect { case Some(v) => v }
     if (request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
       val networkTokenId = getNetworkTokenID(request.networkTokenId, request.encrypt.get.publicKey)
       val publicKey = request.encrypt.get.publicKey
@@ -184,9 +179,10 @@ class AuthGRPCController(
   override def oauthDeviceCodeConfirm(
     request: OAuthDeviceCodeRequest
   ): Future[ActionResponse] = {
-    var params = Seq(request.accessToken, request.deviceCode)
-    request.deviceId.foreach(deviceId => params = params.appended(deviceId))
-    params = params.appended(request.networkTokenId)
+    val params =
+      Seq(Some(request.accessToken), Some(request.deviceCode), request.deviceId, Some(request.networkTokenId)).collect {
+        case Some(v) => v
+      }
 
     if (!appConfig.enableSAAS && request.encrypt.exists(v => nodeAuthService.validate(v, params))) {
       if (config.hasPath("auth.keycloak")) {

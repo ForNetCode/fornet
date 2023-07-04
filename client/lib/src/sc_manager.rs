@@ -137,7 +137,7 @@ impl SCManager {
         let port = url.port_or_known_default().unwrap_or(1883);// secret: 8883
         let client_id = config.identity.pk_base64.clone();
         let mut options = ConnectOptions::new(client_id);
-        let encrypt = config.identity.sign2(Vec::new())?;
+        let encrypt = config.identity.sign(Vec::new())?;
         let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
         options.password = Some(password);
         options.username = Some(node_info.node_id.clone());

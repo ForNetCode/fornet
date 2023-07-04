@@ -39,7 +39,6 @@ message OAuthDeviceCodeRequest {
   string network_token_id = 3;
   EncryptRequest encrypt = 4;
   optional string device_id = 5;
-  repeated string joined_ip_range = 6;
 }
 
 message SSOLoginInfoRequest {

@@ -9,11 +9,11 @@ import com.typesafe.config.Config
 import org.hashids.Hashids
 import org.scalatra.BadRequest.apply
 import org.scalatra.json.JsonResult.apply
-import org.scalatra.{ BadRequest, Ok }
+import org.scalatra.{BadRequest, Ok}
 import very.util.config.get
-import very.util.web.Controller
 import very.util.security.ID.toIntID
-import zio.json.{ DeriveJsonDecoder, JsonDecoder }
+import very.util.web.Controller
+import zio.json.{DeriveJsonDecoder, JsonDecoder}
 
 import java.net.URLEncoder
 import java.nio.charset.Charset
@@ -50,11 +50,9 @@ trait AuthController(networkDao: NetworkDao, appConfig: AppConfig)(using config:
         .findById(networkId)
         .filter(n => n.status == NetworkStatus.Normal && n.groupId == groupId)
         .map { network =>
-          val nId =
-            URLEncoder.encode(networkId.secretId, Charsets.UTF_8)
           String(
             Base64.getEncoder.encode(
-              s"2|${config.getString("server.grpc.endpoint")}|${network.tokenId.secretId}|$nId"
+              s"2|${config.getString("server.grpc.endpoint")}|${network.tokenId.secretId}"
                 .getBytes()
             )
           )
