@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use async_trait::async_trait;
 use mqrstt::{AsyncEventHandler, ConnectOptions, MqttClient, new_tokio};
-use mqrstt::packets::{Packet, QoS};
+use mqrstt::packets::{Packet, QoS, SubscriptionOptions};
 
 use prost::Message;
 use tokio::sync::mpsc::Sender;
@@ -10,7 +10,7 @@ use tokio::sync::mpsc::Sender;
 //use tokio_rustls::rustls::{ClientConfig, ServerName};
 
 use tokio_stream::StreamExt;
-use crate::config::{NodeInfo, Config as AppConfig};
+use crate::config::{Config as AppConfig, NetworkInfo};
 
 use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
@@ -37,7 +37,7 @@ impl Default for Duplication {
 struct MqttWrapper<'a> {
     pub client:MqttClient,
     pub client_topic: String,
-    pub network_topic: String,
+    pub network_topics: Vec<String>,
     pub deduplication: &'a mut Duplication,
     pub sender: Sender<ServerMessage>
 }
@@ -84,7 +84,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                             tracing::warn!("client message can not decode, may should update software");
                         }
                     }
-                    topic if topic == &self.network_topic => {
+                    topic if self.network_topics.contains(topic) => {
                         if let Ok(network_message) = NetworkMessage::decode(p.payload) {
                             if let Some(info) = network_message.info {
                                 match info {
@@ -130,8 +130,8 @@ impl SCManager {
         }
     }
 
-    async fn mqtt_reconnect(sender:Sender<ServerMessage>, node_info: &NodeInfo, config:Arc<AppConfig>, deduplication: &mut Duplication) -> anyhow::Result<()> {
-        let url = reqwest::Url::parse(&node_info.mqtt_url)?;
+    async fn mqtt_reconnect(sender:Sender<ServerMessage>, config:Arc<AppConfig>, deduplication: &mut Duplication) -> anyhow::Result<()> {
+        let url = reqwest::Url::parse(&config.server_config.mqtt_url)?;
 
         let host = url.host_str().unwrap_or("");
         let port = url.port_or_known_default().unwrap_or(1883);// secret: 8883
@@ -140,12 +140,19 @@ impl SCManager {
         let encrypt = config.identity.sign(Vec::new())?;
         let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
         options.password = Some(password);
-        options.username = Some(node_info.node_id.clone());
+        options.username = Some(config.server_config.device_id.clone());
 
+        //TODO: change topic
+        let client_topic = format!("client/{}",&config.server_config.device_id);
+        let network_topics:Vec<String> = config.server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
 
-        let client_topic = format!("client/{}",&node_info.node_id);
-        let network_topic = format!("network/{}", &node_info.network_id);
-        let subscribe_topics:&[(&str, QoS)] = &[(&client_topic.clone(),QoS::AtLeastOnce ), (&network_topic.clone(), QoS::AtLeastOnce)];
+        let subscribe_topics:Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions{
+            qos: QoS::AtLeastOnce,
+            ..Default::default()
+        })).collect();
+
+        //let subscribe_topics:&[(&str, QoS)] = &[(&client_topic.clone(),QoS::AtLeastOnce ), (&network_topic.clone(), QoS::AtLeastOnce)];
+
         //let deduplication =  Duplication::default();
 
 
@@ -154,7 +161,7 @@ impl SCManager {
             let mut mqtt_wrapper = MqttWrapper {
                 client:client.clone(),
                 client_topic,
-                network_topic,
+                network_topics,
                 deduplication,
                 sender,
             };
@@ -192,7 +199,7 @@ impl SCManager {
             let mut mqtt_wrapper = MqttWrapper {
                 client:client.clone(),
                 client_topic,
-                network_topic,
+                network_topics,
                 deduplication,
                 sender,
             };
@@ -218,25 +225,21 @@ impl SCManager {
     }
 
     pub async fn mqtt_connect(&mut self, config: Arc<crate::config::Config>) -> anyhow::Result<()> {
-        for node_info in &config.server_config.info {
-            let mut deduplication = Duplication {
-                wr_config: None,
-                status: None,
-            };
-            let node_info = node_info.clone();
-            let _config = config.clone();
-            let _sender = self.sender.clone();
-            tokio::spawn(async move{
-                loop {
-                    let _config = _config.clone();
-                    let _sender = _sender.clone();
-                    let v = SCManager::mqtt_reconnect(_sender, &node_info, _config, &mut deduplication).await;
-                    tracing::debug!("mqtt connect error, {:?}", v);
-                    tokio::time::sleep(Duration::from_secs(20)).await;
-                }
-            });
-
-        }
+        let mut deduplication = Duplication {
+            wr_config: None,
+            status: None,
+        };
+        let _config = config.clone();
+        let _sender = self.sender.clone();
+        tokio::spawn(async move{
+            loop {
+                let _config = _config.clone();
+                let _sender = _sender.clone();
+                let v = SCManager::mqtt_reconnect(_sender, _config, &mut deduplication).await;
+                tracing::debug!("mqtt connect error, {:?}", v);
+                tokio::time::sleep(Duration::from_secs(20)).await;
+            }
+        });
         Ok(())
     }
 }

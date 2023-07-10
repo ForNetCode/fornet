@@ -220,12 +220,6 @@ impl Debug for Identity {
         )
     }
 }
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct NodeInfo {
-    pub network_id: String,
-    pub mqtt_url: String,
-    pub node_id: String,
-}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct NetworkInfo {

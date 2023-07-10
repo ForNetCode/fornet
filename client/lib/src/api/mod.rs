@@ -5,7 +5,7 @@ use anyhow::{anyhow, bail};
 use serde_derive::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
-use crate::config::{Config, Identity, NetworkInfo, NodeInfo, ServerConfig};
+use crate::config::{Config, Identity, NetworkInfo, ServerConfig};
 use crate::sc_manager::SCManager;
 use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
 use crate::server_api::APISocket;
@@ -70,10 +70,10 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
     };
     if version == 1u32 {
         let invite_token = InviteToken::new(data);
-        if server_config_opt.is_some_and(|server_config| server_config.info.iter().find(|x| *x.network_id == &invite_token.network_token_id).is_some()) {
+        if server_config_opt.as_ref().is_some_and(|server_config| server_config.info.iter().find(|x| x.network_id == invite_token.network_token_id).is_some()) {
             bail!("network has been joined");
         }
-        let device_id_opt = server_config_opt.map(|v|v.device_id.clone());
+        let device_id_opt = server_config_opt.as_ref().map(|v|v.device_id.clone());
         match server_invite_confirm(
             identity,
             &invite_token.endpoint,
@@ -85,7 +85,7 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
         {
             Ok(resp) => {
                 let network_info = NetworkInfo {network_id: invite_token.network_token_id, tun_name: None};
-                let server_config = match server_config_opt {
+                let server_config =  match  server_config_opt {
                     Some(mut server_config) => {
                         server_config.info.push(network_info);
                         server_config
@@ -109,10 +109,10 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
     } else if version == 2u32 { // keycloak login
         let (mut client,sso_login) = SSOLogin::get_login_info(data).await?;
 
-        if server_config_opt.is_some_and(|server_config| server_config.info.iter().find(|x| *x.network_id == &sso_login.network_token_id).is_some()) {
+        if server_config_opt.as_ref().is_some_and(|server_config| server_config.info.iter().find(|x| x.network_id == sso_login.network_token_id).is_some()) {
             bail!("network has been joined");
         }
-        match handle_oauth(identity, &mut client, &sso_login, stream, server_config_opt.map(|v|v.device_id.clone())).await {
+        match handle_oauth(identity, &mut client, &sso_login, stream, server_config_opt.as_ref().map(|v|v.device_id.clone())).await {
             Ok(resp) => {
                 let network_info = NetworkInfo {network_id: sso_login.network_token_id, tun_name: None};
                 let server_config = match server_config_opt {
@@ -253,8 +253,6 @@ struct OAuthDeviceJWToken {
 // https://github.com/keycloak/keycloak-community/blob/main/design/oauth2-device-authorization-grant.md
 async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket, device_id: Option<String>) -> anyhow::Result<SuccessResponse> {
 
-    let network_id = sso_login.network_token_id.clone();
-
     let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
         .form(&[("client_id", &sso_login.client_id)])
         .send().await?.json::<OAuthDevice>().await?;
@@ -277,7 +275,7 @@ async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_l
         if loop_response.status().is_success() {
             let loop_response = loop_response.json::<OAuthDeviceJWToken>().await?;
             //Seq(request.accessToken, request.deviceCode, deviceId, request.networkId)
-            let params = vec![Some(loop_response.access_token.clone()), Some(response.device_code.clone()), device_id, Some(sso_login.network_token_id.clone())].into_iter().filter_map(|v|v).collect::<Vec<String>>();
+            let params = vec![Some(loop_response.access_token.clone()), Some(response.device_code.clone()), device_id.clone(), Some(sso_login.network_token_id.clone())].into_iter().filter_map(|v|v).collect::<Vec<String>>();
             let encrypt = identity.sign(params)?;
             let request = Request::new(OAuthDeviceCodeRequest {
                 device_code: (&response.device_code).clone(),
