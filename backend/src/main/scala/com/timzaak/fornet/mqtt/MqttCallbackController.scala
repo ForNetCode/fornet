@@ -78,8 +78,7 @@ class MqttCallbackController(
     val data = password.split('|')
     val isOk = if (data.length == 3) {
       val signature = data.last
-      val plainText = data.dropRight(1).mkString("|")
-
+      val plainText = s"${deviceTokenId.secretId}|${data.dropRight(1).mkString("|")}"
       PublicKey(publicKey).validate(plainText, signature) && deviceDao.findByTokenID(deviceTokenId)
         .exists(_.publicKey == publicKey)
     } else {

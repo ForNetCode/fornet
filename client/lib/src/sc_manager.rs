@@ -135,12 +135,12 @@ impl SCManager {
 
         let host = url.host_str().unwrap_or("");
         let port = url.port_or_known_default().unwrap_or(1883);// secret: 8883
-        let client_id = config.identity.pk_base64.clone();
-        let mut options = ConnectOptions::new(client_id);
-        let encrypt = config.identity.sign(Vec::new())?;
+        let username = config.identity.pk_base64.clone();
+        let mut options = ConnectOptions::new(config.server_config.device_id.clone());
+        let encrypt = config.identity.sign(vec![config.server_config.device_id.clone()])?;
         let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
         options.password = Some(password);
-        options.username = Some(config.server_config.device_id.clone());
+        options.username = Some(username);
 
         //TODO: change topic
         let client_topic = format!("client/{}",&config.server_config.device_id);
