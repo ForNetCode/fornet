@@ -1,6 +1,6 @@
 package com.timzaak.fornet.pubsub
 
-import com.timzaak.fornet.mqtt.api.{PublishRequest, RMqttApiClient}
+import com.timzaak.fornet.mqtt.api.{PublishRequest, RMqttApiClient, UnsubscribeRequest}
 import com.timzaak.fornet.protobuf.config.{ClientMessage, NetworkMessage}
 import org.hashids.Hashids
 import scalapb.GeneratedMessage
@@ -56,4 +56,12 @@ class MqttConnectionManager(
   }
 
   def isOnline(deviceToken: String): Boolean = mqttApiClient.isOnline(deviceToken)
+  
+  def kickOffNetwork(deviceToken:TokenID, networkId:IntID):Boolean = {
+    val result = mqttApiClient.unsubscribe(
+      UnsubscribeRequest(deviceToken.secretId, s"network/${networkId.secretId}")
+    )
+    logger.info(s"kick off node:${deviceToken.id} networkTopic:${networkId.id} result: $result")
+    result
+  }
 }

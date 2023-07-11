@@ -4,7 +4,9 @@ import com.timzaak.fornet.dao.{NetworkDao, *}
 import com.timzaak.fornet.grpc.convert.EntityConvert
 import com.timzaak.fornet.protobuf.config.{NetworkStatus as PNetworkStatus, NodeStatus as PNodeStatus, NodeType as PNodeType, *}
 import com.timzaak.fornet.service.NodeService
+import com.typesafe.scalalogging.LazyLogging
 import org.hashids.Hashids
+import very.util.executor.ScheduledExecutor
 import very.util.security.{IntID, TokenID}
 
 class NodeChangeNotifyService(
@@ -14,9 +16,10 @@ class NodeChangeNotifyService(
   // connectionManager: ConnectionManager,
   connectionManager: MqttConnectionManager,
   nodeService: NodeService,
-)(using quill: DB, hashid: Hashids) {
+)(using quill: DB, hashid: Hashids) extends LazyLogging {
 
   import quill.{*, given}
+  private lazy val scheduler = ScheduledExecutor(2)
 
   def nodeInfoChangeNotify(oldNode: Node, setting: NodeSetting, network: Network) = {
     // TODO: FIXIT
@@ -119,6 +122,12 @@ class NodeChangeNotifyService(
             )
           )
         )
+        if(status == NodeStatus.Delete|| status == NodeStatus.Forbid) {
+          import concurrent.duration.DurationInt
+          scheduler.delayExecution({
+            connectionManager.kickOffNetwork(device.tokenID, node.networkId)
+          })(5.seconds)
+        }
 
       case (_, Normal) =>
         val network = networkDao.findById(node.networkId).get
