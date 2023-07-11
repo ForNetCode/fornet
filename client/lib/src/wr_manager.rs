@@ -52,7 +52,7 @@ impl WRManager {
     }
 
 
-    pub async fn start(&mut self, config: &Config, wr_config: WrConfig) -> anyhow::Result<()> {
+    pub async fn start(&mut self, network_token_id:String, config: &Config, wr_config: WrConfig) -> anyhow::Result<()> {
         let interface = wr_config.interface.unwrap();
         //let address = AllowedIP::from_str(interface.address.as_str()).map_err(|e| anyhow!(e))?;
         let mut address: Vec<AllowedIP> = Vec::new();
@@ -73,7 +73,7 @@ impl WRManager {
             tokio::time::sleep(Duration::from_secs(sleep_time)).await;
         }
 
-        let tun_name = config.get_tun_name();
+        let tun_name = config.get_tun_name(&network_token_id).await;
         let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
         let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
 
@@ -81,7 +81,7 @@ impl WRManager {
         let key_pair = (config.identity.x25519_sk.clone(), config.identity.x25519_pk.clone());
         tracing::debug!("begin to start device");
         let wr_interface = Device::new(
-            &tun_name,
+            tun_name,
             &address,
             key_pair,
             Some(interface.listen_port as u16),
@@ -90,6 +90,25 @@ impl WRManager {
             protocol,
             node_type,
         )?;
+
+        {
+            let mut need_save = false;
+            let server_config = config.server_config.clone();
+            let mut server_config = server_config.write().await;
+
+            for v in server_config.info.iter_mut() {
+                if v.network_id == network_token_id {
+                    let old = v.tun_name.clone();
+                    v.tun_name = Some(wr_interface.name.clone());
+                    need_save = old != v.tun_name;
+                    break;
+                }
+            }
+
+            if need_save {
+                let _ = server_config.save_config(&config.config_path);
+            }
+        }
 
         self.device = Some(wr_interface);
         for peer in wr_config.peers {

@@ -85,7 +85,7 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
         {
             Ok(resp) => {
                 let network_info = NetworkInfo {network_id: invite_token.network_token_id, tun_name: None};
-                let server_config =  match  server_config_opt {
+                let server_config = match server_config_opt {
                     Some(mut server_config) => {
                         server_config.info.push(network_info);
                         server_config

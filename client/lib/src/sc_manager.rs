@@ -1,16 +1,17 @@
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use async_trait::async_trait;
 use mqrstt::{AsyncEventHandler, ConnectOptions, MqttClient, new_tokio};
 use mqrstt::packets::{Packet, QoS, SubscriptionOptions};
 
 use prost::Message;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::RwLock;
 //use tokio_rustls::rustls;
 //use tokio_rustls::rustls::{ClientConfig, ServerName};
 
 use tokio_stream::StreamExt;
-use crate::config::{Config as AppConfig, NetworkInfo};
+use crate::config::{Config as AppConfig, ServerConfig};
 
 use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
@@ -39,7 +40,8 @@ struct MqttWrapper<'a> {
     pub client_topic: String,
     pub network_topics: Vec<String>,
     pub deduplication: &'a mut Duplication,
-    pub sender: Sender<ServerMessage>
+    pub sender: Sender<ServerMessage>,
+    pub server_config: Arc<RwLock<ServerConfig>>,
 }
 #[async_trait]
 impl <'a> AsyncEventHandler for MqttWrapper<'a> {
@@ -56,7 +58,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                             return;
                                         }
 
-                                        let _ = self.sender.send(ServerMessage::SyncConfig(wr_config.clone())).await;
+                                        let _ = self.sender.send(ServerMessage::SyncConfig(client_message.network_id.clone(), wr_config.clone())).await;
                                         self.deduplication.wr_config = Some(wr_config);
                                     }
                                     Status(status) => {
@@ -67,7 +69,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                             match node_status {
                                                 NodeStatus::NodeForbid => {
                                                     let _ = self.sender.send(
-                                                        ServerMessage::StopWR("node has been forbid or delete".to_owned())
+                                                        ServerMessage::StopWR(client_message.network_id.clone(),"node has been forbid or delete".to_owned())
                                                     ).await;
                                                     self.deduplication.wr_config = None;
                                                 }
@@ -94,7 +96,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                     NStatus(status) => {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
                                             let _ = self.sender.send(
-                                                ServerMessage::StopWR("network has been delete".to_owned())
+                                                ServerMessage::StopWR(network_message.network_id.clone(),"network has been delete".to_owned())
                                             ).await;
                                         }
                                     }
@@ -131,20 +133,22 @@ impl SCManager {
     }
 
     async fn mqtt_reconnect(sender:Sender<ServerMessage>, config:Arc<AppConfig>, deduplication: &mut Duplication) -> anyhow::Result<()> {
-        let url = reqwest::Url::parse(&config.server_config.mqtt_url)?;
+        let server_config = config.server_config.clone();
+        let server_config = server_config.read().await;
+        let url = reqwest::Url::parse(&server_config.mqtt_url.clone())?;
 
         let host = url.host_str().unwrap_or("");
         let port = url.port_or_known_default().unwrap_or(1883);// secret: 8883
         let username = config.identity.pk_base64.clone();
-        let mut options = ConnectOptions::new(config.server_config.device_id.clone());
-        let encrypt = config.identity.sign(vec![config.server_config.device_id.clone()])?;
+        let mut options = ConnectOptions::new(server_config.device_id.clone());
+        let encrypt = config.identity.sign(vec![server_config.device_id.clone()])?;
         let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
         options.password = Some(password);
         options.username = Some(username);
 
         //TODO: change topic
-        let client_topic = format!("client/{}",&config.server_config.device_id);
-        let network_topics:Vec<String> = config.server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
+        let client_topic = format!("client/{}",&server_config.device_id);
+        let network_topics:Vec<String> = server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
 
         let subscribe_topics:Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions{
             qos: QoS::AtLeastOnce,
@@ -164,6 +168,7 @@ impl SCManager {
                 network_topics,
                 deduplication,
                 sender,
+                server_config: config.server_config.clone(),
             };
 
             //let root_certs = rustls::RootCertStore::empty();
@@ -202,6 +207,7 @@ impl SCManager {
                 network_topics,
                 deduplication,
                 sender,
+                server_config: config.server_config.clone(),
             };
             let stream = tokio::net::TcpStream::connect((host, port)).await?;
             network.connect(stream, &mut mqtt_wrapper).await?;

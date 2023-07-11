@@ -69,14 +69,14 @@ impl ServerManager {
                     Some(message) = rx.recv() => {
                         tracing::debug!("GOT = {:?}", message);
                         match message {
-                            ServerMessage::StopWR(message) => {
+                            ServerMessage::StopWR(network_token_id,message) => {
                                 tracing::info!("stop proxy, reason: {}", message);
                                 server_manager.wr_manager.close().await;
                             }
-                            ServerMessage::SyncConfig(wr_config) => {
+                            ServerMessage::SyncConfig(network_token_id,wr_config) => {
                                 if let Some(config) = &server_manager.config {
                                     server_manager.wr_manager
-                                    .start(&config, wr_config)
+                                    .start(network_token_id, &config, wr_config)
                                     .await
                                     .unwrap_or_else(|e| panic!("wr_manager start tun error,{:?}", e));
                                 }
@@ -138,7 +138,7 @@ impl ServerManager {
 #[derive(Debug, Clone)]
 pub enum ServerMessage {
     // NodeStatus::Normal => start WireGuard, other => stop WireGuard
-    StopWR(String),
+    StopWR(String,String),
     SyncPeers(crate::protobuf::config::PeerChange),
-    SyncConfig(WrConfig),
+    SyncConfig(String, WrConfig),
 }

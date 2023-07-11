@@ -11,6 +11,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use cfg_if::cfg_if;
 //should not reserve
 use  std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use crate::protobuf::auth::EncryptRequest;
 
 #[cfg(target_os="windows")]
@@ -58,7 +60,7 @@ impl WindowsClientConfig {
 
 pub struct Config {
     pub config_path: PathBuf,
-    pub server_config: ServerConfig,
+    pub server_config: Arc<RwLock<ServerConfig>>,
     pub identity: Identity,
     #[cfg(target_os = "windows")]
     pub client_config: WindowsClientConfig
@@ -69,7 +71,7 @@ impl Config {
         if !ServerConfig::exits(config_path) {
             return Ok(None)
         }
-        let server_config = ServerConfig::read_from_file(&config_path)?;
+        let server_config = Arc::new(RwLock::new(ServerConfig::read_from_file(&config_path)?));
         let identity = Identity::read_from_file(&config_path)?;
 
         #[cfg(target_os = "windows")]
@@ -88,9 +90,37 @@ impl Config {
                 //  This must be have
                 self.client_config.tun_guid.get(&self.identity.pk_base64).unwrap().clone()
             }
+        } else if #[cfg(target_os = "macos")]{
+            pub async fn get_tun_name(&self, network_token_id: &str) -> Option<String> {
+                let server_config = self.server_config.read().await;
+                match server_config.info.iter().find(|x| x.network_id == network_token_id){
+                    Some(network_info) => {
+                        network_info.tun_name.clone()
+                    }
+                    None => {
+                        None
+                    }
+                }
+            }
         } else {
-            pub fn get_tun_name(&self) -> String {
-                "for0".to_owned()
+            pub async fn get_tun_name(&self, network_token_id: &str) -> Option<String> {
+                let server_config = self.server_config.read().await;
+                match server_config.info.iter().find(|x| x.network_id == network_token_id){
+                    Some(network_info) => {
+                        network_info.tun_name.clone()
+                    }
+                    None => {
+                        let tun_names:Vec<String> = server_config.info.iter().filter_map(|x| x.tun_name.clone()).collect();
+                        for x in (0..40u32) {
+                            let x = format!("for{x}")
+                            if !tun_names.contains(&x) {
+                                return Some(x)
+                            }
+                        }
+                        panic!("now only support for{{40}} tun name")
+                    }
+                }
+
             }
         }
     }
