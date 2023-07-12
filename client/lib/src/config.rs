@@ -257,6 +257,15 @@ pub struct NetworkInfo {
     pub tun_name: Option<String>,
 
 }
+
+impl NetworkInfo {
+    pub fn new(network_id:String) -> Self {
+        Self {
+            network_id,
+            tun_name: None,
+        }
+    }
+}
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ServerConfig {
     pub server: String,

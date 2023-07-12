@@ -69,8 +69,11 @@ impl ServerManager {
                     Some(message) = rx.recv() => {
                         tracing::debug!("GOT = {:?}", message);
                         match message {
-                            ServerMessage::StopWR(network_token_id,message) => {
-                                tracing::info!("stop proxy, reason: {}", message);
+                            ServerMessage::StopWR{network_id,reason, delete_tun} => {
+                                tracing::info!("stop proxy, reason: {}", reason);
+                                if delete_tun {
+                                    //TODO: delete config
+                                }
                                 server_manager.wr_manager.close().await;
                             }
                             ServerMessage::SyncConfig(network_token_id,wr_config) => {
@@ -138,7 +141,7 @@ impl ServerManager {
 #[derive(Debug, Clone)]
 pub enum ServerMessage {
     // NodeStatus::Normal => start WireGuard, other => stop WireGuard
-    StopWR(String,String),
+    StopWR{network_id:String,reason:String, delete_tun:bool},
     SyncPeers(crate::protobuf::config::PeerChange),
     SyncConfig(String, WrConfig),
 }
