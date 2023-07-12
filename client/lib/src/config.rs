@@ -112,7 +112,7 @@ impl Config {
                     None => {
                         let tun_names:Vec<String> = server_config.info.iter().filter_map(|x| x.tun_name.clone()).collect();
                         for x in (0..40u32) {
-                            let x = format!("for{x}")
+                            let x = format!("for{x}");
                             if !tun_names.contains(&x) {
                                 return Some(x)
                             }
