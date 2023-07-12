@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use anyhow::anyhow;
 use serde_derive::{Deserialize, Serialize};
-use crate::config::{Config, Identity};
+use crate::config::{Config, Identity, NetworkInfo};
 use crate::device::peer::AllowedIP;
 use crate::protobuf::config::{Protocol, WrConfig, NodeType};
 use crate::device::Device;
@@ -95,14 +95,21 @@ impl WRManager {
             let mut need_save = false;
             let server_config = config.server_config.clone();
             let mut server_config = server_config.write().await;
-
-            for v in server_config.info.iter_mut() {
-                if v.network_id == network_token_id {
-                    let old = v.tun_name.clone();
-                    v.tun_name = Some(wr_interface.name.clone());
-                    need_save = old != v.tun_name;
-                    break;
+            if server_config.info.iter().find(|x| &x.network_id == &network_token_id).is_some() {
+                for v in server_config.info.iter_mut() {
+                    if v.network_id == network_token_id {
+                        let old = v.tun_name.clone();
+                        v.tun_name = Some(wr_interface.name.clone());
+                        need_save = old != v.tun_name;
+                        break;
+                    }
                 }
+            } else {
+                server_config.info.push(NetworkInfo {
+                    tun_name: Some(wr_interface.name.clone()),
+                    network_id: network_token_id
+                });
+                need_save = true;
             }
 
             if need_save {

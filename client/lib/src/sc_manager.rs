@@ -39,6 +39,7 @@ struct MqttWrapper<'a> {
     pub client:MqttClient,
     pub client_topic: String,
     pub network_topics: Vec<String>,
+    //TODO: Duplication diff by network_token_id, and use timestamp to diff would be more effect and good.
     pub deduplication: &'a mut Duplication,
     pub sender: Sender<ServerMessage>,
 }
@@ -56,8 +57,13 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                         if self.deduplication.wr_config == Some(wr_config.clone()) {
                                             return;
                                         }
-                                        if !self.network_topics.contains(&client_message.network_id) {
-                                            self.network_topics.push(client_message.network_id.clone());
+                                        let network_topic = format!("network/{}", &client_message.network_id);
+                                        if !self.network_topics.contains(&network_topic) {
+                                            self.network_topics.push( network_topic.clone());
+                                            let _ = self.client.subscribe((network_topic, SubscriptionOptions{
+                                                qos: QoS::AtLeastOnce,
+                                                ..Default::default()
+                                            })).await;
                                         }
                                         self.deduplication.wr_config = Some(wr_config.clone());
                                         let _ = self.sender.send(ServerMessage::SyncConfig(client_message.network_id.clone(), wr_config)).await;
@@ -71,8 +77,8 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                                 NodeStatus::NodeForbid => {
                                                     let _ = self.sender.send(
                                                         ServerMessage::StopWR {
-                                                            network_id:client_message.network_id.clone(),
-                                                            reason:"node has been forbid or delete".to_owned(),
+                                                            network_id: client_message.network_id.clone(),
+                                                            reason: "node has been forbid or delete".to_owned(),
                                                             delete_tun: true,
                                                         }
                                                     ).await;
@@ -101,7 +107,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                     NStatus(status) => {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
                                             let _ = self.sender.send(
-                                                ServerMessage::StopWR{network_id:network_message.network_id.clone(),
+                                                ServerMessage::StopWR{network_id: network_message.network_id.clone(),
                                                     reason:"network has been delete".to_owned(), delete_tun: true }
                                             ).await;
                                             let d = self.client.unsubscribe(topic.clone()).await;
@@ -113,7 +119,6 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                                     None
                                                 }
                                             }).collect();
-                                            // todo: change config
                                             tracing::debug!("unsubscribe topic: {}, result:{:?}", topic, d);
                                         }
                                     }
@@ -163,7 +168,6 @@ impl SCManager {
         options.password = Some(password);
         options.username = Some(username);
 
-        //TODO: change topic
         let client_topic = format!("client/{}",&server_config.device_id);
         let network_topics:Vec<String> = server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
 

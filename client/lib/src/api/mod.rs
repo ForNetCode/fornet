@@ -29,7 +29,7 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
         bail!("config file already exists, it now do not support join multiple network");
     }
 
-    let mut server_config_opt = if ServerConfig::exits(&config_dir) {
+    let server_config_opt = if ServerConfig::exits(&config_dir) {
         Some(ServerConfig::read_from_file(&config_dir)?)
     } else {
         None

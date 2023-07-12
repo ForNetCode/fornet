@@ -69,10 +69,20 @@ impl ServerManager {
                     Some(message) = rx.recv() => {
                         tracing::debug!("GOT = {:?}", message);
                         match message {
-                            ServerMessage::StopWR{network_id,reason, delete_tun} => {
+                            ServerMessage::StopWR{ network_id,reason, delete_tun} => {
                                 tracing::info!("stop proxy, reason: {}", reason);
                                 if delete_tun {
-                                    //TODO: delete config
+                                    // this must be true...
+                                    if let Some(config) = &mut server_manager.config {
+                                        let mut server_config = config.server_config.write().await;
+                                        server_config.info = server_config.info.iter().filter_map(|x|{
+                                            if &x.network_id != &network_id {
+                                                Some(x.clone())
+                                            } else {
+                                                None
+                                            }}).collect();
+                                        let _ = server_config.save_config(&config.config_path);
+                                    }
                                 }
                                 server_manager.wr_manager.close().await;
                             }
