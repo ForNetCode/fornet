@@ -5,7 +5,7 @@ use anyhow::{anyhow, bail};
 use serde_derive::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
-use crate::config::{Config, Identity, NodeInfo, ServerConfig};
+use crate::config::{Config, Identity, NetworkInfo, ServerConfig};
 use crate::sc_manager::SCManager;
 use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
 use crate::server_api::APISocket;
@@ -24,14 +24,24 @@ pub mod command_api;
 
 async fn join_network(server_manager: &mut ServerManager, invite_code: &str, stream: &mut APISocket, tx: Sender<ServerMessage>) -> anyhow::Result<()> {
     let config_dir = PathBuf::from(&server_manager.config_path);
-    if ServerConfig::exits(&PathBuf::from(&server_manager.config_path)) {
+    //TODO: remove this later to real support multiple network.
+    if ServerConfig::exits(&config_dir) {
         bail!("config file already exists, it now do not support join multiple network");
     }
+
+    let server_config_opt = if ServerConfig::exits(&config_dir) {
+        Some(ServerConfig::read_from_file(&config_dir)?)
+    } else {
+        None
+    };
     let data = String::from_utf8(base64::decode(invite_code)?)?;
     let data: Vec<&str> = data.split('|').collect();
     let version = data[0].parse::<u32>()?;
 
     let identity = if !Identity::exists(&config_dir) {
+        if server_config_opt.is_some() {
+            bail!("server config file exists, but identity file does not exists!");
+        }
         let identity = Identity::new();
         if let Ok(_) = identity.save(&config_dir) {
             identity
@@ -60,21 +70,34 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
     };
     if version == 1u32 {
         let invite_token = InviteToken::new(data);
+        if server_config_opt.as_ref().is_some_and(|server_config| server_config.info.iter().find(|x| x.network_id == invite_token.network_token_id).is_some()) {
+            bail!("network has been joined");
+        }
+        let device_id_opt = server_config_opt.as_ref().map(|v|v.device_id.clone());
         match server_invite_confirm(
             identity,
             &invite_token.endpoint,
-            &invite_token.network_id,
+            &invite_token.network_token_id,
             invite_token.node_id,
+            device_id_opt,
         )
             .await
         {
             Ok(resp) => {
-
-                //This must be success
-                let server_config = ServerConfig {
-                    server: invite_token.endpoint,
-                    info: vec![NodeInfo {network_id: invite_token.network_id, mqtt_url:resp.mqtt_url, node_id:  resp.client_id}],
+                let network_info = NetworkInfo {network_id: invite_token.network_token_id, tun_name: None};
+                let server_config = match server_config_opt {
+                    Some(mut server_config) => {
+                        server_config.info.push(network_info);
+                        server_config
+                    },
+                    None => ServerConfig {
+                        server: invite_token.endpoint,
+                        mqtt_url: resp.mqtt_url,
+                        device_id: resp.device_id,
+                        info: vec![network_info],
+                    }
                 };
+
                 server_config.save_config(&config_dir)?;
                 change_config_and_init_sync_manger();
             }
@@ -85,12 +108,26 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
         };
     } else if version == 2u32 { // keycloak login
         let (mut client,sso_login) = SSOLogin::get_login_info(data).await?;
-        match handle_oauth(identity, &mut client, &sso_login, stream).await {
+
+        if server_config_opt.as_ref().is_some_and(|server_config| server_config.info.iter().find(|x| x.network_id == sso_login.network_token_id).is_some()) {
+            bail!("network has been joined");
+        }
+        match handle_oauth(identity, &mut client, &sso_login, stream, server_config_opt.as_ref().map(|v|v.device_id.clone())).await {
             Ok(resp) => {
-                let server_config = ServerConfig {
-                    server: sso_login.endpoint,
-                    info: vec![NodeInfo {network_id: sso_login.network_id.clone(), mqtt_url: resp.mqtt_url, node_id: resp.client_id}],
+                let network_info = NetworkInfo {network_id: sso_login.network_token_id, tun_name: None};
+                let server_config = match server_config_opt {
+                    Some(mut server_config) => {
+                        server_config.info.push(network_info);
+                        server_config
+                    },
+                    None => ServerConfig {
+                        server: sso_login.endpoint,
+                        mqtt_url: resp.mqtt_url,
+                        device_id: resp.device_id,
+                        info: vec![network_info],
+                    }
                 };
+
                 server_config.save_config(&config_dir)?;
                 change_config_and_init_sync_manger();
             }
@@ -214,9 +251,7 @@ struct OAuthDeviceJWToken {
 }
 
 // https://github.com/keycloak/keycloak-community/blob/main/design/oauth2-device-authorization-grant.md
-async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket) -> anyhow::Result<SuccessResponse> {
-
-    let network_id = sso_login.network_id.clone();
+async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket, device_id: Option<String>) -> anyhow::Result<SuccessResponse> {
 
     let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
         .form(&[("client_id", &sso_login.client_id)])
@@ -239,13 +274,15 @@ async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_l
             .send().await?;
         if loop_response.status().is_success() {
             let loop_response = loop_response.json::<OAuthDeviceJWToken>().await?;
-            //Seq(request.accessToken, request.deviceCode, request.networkId)
-            let encrypt = identity.sign2(vec![loop_response.access_token.clone(), response.device_code.clone(), sso_login.network_id.clone()])?;
+            //Seq(request.accessToken, request.deviceCode, deviceId, request.networkId)
+            let params = vec![Some(loop_response.access_token.clone()), Some(response.device_code.clone()), device_id.clone(), Some(sso_login.network_token_id.clone())].into_iter().filter_map(|v|v).collect::<Vec<String>>();
+            let encrypt = identity.sign(params)?;
             let request = Request::new(OAuthDeviceCodeRequest {
                 device_code: (&response.device_code).clone(),
                 access_token: loop_response.access_token,
-                network_id,
+                network_token_id: sso_login.network_token_id.clone(),
                 encrypt:Some(encrypt),
+                device_id,
             });
             let response= client.oauth_device_code_confirm(request).await?.into_inner().response;
             return match response {
@@ -266,23 +303,24 @@ async fn server_invite_confirm(
     endpoint: &String,
     network_id: &String,
     node_id: Option<String>,
+    device_id: Option<String>,
 ) -> anyhow::Result<SuccessResponse> {
     tracing::debug!("endpoint: {endpoint}");
     let channel = Channel::from_shared(endpoint.clone())?.connect().await?;
     let mut client = AuthClient::new(channel);
 
+    let params = vec!(device_id.clone(),Some(network_id.to_owned()),node_id.clone()).into_iter().filter_map(|v|{
+        v
+    }).collect::<Vec<String>>();
 
-    let mut params = vec!(network_id.to_owned());
-    if let Some(ref node_id) = node_id {
-        params.push(node_id.clone());
-    }
-    let encrypt = identity.sign2(params)?;
+    let encrypt = identity.sign(params)?;
     tracing::debug!("encrypt: {encrypt:?}");
 
     let request = Request::new(InviteConfirmRequest {
         node_id,
-        network_id: network_id.clone(),
+        network_token_id: network_id.clone(),
         encrypt: Some(encrypt),
+        device_id,
     });
     let response = client.invite_confirm(request).await?;
 
@@ -295,14 +333,14 @@ async fn server_invite_confirm(
 
 struct InviteToken {
     endpoint: String,
-    network_id: String,
+    network_token_id: String,
     node_id: Option<String>,
 }
 
 impl InviteToken {
     fn new(data: Vec<&str>) -> Self {
         let endpoint = data[1].to_owned();
-        let network_id = data[2].to_owned();
+        let network_token_id = data[2].to_owned();
         let node_id = if data.len() > 3 {
             Some(data[3].to_owned())
         } else {
@@ -310,7 +348,7 @@ impl InviteToken {
         };
         InviteToken {
             endpoint,
-            network_id,
+            network_token_id,
             node_id,
         }
     }
@@ -318,7 +356,7 @@ impl InviteToken {
 
 struct SSOLogin {
     endpoint: String,
-    network_id: String,
+    network_token_id: String,
     sso_url: String,
     realm: String,
     client_id: String,
@@ -327,19 +365,19 @@ struct SSOLogin {
 impl SSOLogin {
     async fn get_login_info(data: Vec<&str>) -> anyhow::Result<(AuthClient<Channel>, SSOLogin)> {
         let grpc_endpoint = data[1].to_owned();
-        let network_id = data[2].to_owned();
+        let network_token_id = data[2].to_owned();
 
         let channel = Channel::from_shared(grpc_endpoint.clone())?.connect().await?;
         let mut client = AuthClient::new(channel);
         let request = Request::new(SsoLoginInfoRequest {
-            network_id: network_id.clone(),
+            network_id: network_token_id.clone(),
         });
         let response = client.get_sso_login_info(request).await?;
         let response = response.into_inner();
         //let response = reqwest::get(format!("{}/api/auth/oauth/device_code?n_id={}", &grpc_endpoint, &network_id)).await?;
         Ok((client, SSOLogin {
             endpoint: grpc_endpoint,
-            network_id,
+            network_token_id,
             sso_url: response.sso_url,
             realm: response.realm,
             client_id: response.client_id,

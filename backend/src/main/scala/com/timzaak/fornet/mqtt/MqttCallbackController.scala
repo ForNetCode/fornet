@@ -14,7 +14,8 @@ import inet.ipaddr.IPAddressString
 import inet.ipaddr.ipv4.IPv4Address
 import org.hashids.Hashids
 import org.scalatra.*
-import very.util.security.IntID.toIntID
+import very.util.security.ID.toIntID
+import very.util.security.TokenID
 import very.util.web.LogSupport
 import very.util.web.json.{JsonResponse, ZIOJsonSupport}
 import very.util.web.validate.ValidationExtra
@@ -23,38 +24,47 @@ import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
+import very.util.web.json.tokenIDDecoder
+
 case class AuthRequest(
-  clientId: String, // publicKey
-  username: String, // nodeHashId
+  @jsonField("clientid")
+  deviceTokenId: TokenID, // device tokenId
+  @jsonField("username")
+  publicKey: String, // public key
   password: String, // |nonce|timestamp|signature
 )
 
-given JsonDecoder[AuthRequest] = DeriveJsonDecoder.gen
+given authRequestDecoder(using hashId:Hashids):JsonDecoder[AuthRequest] = DeriveJsonDecoder.gen
 
 case class WebHookCallbackRequest(
   action: String,
   @jsonField("clientid")
-  clientId: String,
+  deviceTokenId: TokenID,
   topic: String,
-  username: String,
+  @jsonField("username")
+  publicKey: String,
 )
-given JsonDecoder[WebHookCallbackRequest] = DeriveJsonDecoder.gen
+given webHookCallbackRequestDecoder(using hashId:Hashids):JsonDecoder[WebHookCallbackRequest] = DeriveJsonDecoder.gen
 
 case class AclRequest(
   // 1 = sub, 2 = pub
   access: String,
-  username: String,
+  @jsonField("username")
+  publicKey: String,
   ipaddr: String,
   @jsonField("clientid")
-  clientId: String,
+  deviceTokenId: TokenID,
   topic: String
 )
 
-given JsonDecoder[AclRequest] = DeriveJsonDecoder.gen
+given aclRequestDecoder(using hashId:Hashids):JsonDecoder[AclRequest] = DeriveJsonDecoder.gen
 
 private val networkTopicPattern = """^network/(\w+)$""".r
+private val clientTopicPattern = """^client/(\w+)$""".r
+
 class MqttCallbackController(
   nodeDao: NodeDao,
+  deviceDao: DeviceDao,
   networkDao: NetworkDao,
   nodeService: NodeService,
   mqttConnectionManager: MqttConnectionManager,
@@ -68,14 +78,13 @@ class MqttCallbackController(
     val data = password.split('|')
     val isOk = if (data.length == 3) {
       val signature = data.last
-      val plainText = data.dropRight(1).mkString("|")
-      PublicKey(clientId).validate(plainText, signature) && nodeDao
-        .findByPublicKey(clientId)
-        .exists(_.id.secretId == username)
+      val plainText = s"${deviceTokenId.secretId}|${data.dropRight(1).mkString("|")}"
+      PublicKey(publicKey).validate(plainText, signature) && deviceDao.findByTokenID(deviceTokenId)
+        .exists(_.publicKey == publicKey)
     } else {
       false
     }
-    logger.debug(s"userName:${req.username}, ${req.clientId} auth ${isOk}")
+    logger.debug(s"device: ${req.deviceTokenId.id} auth ${isOk}")
     if (isOk) {
       Ok()
     } else {
@@ -87,15 +96,13 @@ class MqttCallbackController(
   jPost("/webhook") { (req: WebHookCallbackRequest) =>
     logger.debug(s"mqtt hook: ${request.body}")
     import req.*
-
-    // {"action":"client_subscribe","clientid":"C5yG28uwzTumy6PpBEGqvvEWLJ8dYzF1uSFGziJG6Q8Jl+DPCRZZX05MPXb/s9GWsuO2JXzADAHz70WVbD2lew==","ipaddress":"127.0.0.1:56588","node":1,"opts":{"qos":1},"topic":"client","username":"undefined"}
-
+    // {"action":"client_subscribe","clientid":"xxx","ipaddress":"127.0.0.1:56588","node":1,"opts":{"qos":1},"topic":"client","username":"undefined"}
     Try {
-      if (action == "client_subscribe" && topic == s"client/${req.username}") {
+      if (action == "client_subscribe" && topic == s"client/${req.deviceTokenId.secretId}") {
         // send wr config
         val nodes =
           nodeDao
-            .findByPublicKey(clientId)
+            .findByDeviceId(deviceTokenId)
             .filter(_.status == NodeStatus.Normal)
 
         val networks = if (nodes.isEmpty) {
@@ -106,20 +113,20 @@ class MqttCallbackController(
             .map(v => v.id -> v)
             .toMap
         }
+        
         nodes.foreach { node =>
-
           val network: Network = networks(node.networkId)
           if (node.realStatus(network.status) == NodeStatus.Normal) {
             val notifyNodes = nodeService.getAllRelativeNodes(node)
             val network = networks(node.networkId)
+            val deviceMap = deviceDao.getAllDevices(nodes.map(_.deviceId))
             mqttConnectionManager.sendClientMessage(
               networkId = node.networkId,
-              node.id,
-              clientId,
+              deviceTokenId,
               ClientMessage(
                 networkId = node.networkId.secretId,
                 ClientMessage.Info.Config(
-                  EntityConvert.nodeToWRConfig(node, network, notifyNodes)
+                  EntityConvert.nodeToWRConfig(node, network, notifyNodes, deviceMap)
                 ),
               )
             )
@@ -149,27 +156,22 @@ class MqttCallbackController(
       }
       // sub
     } else if (req.access == "1") {
-      Try(req.username.toIntID).fold(
-        _ => Forbidden("allow"),
-        { id =>
-          req.topic match {
-            case networkTopicPattern(secretId) =>
-              Try(secretId.toIntID).fold(
-                _ => Forbidden(),
-                { networkId =>
-                  if (nodeDao.findById(networkId, id).nonEmpty) {
-                    Ok("allow")
-                  } else {
-                    Forbidden("deny")
-                  }
-                }
-              )
-
-            case s"client/${id.secretId}" => Ok("allow")
-            case _                        => Forbidden("deny")
-          }
-        }
-      )
+      req.topic match {
+        case networkTopicPattern(secretId) =>
+          Try(secretId.toIntID).fold(
+            _ => Forbidden("deny"),
+            { networkId =>
+              if (nodeDao.findByDeviceWithNetwork(networkId, req.deviceTokenId).nonEmpty) {
+                Ok("allow")
+              } else {
+                Forbidden("deny")
+              }
+            }
+          )
+        case clientTopicPattern(secretId) if secretId == req.deviceTokenId.secretId =>
+          Ok("allow")
+        case _ => Forbidden("deny")
+      }
     } else {
       Forbidden("deny")
     }

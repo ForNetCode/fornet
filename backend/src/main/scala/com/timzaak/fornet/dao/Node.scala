@@ -3,11 +3,11 @@ package com.timzaak.fornet.dao
 import io.getquill.MappedEncoding
 import org.hashids.Hashids
 import very.util.persistence.quill.DBSerializer
-import very.util.security.IntID
+import very.util.security.{IntID, TokenID}
 import zio.json.*
 
 import java.time.OffsetDateTime
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 enum NodeType {
   // Normal: Fornet Client
@@ -70,8 +70,9 @@ case class Node(
   id: IntID,
   name: String,
   networkId: IntID,
+  deviceId: IntID,
   ip: String,
-  publicKey: String,
+  publicKey: String, // TODO: rm it
   setting: NodeSetting,
   nodeType: NodeType,
   status: NodeStatus,
@@ -135,16 +136,7 @@ import io.getquill.*
 class NodeDao(using quill: DB, hashids: Hashids) {
 
   import quill.{ *, given }
-
-  def findIdByPublicKey(publicKey: String, networkId: IntID): Option[IntID] =
-    quill.run {
-      quote {
-        query[Node]
-          .filter(n => n.publicKey == lift(publicKey) && n.networkId == lift(networkId))
-          .map(_.id)
-          .single
-      }
-    }.headOption
+  
 
   def findById(networkId: IntID, nodeId: IntID): Option[Node] = quill.run {
     quote {
@@ -153,13 +145,6 @@ class NodeDao(using quill: DB, hashids: Hashids) {
         .single
     }
   }.headOption
-
-  def findByPublicKey(publicKey: String): List[Node] = quill.run {
-    quote {
-      query[Node]
-        .filter(_.publicKey == lift(publicKey))
-    }
-  }
 
   def getUsedIps(networkId: IntID): Seq[String] = quill.run {
     quote {
@@ -204,4 +189,13 @@ class NodeDao(using quill: DB, hashids: Hashids) {
   def countByNetwork(networkId: IntID): Long = quill.run {
     query[Node].filter(n => n.networkId == lift(networkId) && n.status == lift(NodeStatus.Normal)).size
   }
+
+  def findByDeviceWithNetwork(networkId:IntID, deviceTokenId:TokenID):List[Node] = quill.run {
+    query[Node].filter(n => n.deviceId == lift(deviceTokenId.intId) && n.networkId == lift(networkId))
+  }
+
+  def findByDeviceId(deviceTokenId: TokenID): List[Node] = quill.run {
+    query[Node].filter(n => n.deviceId == lift(deviceTokenId.intId))
+  }
+
 }

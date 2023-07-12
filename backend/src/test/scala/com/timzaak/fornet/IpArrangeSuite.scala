@@ -58,4 +58,21 @@ class IpArrangeSuite extends FunSuite {
     println(range.contains(single))
   }
 
+  test("ip contains 2") {
+    var ip1 = IPAddressString("10.0.0.1/16")
+    var ip2 = IPAddressString("10.0.2.1/24")
+
+    assert(ip1.prefixContains(ip2) || ip2.prefixContains(ip1))
+
+    ip1 = IPAddressString("10.1.0.1/16")
+    ip2 = IPAddressString("10.2.2.1/24")
+
+    assert(!(ip1.prefixContains(ip2) || ip2.prefixContains(ip1)))
+
+    ip1 = IPAddressString("10.1.0.1/24")
+    ip2 = IPAddressString("10.2.2.1/24")
+
+    assert(!(ip1.prefixContains(ip2) || ip2.prefixContains(ip1)))
+  }
+
 }

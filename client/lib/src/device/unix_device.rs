@@ -25,7 +25,7 @@ pub struct Device {
 
 impl Device {
     pub fn new(
-        name: &str,
+        name: Option<String>,
         address:&[AllowedIP],
         //allowed_ip: &[AllowedIP],
         key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
