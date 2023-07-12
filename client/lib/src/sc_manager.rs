@@ -57,8 +57,10 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                         if self.deduplication.wr_config == Some(wr_config.clone()) {
                                             return;
                                         }
-
                                         let _ = self.sender.send(ServerMessage::SyncConfig(client_message.network_id.clone(), wr_config.clone())).await;
+                                        //if !self.network_topics.contains(&client_message.network_id) {
+                                        //    self.network_topics.push(client_message.network_id.clone());
+                                        //}
                                         self.deduplication.wr_config = Some(wr_config);
                                     }
                                     Status(status) => {
@@ -98,6 +100,10 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                             let _ = self.sender.send(
                                                 ServerMessage::StopWR(network_message.network_id.clone(),"network has been delete".to_owned())
                                             ).await;
+                                            let d = self.client.unsubscribe(topic).await;
+                                            self.network_topics = self.network_topics.into_iter().filter(|x| x == topic).collect();
+                                            // todo: change config
+                                            tracing::debug!("unsubscribe topic: {}, result:{:?}", topic, d);
                                         }
                                     }
                                 }
