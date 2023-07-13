@@ -10,55 +10,10 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use cfg_if::cfg_if;
 //should not reserve
-use  std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::protobuf::auth::EncryptRequest;
-/*
-#[cfg(target_os="windows")]
-#[derive(Deserialize, Serialize, Debug)]
-pub struct WindowsClientConfig {
-    //key: public_key, value: windows tun device guid
-    pub tun_guid: HashMap<String, String>
-}
 
-#[cfg(target_os="windows")]
-impl WindowsClientConfig {
-    pub fn load(config_dir:&PathBuf, identity:&Identity)->anyhow::Result<Self> {
-        let pub_key = identity.pk_base64.clone();
-        if Self::exists(config_dir) {
-            let mut config = Self::read_from_file(config_dir)?;
-            if config.tun_guid.contains_key(&pub_key) {
-                Ok(config)
-            } else {
-                config.tun_guid.insert(pub_key, format!("{:?}", windows::core::GUID::new()?));
-                config.save_config(config_dir)?;
-                Ok(config)
-            }
-        } else {
-            let config = WindowsClientConfig {
-                tun_guid: HashMap::from([
-                    (pub_key,format!("{:?}", windows::core::GUID::new()?))
-                ])
-            };
-            config.save_config(config_dir)?;
-            Ok(config)
-        }
-    }
-    pub fn exists(config_dir:&PathBuf)->bool {
-        config_dir.join("windows_client.json").exists()
-    }
-    pub fn read_from_file(config_dir:&PathBuf) -> anyhow::Result<Self>{
-        let config_str = fs::read_to_string(config_dir.join("windows_client.json"))?;
-        Ok(serde_json::from_str::<WindowsClientConfig>(&config_str)?)
-    }
-
-    pub fn save_config(&self, config_dir: &PathBuf) -> anyhow::Result<()> {
-        let path = config_dir.join("windows_client.json");
-        Ok(fs::write(path, serde_json::to_string_pretty(self)?)?)
-    }
-}
-*/
 
 pub struct Config {
     pub config_path: PathBuf,
