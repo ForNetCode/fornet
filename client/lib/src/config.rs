@@ -10,60 +10,15 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use cfg_if::cfg_if;
 //should not reserve
-use  std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::protobuf::auth::EncryptRequest;
 
-#[cfg(target_os="windows")]
-#[derive(Deserialize, Serialize, Debug)]
-pub struct WindowsClientConfig {
-    //key: public_key, value: windows tun device guid
-    pub tun_guid: HashMap<String, String>
-}
-#[cfg(target_os="windows")]
-impl WindowsClientConfig {
-    pub fn load(config_dir:&PathBuf, identity:&Identity)->anyhow::Result<Self> {
-        let pub_key = identity.pk_base64.clone();
-        if Self::exists(config_dir) {
-            let mut config = Self::read_from_file(config_dir)?;
-            if config.tun_guid.contains_key(&pub_key) {
-                Ok(config)
-            } else {
-                config.tun_guid.insert(pub_key, format!("{:?}", windows::core::GUID::new()?));
-                config.save_config(config_dir)?;
-                Ok(config)
-            }
-        } else {
-            let config = WindowsClientConfig {
-                tun_guid: HashMap::from([
-                    (pub_key,format!("{:?}", windows::core::GUID::new()?))
-                ])
-            };
-            config.save_config(config_dir)?;
-            Ok(config)
-        }
-    }
-    pub fn exists(config_dir:&PathBuf)->bool {
-        config_dir.join("windows_client.json").exists()
-    }
-    pub fn read_from_file(config_dir:&PathBuf) -> anyhow::Result<Self>{
-        let config_str = fs::read_to_string(config_dir.join("windows_client.json"))?;
-        Ok(serde_json::from_str::<WindowsClientConfig>(&config_str)?)
-    }
-
-    pub fn save_config(&self, config_dir: &PathBuf) -> anyhow::Result<()> {
-        let path = config_dir.join("windows_client.json");
-        Ok(fs::write(path, serde_json::to_string_pretty(self)?)?)
-    }
-}
 
 pub struct Config {
     pub config_path: PathBuf,
     pub server_config: Arc<RwLock<ServerConfig>>,
     pub identity: Identity,
-    #[cfg(target_os = "windows")]
-    pub client_config: WindowsClientConfig
 }
 
 impl Config {
@@ -74,21 +29,27 @@ impl Config {
         let server_config = Arc::new(RwLock::new(ServerConfig::read_from_file(&config_path)?));
         let identity = Identity::read_from_file(&config_path)?;
 
-        #[cfg(target_os = "windows")]
-        let client_config = WindowsClientConfig::load(&config_path, &identity)?;
         Ok(Some(Config {
             config_path: config_path.clone(),
             server_config,
             identity,
-            #[cfg(target_os = "windows")]
-            client_config,
         }))
     }
     cfg_if! {
         if #[cfg(target_os = "windows")] {
-            pub fn get_tun_name(&self) -> String {
+            pub async fn get_tun_name(&self, network_token_id:&str) -> Option<String> {
                 //  This must be have
-                self.client_config.tun_guid.get(&self.identity.pk_base64).unwrap().clone()
+
+
+                let server_config = self.server_config.read().await;
+                match server_config.info.iter().find(|x| x.network_id == network_token_id){
+                    Some(network_info) => {
+                        network_info.tun_name.clone()
+                    }
+                    None => {
+                        Some(format!("{:?}", windows::core::GUID::new().unwrap()))
+                    }
+                }
             }
         } else if #[cfg(target_os = "macos")]{
             pub async fn get_tun_name(&self, network_token_id: &str) -> Option<String> {
@@ -315,6 +276,10 @@ mod tests {
     use arrayref::array_ref;
     use std::ops::Deref;
 
+    #[test]
+    fn test_guid() {
+        println!("{:?}", windows::core::GUID::new().unwrap());
+    }
     #[test]
     fn identity_combine() {
         let mut identity = Identity::new();

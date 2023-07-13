@@ -25,7 +25,7 @@ pub struct Device {
 
 impl Device {
     pub fn new(
-        name: &str,
+        name: Option<String>,
         address: &[AllowedIP],
         //allowed_ip: &[AllowedIP],
         key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
@@ -37,7 +37,7 @@ impl Device {
     ) -> anyhow::Result<Self>{
         run_opt_script(&scripts.pre_up)?;
 
-        let (iface_reader, iface_writer, name) = create_async_tun(name, mtu, address)?;
+        let (iface_reader, iface_writer, name) = create_async_tun(&name.unwrap(), mtu, address)?;
         let iface_writer = Arc::new(Mutex::new(iface_writer));
 
         let rate_limiter = Arc::new(RateLimiter::new(&key_pair.1, HANDSHAKE_RATE_LIMIT));
