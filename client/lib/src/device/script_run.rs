@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use new_string_template::template::Template;
 use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog};
 use crate::protobuf::config::Interface;
 
@@ -17,6 +19,22 @@ impl Scripts {
             pre_down: interface.pre_down.clone(),
             post_down: interface.post_down.clone(),
         }
+    }
+}
+pub fn run_opt_script_with_param(script:&Option<String>, params:&HashMap<&str,String>) -> shell_candy::Result<Option<()>> {
+    if let Some(ref script) = script {
+        let templ = Template::new(script);
+        match templ.render(params) {
+            Ok(rendered_script) => {
+                Ok(Some(run_script(&rendered_script)?))
+            }
+            Err(e) => {
+                tracing::warn!("script: {script}  render err: {e}");
+                Ok(None)
+            }
+        }
+    } else {
+        Ok(None)
     }
 }
 //TODO: add log and handle if this would block.

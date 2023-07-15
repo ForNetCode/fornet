@@ -36,6 +36,7 @@ serde = { version = "1.0.144", features = ["derive"] }
 serde_derive = "1.0.144"
 serde_json = "1.0.85"
 reqwest = { version = "0.11", features = ["json", "blocking"]}
+new_string_template = "1.4.0"
 
 dirs = "4.0.0"
 
