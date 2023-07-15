@@ -40,7 +40,7 @@ use allowed_ips::AllowedIps;
 use peer::{AllowedIP, Peer};
 use script_run::Scripts;
 use crate::device::peer::TcpConnection;
-use crate::device::script_run::run_opt_script;
+use crate::device::script_run::{run_opt_script, run_opt_script_with_param};
 use crate::protobuf::config::NodeType;
 use self::tun::WritePart;
 
@@ -232,7 +232,9 @@ impl DeviceData {
 
 impl Drop for DeviceData {
     fn drop(&mut self) {
-        let _ = run_opt_script(&self.scripts.post_down);
+        let mut script_param:HashMap<&str, String> = HashMap::new();
+        script_param.insert("tun", self.name.clone());
+        let _ = run_opt_script_with_param(&self.scripts.post_down , &script_param);
     }
 }
 

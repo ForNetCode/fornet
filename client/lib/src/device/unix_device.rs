@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,7 +11,7 @@ use tokio::task::JoinHandle;
 use crate::device;
 use crate::device::{DeviceData, Peers, HANDSHAKE_RATE_LIMIT, MAX_UDP_SIZE};
 use crate::device::peer::AllowedIP;
-use crate::device::script_run::{run_opt_script, Scripts};
+use crate::device::script_run::{run_opt_script, run_opt_script_with_param, Scripts};
 use crate::device::tun::create_async_tun;
 use crate::device::tunnel::{create_tcp_server, create_udp_socket};
 use nix::unistd::Uid;
@@ -126,9 +127,10 @@ impl Device {
             protocol,
         };
 
-        //run_opt_script(&Some("iptables -A FORWARD -i for0 -j ACCEPT".to_owned()))?;
 
-        run_opt_script(&device.scripts.post_up)?;
+        let mut script_params:HashMap<&str, String> = HashMap::new();
+        script_params.insert("tun", device.name.clone());
+        run_opt_script_with_param(&device.scripts.post_up, &script_params)?;
         Ok(device)
     }
 
