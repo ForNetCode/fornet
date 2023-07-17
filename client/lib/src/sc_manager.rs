@@ -102,7 +102,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                             if let Some(info) = network_message.info {
                                 match info {
                                     Peer(peer_change) => {
-                                        let _ = self.sender.send(ServerMessage::SyncPeers(peer_change)).await;
+                                        let _ = self.sender.send(ServerMessage::SyncPeers(network_message.network_id.clone(), peer_change)).await;
                                     }
                                     NStatus(status) => {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {

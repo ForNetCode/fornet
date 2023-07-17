@@ -84,7 +84,7 @@ impl ServerManager {
                                         let _ = server_config.save_config(&config.config_path);
                                     }
                                 }
-                                server_manager.wr_manager.close().await;
+                                server_manager.wr_manager.close(&network_id).await;
                             }
                             ServerMessage::SyncConfig(network_token_id,wr_config) => {
                                 if let Some(config) = &server_manager.config {
@@ -94,12 +94,13 @@ impl ServerManager {
                                     .unwrap_or_else(|e| panic!("wr_manager start tun error,{:?}", e));
                                 }
                             }
-                            ServerMessage::SyncPeers(peer_change_message) => {
+                            ServerMessage::SyncPeers(network_token_id, peer_change_message) => {
+
                                 if let Some(public_key) = peer_change_message.remove_public_key {
                                     if server_manager.config.as_ref().map(|x|x.identity.pk_base64 != public_key).unwrap_or(true) {
                                         match Identity::get_pub_identity_from_base64(&public_key) {
                                             Ok((x_pub_key, _)) => {
-                                                server_manager.wr_manager.remove_peer(&x_pub_key).await;
+                                                server_manager.wr_manager.remove_peer(&network_token_id, &x_pub_key).await;
                                             }
                                             Err(_) => {
                                                 tracing::warn!("peer identity parse error")
@@ -113,6 +114,7 @@ impl ServerManager {
                                     let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
                                     let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key).unwrap();
                                     server_manager.wr_manager.add_peer(
+                                        &network_token_id,
                                         x_pub_key,
                                         endpoint,
                                         &allowed_ip,
@@ -127,6 +129,7 @@ impl ServerManager {
                                         let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
                                         let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key).unwrap();
                                         server_manager.wr_manager.add_peer(
+                                            &network_token_id,
                                             x_pub_key,
                                             endpoint,
                                             &allowed_ip,
@@ -152,6 +155,6 @@ impl ServerManager {
 pub enum ServerMessage {
     // NodeStatus::Normal => start WireGuard, other => stop WireGuard
     StopWR{network_id:String,reason:String, delete_tun:bool},
-    SyncPeers(crate::protobuf::config::PeerChange),
+    SyncPeers(String, crate::protobuf::config::PeerChange),
     SyncConfig(String, WrConfig),
 }
