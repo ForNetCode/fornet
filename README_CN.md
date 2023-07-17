@@ -16,11 +16,11 @@ ForNet 基于 [BoringTun](https://github.com/cloudflare/boringtun)：WireGuard R
 1. 打开控制平台网页： [ForNet Admin](https://sso.fornetcode.com), 注册账号，并前往邮箱激活。
 2. 激活后，进入控制平台，创建网络，获得加入该网络邀请链接。
 3. 前往 [Github Release](https://github.com/ForNetCode/fornet/releases)，按平台下载对应客户端，并解压到特定目录。
-4. sudo fornet join xxx, 加入网路，并前往控制平台，激活该设备。
+4. `sudo fornet join xxx`, 加入网路，并前往控制平台，激活该设备。
 
 ### 文档
-[文档地址](https://fornetcode.github.io/documentation)，快速上手请参见 [Quick Start](https://fornetcode.github.io/documentation/guide/quick-start)。 
-若您还想了解本项目未来发展方向，请参看 [项目规划](https://fornetcode.github.io/documentation/plan) 。
+[文档地址](https://doc.fornetcode.com)，快速上手请参见 [Quick Start](https://doc.fornetcode.com/guide/quick-start)。 
+若您还想了解本项目未来发展方向，请参看 [项目规划](https://doc.fornetcode.com/plan) 。
 
 ### License
 [BSL 1.1](https://github.com/fornetcode/fornet/blob/main/LICENSE)

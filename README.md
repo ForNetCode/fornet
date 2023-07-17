@@ -15,9 +15,11 @@ Currently, it's in `beta` stage
 
 
 ### Document
-To check out docs, visit this [Git Page](https://fornetcode.github.io/documentation). There is a [tutorial](https://fornetcode.github.io/documentation/guide/quick-start) for you.
+To check out docs, visit this [Git Page](https://doc.fornetcode.com). There is a [quick start tutorial](https://doc.fornetcode.com/guide/quick-start) for you.
 
-If you are interested with the project future, please refer to [Roadmap](https://fornetcode.github.io/documentation/plan).
+If you are interested with the project future, please refer to [Roadmap](https://doc.fornetcode.com/plan).
+
+If you want build it yourself, please ref [Develop Guide](https://doc.fornetcode.com/guide/develop)
 
 ### License
 [BSL 1.1](https://github.com/fornetcode/fornet/blob/main/LICENSE)
