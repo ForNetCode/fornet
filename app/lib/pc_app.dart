@@ -20,16 +20,16 @@ String getTrayImagePath(String imageName) {
   return Platform.isWindows ? 'assets/$imageName.ico' : 'assets/$imageName.png';
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+class PCApp extends StatefulWidget {
+  const PCApp({Key? key}) : super(key: key);
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<PCApp> createState() => _PCAppState();
 }
 
 bool initSuccess = false;
 
-class _MyAppState extends State<MyApp> {
+class _PCAppState extends State<PCApp> {
   final AppWindow _appWindow = AppWindow();
   final SystemTray _systemTray = SystemTray();
   final Menu _menu = Menu();

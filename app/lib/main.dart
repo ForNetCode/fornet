@@ -1,10 +1,14 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
-import 'package:for_net_ui/app.dart';
+import 'package:for_net_ui/pc_app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  pcRun();
+}
+
+void pcRun() {
+  runApp(const PCApp());
   doWhenWindowReady(() {
     final win = appWindow;
     const initialSize = Size(400, 160);
@@ -14,4 +18,8 @@ void main() {
     //win.show();
     //win.hide();
   });
+}
+
+void mobileRun() {
+
 }
