@@ -5,13 +5,12 @@ use mqrstt::{AsyncEventHandler, ConnectOptions, MqttClient, new_tokio};
 use mqrstt::packets::{Packet, QoS, SubscriptionOptions};
 
 use prost::Message;
+use tokio_rustls::rustls::{ClientConfig, ServerName};
 use tokio::sync::mpsc::Sender;
-use tokio::sync::RwLock;
-//use tokio_rustls::rustls;
-//use tokio_rustls::rustls::{ClientConfig, ServerName};
+
 
 use tokio_stream::StreamExt;
-use crate::config::{Config as AppConfig, NetworkInfo, ServerConfig};
+use crate::config::{Config as AppConfig};
 
 use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
@@ -191,20 +190,19 @@ impl SCManager {
                 sender,
             };
 
-            //let root_certs = rustls::RootCertStore::empty();
-            //let config = ClientConfig::builder().with_safe_defaults().with_root_certificates(root_certs).with_no_client_auth();
-            //let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-            //let domain = ServerName::try_from(host)?;
-
+            let root_certs = tokio_rustls::rustls::RootCertStore::empty();
+            let config = ClientConfig::builder().with_safe_defaults().with_root_certificates(root_certs).with_no_client_auth();
+            let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+            let domain = ServerName::try_from(host)?;
+            let stream = tokio::net::TcpStream::connect((host, port)).await?;
+            let connection = connector.connect(domain, stream).await?;
 
             //let connection = connector.connect(domain, stream).await?;
 
-            let cx = tokio_native_tls::native_tls::TlsConnector::builder().build()?;
-            let cx = tokio_native_tls::TlsConnector::from(cx);
-
-            let stream = tokio::net::TcpStream::connect((host, port)).await?;
-
-            let connection = cx.connect(host, stream).await?;
+            //let cx = tokio_rustls::TlsConnector::builder().build()?;
+            //let cx = tokio_native_tls::TlsConnector::from(cx);
+            //let stream = tokio::net::TcpStream::connect((host, port)).await?;
+            //let connection = cx.connect(host, stream).await?;
 
             network.connect(connection,&mut mqtt_wrapper).await?;
             client.subscribe(subscribe_topics).await?;
