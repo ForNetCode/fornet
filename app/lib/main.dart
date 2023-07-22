@@ -1,10 +1,17 @@
+import 'dart:io';
+
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
+import 'package:for_net_ui/mobile_app.dart';
 import 'package:for_net_ui/pc_app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  pcRun();
+  if(Platform.isAndroid || Platform.isIOS) {
+    mobileRun();
+  }else {
+    pcRun();
+  }
 }
 
 void pcRun() {
@@ -20,6 +27,3 @@ void pcRun() {
   });
 }
 
-void mobileRun() {
-
-}
