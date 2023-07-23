@@ -70,7 +70,7 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
-/*
+
 [
         new Tuple2('Debug', ''),
         new Tuple2('Profile', '--release'),
@@ -89,9 +89,9 @@ dependencies {
         // dont work  -t x86_64 -t x86
         def ndk_command = """cargo ndk \
             -t armeabi-v7a -t arm64-v8a \
-            -o ../android/app/src/main/jniLibs build $profileMode"""
+            -o ../app/android/app/src/main/jniLibs build $profileMode"""
 
-        workingDir "../../$crate"
+        workingDir "../../../client"
         environment "ANDROID_NDK_HOME", "$ANDROID_NDK"
         if (org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.currentOperatingSystem.isWindows()) {
             commandLine 'cmd', '/C', ndk_command
@@ -100,4 +100,3 @@ dependencies {
         }
     }
 }
-*/

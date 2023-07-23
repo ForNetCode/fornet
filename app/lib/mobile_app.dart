@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:for_net_ui/ffi.dart';
 
 void mobileRun() {
-  runApp(const MaterialApp(
+  runApp(MaterialApp(
     title: 'ForNet',
-    home: MobileApp(),
+    theme: ThemeData.light(useMaterial3: true),
+    home: const MobileApp(),
   ));
 }
 
@@ -14,7 +17,22 @@ class MobileApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Hello World'),);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ForNet'),
+      ),
+      body:Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+        const Text('Hello World'),
+        ElevatedButton(onPressed: () async{
+          await api.initRuntime(
+          workThread: 4, logLevel: kReleaseMode ? "info" : "debug");
+          print('finish init....');
+        }, child: const Text('Test'))
+      ],)
+    );
   }
 }
 

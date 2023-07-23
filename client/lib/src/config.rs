@@ -217,7 +217,8 @@ impl Identity {
     pub fn sign(&self, params:Vec<String>) -> anyhow::Result<EncryptRequest> {
         let mut raw = vec![0; 16];
         OsRng.fill_bytes(&mut raw);
-        let nonce = base64::encode_config(raw, base64::STANDARD);
+
+        let nonce = base64::encode(&raw);
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         let plain_text = if !params.is_empty() {
             let mut plain_text = params.join("|");
