@@ -42,6 +42,8 @@ dependencies:
   launch_at_startup: ^0.2.2
   package_info_plus: ^3.0.3
   freezed_annotation: ^2.4.1
+  path_provider: ^2.0.15
+  path: ^1.8.3
 #  provider: ^6.0.1
 #  functional_data: ^1.0.0
 

@@ -45,7 +45,7 @@ class _PCAppState extends State<PCApp> {
 
   Future<void> initRunTime() async {
     if (!initSuccess) {
-      await api.initRuntime(
+      await api.initRuntime(configPath: await api.getConfigPath(),
           workThread: 4, logLevel: kReleaseMode ? "info" : "debug");
       _timer = Timer(const Duration(seconds: 5), ()async{
         try {

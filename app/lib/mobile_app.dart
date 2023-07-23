@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:for_net_ui/ffi.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 void mobileRun() {
   runApp(MaterialApp(
@@ -26,9 +28,9 @@ class MobileApp extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
         const Text('Hello World'),
-        ElevatedButton(onPressed: () async{
-          await api.initRuntime(
-          workThread: 4, logLevel: kReleaseMode ? "info" : "debug");
+        ElevatedButton(onPressed: () async {
+          await api.initRuntime(configPath: p.join((await getApplicationSupportDirectory()).path, 'config'),
+          workThread: 4, logLevel: kReleaseMode ? 'info' : 'debug');
           print('finish init....');
         }, child: const Text('Test'))
       ],)

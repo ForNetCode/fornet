@@ -64,6 +64,7 @@ fn wire_get_config_path_impl(port_: MessagePort) {
 }
 fn wire_init_runtime_impl(
     port_: MessagePort,
+    config_path: impl Wire2Api<String> + UnwindSafe,
     work_thread: impl Wire2Api<usize> + UnwindSafe,
     log_level: impl Wire2Api<String> + UnwindSafe,
 ) {
@@ -74,9 +75,10 @@ fn wire_init_runtime_impl(
             mode: FfiCallMode::Normal,
         },
         move || {
+            let api_config_path = config_path.wire2api();
             let api_work_thread = work_thread.wire2api();
             let api_log_level = log_level.wire2api();
-            move |task_callback| init_runtime(api_work_thread, api_log_level)
+            move |task_callback| init_runtime(api_config_path, api_work_thread, api_log_level)
         },
     )
 }

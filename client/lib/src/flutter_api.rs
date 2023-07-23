@@ -6,6 +6,7 @@
  */
 
 use std::str::FromStr;
+use cfg_if::cfg_if;
 use once_cell::sync::OnceCell;
 
 use tokio::runtime::Runtime;
@@ -28,13 +29,13 @@ pub fn test_two(a:i32) -> anyhow::Result<i32> {
     println!("test two: {}", a);
     Ok(1)
 }
-
+// MacOS/Linux/Windows
 pub fn get_config_path() -> String {
     option_env!("FORNET_CONFIG").map(|x|x.to_owned()).unwrap_or_else(||default_config_path())
 }
 
 
-pub fn init_runtime(work_thread:usize, log_level: String) -> anyhow::Result<()> {
+pub fn init_runtime(config_path:String, work_thread:usize, log_level: String) -> anyhow::Result<()> {
     // This is a workaround for the fact that Flutter always call in dev mode
     unsafe {
         if FLUTTER_HAS_INIT {
@@ -51,8 +52,6 @@ pub fn init_runtime(work_thread:usize, log_level: String) -> anyhow::Result<()> 
 
     RT.set(tokio::runtime::Builder::new_multi_thread().worker_threads(work_thread).enable_all().build()?).unwrap();
     tracing::info!("init tokio runtime and log success");
-    let config_path = get_config_path();
-
     //let is_root = nix::unistd::Uid::effective().is_root();
     //tracing::info!("is root, {is_root}, {}",nix::unistd::Uid::effective());
 

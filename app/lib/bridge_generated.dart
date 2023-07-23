@@ -78,14 +78,19 @@ class FornetLibImpl implements FornetLib {
       );
 
   Future<void> initRuntime(
-      {required int workThread, required String logLevel, dynamic hint}) {
-    var arg0 = api2wire_usize(workThread);
-    var arg1 = _platform.api2wire_String(logLevel);
+      {required String configPath,
+      required int workThread,
+      required String logLevel,
+      dynamic hint}) {
+    var arg0 = _platform.api2wire_String(configPath);
+    var arg1 = api2wire_usize(workThread);
+    var arg2 = _platform.api2wire_String(logLevel);
     return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_init_runtime(port_, arg0, arg1),
+      callFfi: (port_) =>
+          _platform.inner.wire_init_runtime(port_, arg0, arg1, arg2),
       parseSuccessData: _wire2api_unit,
       constMeta: kInitRuntimeConstMeta,
-      argValues: [workThread, logLevel],
+      argValues: [configPath, workThread, logLevel],
       hint: hint,
     ));
   }
@@ -93,7 +98,7 @@ class FornetLibImpl implements FornetLib {
   FlutterRustBridgeTaskConstMeta get kInitRuntimeConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
         debugName: "init_runtime",
-        argNames: ["workThread", "logLevel"],
+        argNames: ["configPath", "workThread", "logLevel"],
       );
 
   Future<String> joinNetwork({required String inviteCode, dynamic hint}) {
@@ -341,11 +346,13 @@ class FornetLibWire implements FlutterRustBridgeWireBase {
 
   void wire_init_runtime(
     int port_,
+    ffi.Pointer<wire_uint_8_list> config_path,
     int work_thread,
     ffi.Pointer<wire_uint_8_list> log_level,
   ) {
     return _wire_init_runtime(
       port_,
+      config_path,
       work_thread,
       log_level,
     );
@@ -353,10 +360,14 @@ class FornetLibWire implements FlutterRustBridgeWireBase {
 
   late final _wire_init_runtimePtr = _lookup<
       ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64, ffi.UintPtr,
+          ffi.Void Function(
+              ffi.Int64,
+              ffi.Pointer<wire_uint_8_list>,
+              ffi.UintPtr,
               ffi.Pointer<wire_uint_8_list>)>>('wire_init_runtime');
-  late final _wire_init_runtime = _wire_init_runtimePtr
-      .asFunction<void Function(int, int, ffi.Pointer<wire_uint_8_list>)>();
+  late final _wire_init_runtime = _wire_init_runtimePtr.asFunction<
+      void Function(int, ffi.Pointer<wire_uint_8_list>, int,
+          ffi.Pointer<wire_uint_8_list>)>();
 
   void wire_join_network(
     int port_,

@@ -29,6 +29,7 @@ cfg_if::cfg_if! {
             dirs::home_dir().unwrap().join(format!(".{}",APP_NAME)).into_os_string().into_string().unwrap()
         }
     } else {
+        //Linux, Android, iOS does not support.
         pub fn default_config_path() -> String {
             format!("/etc/{}",APP_NAME)
         }

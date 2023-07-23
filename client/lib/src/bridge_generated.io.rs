@@ -19,10 +19,11 @@ pub extern "C" fn wire_get_config_path(port_: i64) {
 #[no_mangle]
 pub extern "C" fn wire_init_runtime(
     port_: i64,
+    config_path: *mut wire_uint_8_list,
     work_thread: usize,
     log_level: *mut wire_uint_8_list,
 ) {
-    wire_init_runtime_impl(port_, work_thread, log_level)
+    wire_init_runtime_impl(port_, config_path, work_thread, log_level)
 }
 
 #[no_mangle]

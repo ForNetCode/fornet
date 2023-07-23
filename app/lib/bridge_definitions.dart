@@ -22,7 +22,10 @@ abstract class FornetLib {
   FlutterRustBridgeTaskConstMeta get kGetConfigPathConstMeta;
 
   Future<void> initRuntime(
-      {required int workThread, required String logLevel, dynamic hint});
+      {required String configPath,
+      required int workThread,
+      required String logLevel,
+      dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kInitRuntimeConstMeta;
 
