@@ -29,7 +29,9 @@ class MobileApp extends StatelessWidget {
         children: [
         const Text('Hello World'),
         ElevatedButton(onPressed: () async {
-          await api.initRuntime(configPath: p.join((await getApplicationSupportDirectory()).path, 'config'),
+          final path = p.join((await getExternalStorageDirectory())!.path, 'config');
+          print('path:$path');
+          await api.initRuntime(configPath: path,
           workThread: 4, logLevel: kReleaseMode ? 'info' : 'debug');
           print('finish init....');
         }, child: const Text('Test'))

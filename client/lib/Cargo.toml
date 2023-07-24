@@ -74,6 +74,8 @@ fortun-cli = {version = "0.0.1", path = "../../third/simple-windows-tun/ForTunCl
 windows = {version = "0.44", features=["Win32_Networking_WinSock"]}
 cidr-utils = "0.5.10"
 #winapi = {version = "0.3", features=["ws2def"]}
+[target.'cfg(target_os = "android")'.dependencies]
+paranoid-android = "0.2.1"
 
 
 
