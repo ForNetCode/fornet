@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use anyhow::Context;
 use cfg_if::cfg_if;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::{UnixListener, UnixStream};
@@ -13,9 +14,9 @@ pub const SERVER_API_SOCKET: &str =  "/var/run/fornet.sock";
 pub fn init_api_server(sender: tokio::sync::mpsc::Sender<APISocket>) -> anyhow::Result<JoinHandle<()>> {
     let api_sock_path = PathBuf::from(SERVER_API_SOCKET);
     if api_sock_path.exists() {
-        std::fs::remove_file(&api_sock_path)?;
+        std::fs::remove_file(&api_sock_path).with_context(||format!("remove api socket fail: {}", api_sock_path.display()))?;
     }
-    let unix_listener = UnixListener::bind(api_sock_path)?;
+    let unix_listener = UnixListener::bind(api_sock_path).with_context(|| format!("create api socket fail: {}", api_sock_path.display()))?;
     tracing::info!("api server open");
     let task:JoinHandle<()> = tokio::spawn(async move {
         while let Ok((stream, _)) = unix_listener.accept().await {

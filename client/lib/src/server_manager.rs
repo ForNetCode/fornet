@@ -9,6 +9,7 @@ use std::process::exit;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::net::{IpAddr, SocketAddr};
+use anyhow::Context;
 use tokio::sync::mpsc;
 use tokio::io::AsyncReadExt;
 use crate::server_api::APISocket;
@@ -29,7 +30,7 @@ impl ServerManager {
         let (tx, mut rx) = mpsc::channel::<ServerMessage>(32);
         let path = PathBuf::from(&config_path);
         if !path.exists() {
-            std::fs::create_dir(&path)?;
+            std::fs::create_dir(&path).with_context(|| format!("fail to create config directory: {}", path.display()))?;
         }
         let config = Config::load_config(&path)?.map(Arc::new);
         if let Some(ref config) = config {

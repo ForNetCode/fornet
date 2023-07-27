@@ -70,7 +70,7 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
-
+/*
 [
         new Tuple2('Debug', ''),
         new Tuple2('Profile', '--release'),
@@ -100,3 +100,4 @@ dependencies {
         }
     }
 }
+*/

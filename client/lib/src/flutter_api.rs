@@ -77,7 +77,7 @@ pub fn init_runtime(config_path:String, work_thread:usize, log_level: String) ->
     init_log(log_level);
 
     RT.set(tokio::runtime::Builder::new_multi_thread().worker_threads(work_thread).enable_all().build()?).unwrap();
-    tracing::info!("init tokio runtime and log success");
+    tracing::info!("init tokio runtime and log success, begin to start server");
     //let is_root = nix::unistd::Uid::effective().is_root();
     //tracing::info!("is root, {is_root}, {}",nix::unistd::Uid::effective());
 
