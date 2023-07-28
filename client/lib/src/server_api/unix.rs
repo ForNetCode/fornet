@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use anyhow::Context;
-use cfg_if::cfg_if;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task::JoinHandle;

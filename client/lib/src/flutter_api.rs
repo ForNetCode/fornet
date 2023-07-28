@@ -1,14 +1,6 @@
-/*
-1. load config, start server
-2. login/join network, keycloak, simple..
-3. logout, stop client
-4. list network
- */
-
 use std::str::FromStr;
 use cfg_if::cfg_if;
-use cmd_lib::log::logger;
-use once_cell::sync::OnceCell;
+use std::cell::OnceCell;
 
 use tokio::runtime::Runtime;
 use tracing::Level;
