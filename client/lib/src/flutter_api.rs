@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use cfg_if::cfg_if;
-use std::cell::OnceCell;
+use std::sync::OnceLock;
 
 use tokio::runtime::Runtime;
 use tracing::Level;
@@ -8,9 +8,7 @@ use tracing_subscriber::prelude::*;
 use crate::{default_config_path, server_manager};
 use crate::server_manager::StartMethod;
 
-static mut FLUTTER_HAS_INIT: bool = false;
-
-static RT:OnceCell<Runtime> = OnceCell::new();
+static RT:OnceLock<Runtime> = OnceLock::new();
 
 fn get_rt<'a>() -> &'a Runtime{
     RT.get().unwrap()
@@ -57,12 +55,8 @@ cfg_if! {
 pub fn init_runtime(config_path:String, work_thread:usize, log_level: String) -> anyhow::Result<()> {
     // This is a workaround for the fact that Flutter always call in dev mode
     //tracing_subscriber::registry().with()
-
-    unsafe {
-        if FLUTTER_HAS_INIT {
-            return Ok(());
-        }
-        FLUTTER_HAS_INIT = true;
+    if RT.get().is_some() {
+        return Ok(());
     }
 
 
