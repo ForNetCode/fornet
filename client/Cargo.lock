@@ -877,6 +877,7 @@ dependencies = [
  "ip_network_table",
  "libc",
  "mqrstt",
+ "new_string_template",
  "nix",
  "paranoid-android",
  "prost",
@@ -1506,6 +1507,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e5a6ae77c8ee183dcbbba6150e2e6b9f3f4196a7666c02a715a95692ec1fa97"
 dependencies = [
  "jni-sys",
+]
+
+[[package]]
+name = "new_string_template"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7359c5bee6fe9218ccd4988120a23dc79d291e95486756969112d45efdc97d1"
+dependencies = [
+ "lazy_static",
+ "regex",
 ]
 
 [[package]]

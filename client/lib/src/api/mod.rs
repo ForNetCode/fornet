@@ -154,10 +154,8 @@ pub async fn api_handler(server_manager: &mut ServerManager, command: String, st
             }
         }
         "list" => {
-            if server_manager.wr_manager.is_alive() {
-                let data = server_manager.wr_manager.device_info();
-                let _ = stream.write(ApiResponse::boxed(data).to_json().as_bytes()).await;
-            }
+            let data = server_manager.wr_manager.device_info();
+            let _ = stream.write(ApiResponse::boxed(data).to_json().as_bytes()).await;
         }
         "autoLaunch" => {
             cfg_if! {
