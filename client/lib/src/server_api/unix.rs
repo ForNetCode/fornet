@@ -12,12 +12,12 @@ pub type StreamResponse = Lines<BufReader<UnixStream>>;
 
 cfg_if!{
     if #[cfg(target_os = "android")] {
-        pub fn get_server_api_socket_path2(dir:&str) -> PathBuf {
+        pub fn get_server_api_socket_path(dir:&str) -> PathBuf {
             PathBuf::from(dir).join("fornet_socket.sock")
         }
 
     } else {
-        pub fn get_server_api_socket_path1()-> PathBuf {
+        pub fn get_server_api_socket_path()-> PathBuf {
             PathBuf::from("/var/run/fornet.sock")
         }
 
@@ -25,11 +25,11 @@ cfg_if!{
 }
 
 pub fn init_api_server(sender: tokio::sync::mpsc::Sender<APISocket>, api_socket_path:PathBuf) -> anyhow::Result<JoinHandle<()>> {
-    let api_sock_path = PathBuf::from(api_socket_path);
-    if api_sock_path.exists() {
-        std::fs::remove_file(&api_sock_path).with_context(||format!("remove api socket fail: {}", api_sock_path.display()))?;
+
+    if api_socket_path.exists() {
+        std::fs::remove_file(&api_socket_path).with_context(||format!("remove api socket fail: {}", api_socket_path.display()))?;
     }
-    let unix_listener = UnixListener::bind(api_sock_path).with_context(|| format!("create api socket fail: {}", api_sock_path.display()))?;
+    let unix_listener = UnixListener::bind(&api_socket_path).with_context(|| format!("create api socket fail: {}", api_socket_path.display()))?;
     tracing::info!("api server open");
     let task:JoinHandle<()> = tokio::spawn(async move {
         while let Ok((stream, _)) = unix_listener.accept().await {
@@ -42,11 +42,11 @@ pub fn init_api_server(sender: tokio::sync::mpsc::Sender<APISocket>, api_socket_
 }
 
 #[derive(Debug)]
-pub struct ApiClient {
+pub(super) struct _ApiClient {
     api_socket_path: PathBuf
 }
 
-impl ApiClient {
+impl _ApiClient {
     pub fn new(path:PathBuf) -> Self {
         Self {
             api_socket_path: path

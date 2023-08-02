@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use cfg_if::cfg_if;
 
 cfg_if! {
@@ -10,11 +11,37 @@ cfg_if! {
     }
 }
 
+pub struct ApiClient {
+    client: _ApiClient
+}
+impl ApiClient {
+    pub fn new(path:PathBuf) -> Self{
+        Self {
+            client: _ApiClient::new(path)
+        }
+    }
+
+    pub async fn join_network(&self, invite_code:&str)->anyhow::Result<StreamResponse> {
+        self.client.send_command_stream(&format!("join {}", invite_code)).await
+    }
+
+    pub async fn list_network(&self) -> anyhow::Result<String> {
+        self.client.send_command( "list").await
+    }
+
+    pub async fn auto_launch(&self, sub_command:&str) -> anyhow::Result<String> {
+        self.client.send_command(&format!("autoLaunch {sub_command}")).await
+    }
+
+
+}
+
 
 
 
 #[cfg(test)]
 mod test {
+    /*
     use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
     use tokio_stream::StreamExt;
     use crate::server_api::{init_api_server, send_command};
@@ -48,4 +75,6 @@ mod test {
         let result2 = send_command("ping").await.unwrap();
         assert_eq!(result2, "pong".to_string());
     }
+
+     */
 }

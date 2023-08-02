@@ -79,5 +79,6 @@ pub fn join_network(invite_code:String) -> anyhow::Result<String> {
 }
 
 pub fn list_network() -> anyhow::Result<String> {
-    get_rt().block_on(crate::api::command_api::list_network())
+    //get_rt().block_on(crate::api::command_api::list_network())
+    todo!()
 }

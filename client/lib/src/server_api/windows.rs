@@ -33,10 +33,10 @@ pub fn init_api_server(sender: tokio::sync::mpsc::Sender<APISocket>, api_socket_
 }
 
 #[derive(Debug)]
-pub struct ApiClient {
+pub(super) struct _ApiClient {
     api_socket_path: PathBuf
 }
-impl ApiClient {
+impl _ApiClient {
     pub fn new(path:PathBuf) -> Self {
         Self {
             api_socket_path: path

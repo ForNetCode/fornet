@@ -2,6 +2,7 @@ use std::str::FromStr;
 use clap::{Arg, Command};
 use tracing_subscriber::EnvFilter;
 use fornet_lib::api::ApiResponse;
+use fornet_lib::server_api::{ApiClient, get_server_api_socket_path};
 use fornet_lib::wr_manager::DeviceInfoResp;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
@@ -35,12 +36,14 @@ pub async fn main() -> anyhow::Result<()> {
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::from_str("info").unwrap()))
         .init();
 
+    let api_client = ApiClient::new(get_server_api_socket_path());
+
     match matches.subcommand() {
         Some(("join", sub_matches)) => {
             let invite_code = sub_matches
                 .get_one::<String>("invite_token")
                 .expect("required invite_token");
-            match fornet_lib::api::command_api::join_network(invite_code).await {
+            match api_client.join_network(invite_code).await {
                 Ok(mut stream) => {
                     while let Ok(Some(message)) = stream.next_line().await {
                         let message = serde_json::from_str::<ApiResponse<String>>(&message).unwrap();
@@ -57,7 +60,7 @@ pub async fn main() -> anyhow::Result<()> {
             }
         }
         Some(("list", _)) => {
-            match fornet_lib::api::command_api::list_network().await {
+            match api_client.list_network().await {
                 Ok(networks) => {
                     let networks: ApiResponse<Vec<DeviceInfoResp>> = serde_json::from_str(&networks).unwrap();
                     let networks: Vec<String> = networks.data.into_iter().map(|x| x.name).collect();
@@ -70,7 +73,7 @@ pub async fn main() -> anyhow::Result<()> {
         }
         Some(("autoLaunch", sub_match)) => {
             let sub_command = sub_match.subcommand().map(|(v, _)| v).unwrap_or("");
-            match fornet_lib::api::command_api::auto_launch(sub_command).await {
+            match api_client.auto_launch(sub_command).await {
                 Ok(data) => {
                     let response: ApiResponse<String> = serde_json::from_str(&data).unwrap();
                     println!("{}", response.data);

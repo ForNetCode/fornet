@@ -10,9 +10,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::net::{IpAddr, SocketAddr};
 use anyhow::Context;
+use cfg_if::cfg_if;
 use tokio::sync::mpsc;
 use tokio::io::AsyncReadExt;
-use crate::server_api::APISocket;
+use crate::server_api::{APISocket, get_server_api_socket_path};
 use crate::device::peer::AllowedIP;
 
 pub struct ServerManager {
@@ -52,7 +53,13 @@ impl ServerManager {
             config_path,
         };
         let (sender, mut receiver) = mpsc::channel::<APISocket>(10);
-        crate::server_api::init_api_server(sender)?;
+        cfg_if! {
+            if #[cfg(target_os="android")] {
+                crate::server_api::init_api_server(sender, get_server_api_socket_path(&config_path))?;
+            }else {
+                crate::server_api::init_api_server(sender, get_server_api_socket_path())?;
+            }
+        }
         tracing::debug!("init api server success");
         tokio::spawn(async move {
             loop {

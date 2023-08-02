@@ -19,8 +19,6 @@ use tonic::{
 use crate::{APP_NAME, MAC_OS_PACKAGE_NAME};
 use crate::protobuf::auth::action_response::Response;
 
-pub mod command_api;
-
 
 async fn join_network(server_manager: &mut ServerManager, invite_code: &str, stream: &mut APISocket, tx: Sender<ServerMessage>) -> anyhow::Result<()> {
     let config_dir = PathBuf::from(&server_manager.config_path);
