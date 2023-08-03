@@ -1,5 +1,5 @@
 # This is for .github/workflows.
-.PHONY: release-mac-x86_64, release-mac-aarch64, release-linux, release-backend, release-linux-aarch64
+.PHONY: release-mac-x86_64, release-mac-aarch64, release-linux, release-backend, release-linux-aarch64, release-android
 
 #base_dir := $(shell pwd)
 
@@ -55,3 +55,9 @@ release-backend:
 	mkdir -p release
 	cp backend/target/universal/app-*.zip release/
 	cp backend/target/universal/app-*.zip command/docker/backend/app.zip && cd command/docker/backend && unzip app.zip && rm app.zip && mv app-* app
+
+release-android:
+	cargo install cargo-ndk
+	cd app/android
+	./gradlew release
+

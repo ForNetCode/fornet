@@ -1,0 +1,38 @@
+name: fornet Android client build
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        description: "version to release"
+jobs:
+  build_android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1        
+        with:
+          toolchain: stable
+          target: armv7-linux-androideabi, aarch64-linux-android
+          profile: minimal
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'     
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            client/target/            
+          key: ubuntu-android-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ubuntu-cargo-android
+      - name: Build
+        run:     

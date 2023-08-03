@@ -1,7 +1,7 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:for_net_ui/component/window_button.dart';
-import 'package:for_net_ui/ffi.dart';
+import 'package:for_net_ui/native/ffi.dart';
 
 class LoginPage extends StatefulWidget {
   static const sName = "login";

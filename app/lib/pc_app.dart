@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:for_net_ui/ffi.dart';
+import 'package:for_net_ui/native/ffi.dart';
 import 'package:for_net_ui/page/login_page.dart';
 import 'package:for_net_ui/page/welcome_page.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
