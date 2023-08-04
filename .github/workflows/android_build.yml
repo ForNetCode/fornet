@@ -21,6 +21,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: 'r25b'
+          local-cache: true    
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.10.6'
@@ -37,6 +42,18 @@ jobs:
             client/target/            
           key: ubuntu-android-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ubuntu-cargo-android
+      - name: Download Android keystore
+        id: android_keystore
+        uses: timheuer/base64-to-file@v1.0.3
+        with:
+          fileName: upload-keystore.jks
+          encodedString: ${{ secrets.KEYSTORE_BASE64 }}      
+      - name: Create key.properties
+        run: |
+          echo "storeFile=${{ steps.android_keystore.outputs.filePath }}" > android/sign.properties
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> android/sign.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/sign.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/sign.properties
       - name: Build
         run: make release-android
       - name: Upload artifact
