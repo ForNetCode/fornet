@@ -8,7 +8,7 @@ class MainActivity: FlutterActivity() {
     companion object {
         var flutterMethodChannel: MethodChannel? = null
     }
-    private val channelTag = "mChannel"
+    private val channelTag = "AChannel"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

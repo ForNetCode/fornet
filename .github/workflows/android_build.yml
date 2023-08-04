@@ -1,10 +1,7 @@
 name: fornet Android client build
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        required: true
-        description: "version to release"
+
 jobs:
   build_android:
     runs-on: ubuntu-latest
@@ -21,7 +18,13 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v2
         with:
-          java-version: '11'     
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.6'
+          cache: true
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -35,4 +38,10 @@ jobs:
           key: ubuntu-android-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ubuntu-cargo-android
       - name: Build
-        run:     
+        run: make release-android
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: android-apk.zip
+          path: app/android/app/build/outputs/apk/*.apk
+          if-no-files-found: error

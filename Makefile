@@ -58,6 +58,5 @@ release-backend:
 
 release-android:
 	cargo install cargo-ndk
-	cd app/android
-	./gradlew release
+	cd app && flutter pub get && flutter build apk
 
