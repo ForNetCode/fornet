@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:for_net_ui/native/extra_ffi.dart';
 import 'package:for_net_ui/native/ffi.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
@@ -34,7 +35,13 @@ class MobileApp extends StatelessWidget {
           await api.initRuntime(configPath: path,
           workThread: 4, logLevel: kReleaseMode ? 'info' : 'debug');
           print('finish init....');
-        }, child: const Text('Test'))
+        }, child: const Text('Test')),
+        ElevatedButton(onPressed: ()async {
+          await AndroidFFI.instance.invokeMethod('init_vpn_service');
+        }, child: const Text('Start Service')),
+        ElevatedButton(onPressed: ()async {
+          await AndroidFFI.instance.invokeMethod('stop_vpn_service');
+        }, child: const Text('Stop Service')),
       ],)
     );
   }
