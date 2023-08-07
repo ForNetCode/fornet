@@ -61,15 +61,22 @@ android {
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
+    /*
+    signingConfigs {
+        release {
+            storeFile file(signProperties['storeFile'])
+            storePassword signProperties['storePassword']
+            keyAlias signProperties['keyAlias']
+            keyPassword signProperties['keyPassword']
+        }
+    }
+
+     */
 
     buildTypes {
         release {
-            signingConfig {
-                storeFile file(signProperties['storeFile'])
-                storePassword signProperties['storePassword']
-                keyAlias signProperties['keyAlias']
-                keyPassword signProperties['keyPassword']
-            }
+            signingConfig signingConfigs.debug
+            //signingConfig signingConfigs.release
         }
     }
 }
@@ -81,7 +88,7 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
-/*
+
 [
         new Tuple2('Debug', ''),
         new Tuple2('Profile', '--release'),
@@ -111,4 +118,3 @@ dependencies {
         }
     }
 }
-*/

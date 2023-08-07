@@ -30,13 +30,20 @@ class MainActivity: FlutterActivity() {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             Log.d(TAG, "onServiceConnected")
             val binder = service as ForNetVPNService.LocalBinder
-            //vpnService = binder.getService()
+            vpnService = binder.getService()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.d(TAG, "onServiceDisconnected")
             vpnService = null
         }
+    }
+    override fun onDestroy() {
+        Log.e(TAG, "onDestroy")
+        vpnService?.let {
+            unbindService(serviceConnection)
+        }
+        super.onDestroy()
     }
 
     private fun initFlutterChannel(flutterMethodChannel: MethodChannel) {
