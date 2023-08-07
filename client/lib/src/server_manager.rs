@@ -50,7 +50,7 @@ impl ServerManager {
         let mut server_manager = ServerManager {
             wr_manager: WRManager::new(),
             config: config.clone(),
-            config_path,
+            config_path: config_path.clone(),
         };
         let (sender, mut receiver) = mpsc::channel::<APISocket>(10);
         cfg_if! {

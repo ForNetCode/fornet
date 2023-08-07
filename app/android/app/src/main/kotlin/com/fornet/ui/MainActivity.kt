@@ -62,6 +62,8 @@ class MainActivity: FlutterActivity() {
                     Log.d(TAG, "stop vpn service")
                     vpnService?.let {
                         it.destroy()
+                        unbindService(serviceConnection)
+                        vpnService = null
                         result.success(true)
                     }?: {
                         result.success(false)
