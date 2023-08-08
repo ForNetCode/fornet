@@ -4,6 +4,7 @@ import 'package:for_net_ui/native/extra_ffi.dart';
 import 'package:for_net_ui/native/ffi.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:permission_handler/permission_handler.dart';
 
 void mobileRun() {
   runApp(MaterialApp(
@@ -18,6 +19,16 @@ class MobileApp extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
+
+  startService(BuildContext context) async {
+    if(await Permission.notification.request().isGranted) {
+      await AndroidFFI.instance.invokeMethod('init_vpn_service');
+    }else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Service must be run with notification permission"),
+      ));
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,7 +48,7 @@ class MobileApp extends StatelessWidget {
           print('finish init....');
         }, child: const Text('Test')),
         ElevatedButton(onPressed: ()async {
-          await AndroidFFI.instance.invokeMethod('init_vpn_service');
+          await startService(context);
         }, child: const Text('Start Service')),
         ElevatedButton(onPressed: ()async {
           await AndroidFFI.instance.invokeMethod('stop_vpn_service');

@@ -50,10 +50,10 @@ jobs:
           encodedString: ${{ secrets.KEYSTORE_BASE64 }}      
       - name: Create key.properties
         run: |
-          echo "storeFile=${{ steps.android_keystore.outputs.filePath }}" > android/sign.properties
-          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> android/sign.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/sign.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/sign.properties
+          echo "storeFile=${{ steps.android_keystore.outputs.filePath }}" > app/android/sign.properties
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> app/android/sign.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> app/android/sign.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> app/android/sign.properties
       - name: Build
         run: make release-android
       - name: Upload artifact
