@@ -13,9 +13,10 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity: FlutterActivity() {
     companion object {
         var flutterMethodChannel: MethodChannel? = null
-        val TAG:String = "com.fornet.ui.Main"
+        const val TAG:String = "Main"
+        const val channelTag = "AChannel"
     }
-    private val channelTag = "AChannel"
+
     private var vpnService: ForNetVPNService? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
