@@ -2,15 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:for_net_ui/native/extra_ffi.dart';
 import 'package:for_net_ui/native/ffi.dart';
+import 'package:for_net_ui/page/mobile/main_page.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 
 void mobileRun() {
+
   runApp(MaterialApp(
     title: 'ForNet',
     theme: ThemeData.light(useMaterial3: true),
-    home: const MobileApp(),
+    //home: const MobileApp(),
+    home: const MainPage()
   ));
 }
 

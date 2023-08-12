@@ -45,6 +45,7 @@ dependencies:
   path_provider: ^2.0.15
   path: ^1.8.3
   permission_handler: ^10.4.3
+  mobile_scanner: ^3.4.1
 #  provider: ^6.0.1
 #  functional_data: ^1.0.0
 
