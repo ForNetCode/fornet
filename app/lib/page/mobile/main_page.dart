@@ -17,25 +17,44 @@ class MainPage extends StatelessWidget {
   renderBody(BuildContext context,RuntimeStatus status) {
     var button = status == RuntimeStatus.Connected ?
       ElevatedButton.icon(
-          onPressed: ()=> {}, icon: const Icon(Icons.check_circle_outline, color: Colors.white,),
-        label: const Text('Running'),
+        style:  ElevatedButton.styleFrom(
+            minimumSize: const Size.fromHeight(76),
+            backgroundColor: Colors.deepPurple,
+            padding: const EdgeInsets.symmetric(vertical: 20,),
+            shape:
+            const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+            )
+        ),
+          onPressed: ()=> {}, icon: const Icon(Icons.check_circle_outline, size: 30, color: Colors.white,),
+        label: const Text(style: TextStyle(fontSize: 30, color: Colors.white),'Running'),
       ):
       ElevatedButton.icon(
-        style:  ElevatedButton.styleFrom(backgroundColor: Colors.black12),
-        onPressed: ()=> {}, icon: const Icon(Icons.block_flipped, color: Colors.white,),
-        label: const Text('Click To Start'),
+        style:  ElevatedButton.styleFrom(
+          minimumSize: const Size.fromHeight(76),
+            shape:
+                const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                )
+        ),
+        onPressed: ()=> {}, icon: const Icon(Icons.block, size: 26,),
+        label: const Text('Click To Start', style: TextStyle(fontSize: 20),),
       );
-    return Column(
+    return
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 30), child:
+      Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         const SizedBox(height: 20,),
         button,
-        const SizedBox(height: 30,),
-        OutlinedButton.icon(onPressed: () async{
+        const SizedBox(height: 60,),
+        TextButton.icon(onPressed: () async{
           var version = await api.version();
           SmartDialog.showToast('ForNetLib Version: $version');
-        }, icon: const Icon(Icons.info), label: const Text('Info'))
+        }, icon: const Icon(Icons.info), label: const Text('Info', style: TextStyle(fontSize: 20),))
       ],
-    );
+    ));
   }
   @override
   Widget build(BuildContext context) {
@@ -45,14 +64,14 @@ class MainPage extends StatelessWidget {
         return Scaffold(
             appBar: AppBar(
               title: const Text('ForNet'),
-              leading: IconButton(
-                icon: const Icon(Icons.add),
+              actions: [IconButton(
+                icon: const Icon(Icons.add, size: 30,weight:10,),
                 onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const JoinNetworkPage()));
-                },
-              ),
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => const JoinNetworkPage()));
+              },
+            ),],
             ),
-            body:  status == RuntimeStatus.Unit? renderInit():renderBody(context, status)
+            body:  status == RuntimeStatus.Unit? renderInit(): renderBody(context, status)
         );
       }
     );

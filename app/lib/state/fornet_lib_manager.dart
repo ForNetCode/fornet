@@ -27,8 +27,9 @@ class ForNetLibManager {
   _initRuntime() async {
     final path = p.join((await getExternalStorageDirectory())!.path, 'config');
     statusStream.listen((status) { _status = status;});
-    await api.initRuntime(configPath: path,
-        workThread: 4, logLevel: kReleaseMode ? 'info' : 'debug');
+    //await api.initRuntime(configPath: path,
+    //    workThread: 4, logLevel: kReleaseMode ? 'info' : 'debug');
+    await Future.delayed(const Duration(seconds: 3));
     _statusController.add(RuntimeStatus.Idle);
   }
 
