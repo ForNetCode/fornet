@@ -10,6 +10,33 @@ class MainPage extends StatelessWidget {
   final log = Logger();
   MainPage({super.key});
 
+
+  renderInit() {
+    return const Center(child: Text('Init ForNet Service'),);
+  }
+  renderBody(BuildContext context,RuntimeStatus status) {
+    var button = status == RuntimeStatus.Connected ?
+      ElevatedButton.icon(
+          onPressed: ()=> {}, icon: const Icon(Icons.check_circle_outline, color: Colors.white,),
+        label: const Text('Running'),
+      ):
+      ElevatedButton.icon(
+        style:  ElevatedButton.styleFrom(backgroundColor: Colors.black12),
+        onPressed: ()=> {}, icon: const Icon(Icons.block_flipped, color: Colors.white,),
+        label: const Text('Click To Start'),
+      );
+    return Column(
+      children: [
+        const SizedBox(height: 20,),
+        button,
+        const SizedBox(height: 30,),
+        OutlinedButton.icon(onPressed: () async{
+          var version = await api.version();
+          SmartDialog.showToast('ForNetLib Version: $version');
+        }, icon: const Icon(Icons.info), label: const Text('Info'))
+      ],
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Consumer<RuntimeStatus>(
@@ -25,18 +52,7 @@ class MainPage extends StatelessWidget {
                 },
               ),
             ),
-            body: Column(
-              children: [
-                ElevatedButton(
-                    style: const ButtonStyle(),
-                    onPressed: ()=> {}, child: const Text('Hello World!')),
-                const SizedBox(height: 30,),
-                OutlinedButton.icon(onPressed: () async{
-                  var version = await api.version();
-                  SmartDialog.showToast('ForNetLib Version: $version');
-                }, icon: const Icon(Icons.info), label: const Text('Info'))
-              ],
-            )
+            body:  status == RuntimeStatus.Unit? renderInit():renderBody(context, status)
         );
       }
     );

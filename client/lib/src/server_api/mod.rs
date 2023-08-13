@@ -10,7 +10,7 @@ cfg_if! {
         pub use self::windows::*;
     }
 }
-
+#[derive(Debug)]
 pub struct ApiClient {
     client: _ApiClient
 }
@@ -33,7 +33,7 @@ impl ApiClient {
         self.client.send_command(&format!("autoLaunch {sub_command}")).await
     }
 
-    pub async fn version(&self) -> String {
+    pub fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").to_owned()
     }
 

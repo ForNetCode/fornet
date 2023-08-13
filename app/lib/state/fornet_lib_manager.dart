@@ -14,7 +14,7 @@ class ForNetLibManager {
 
   RuntimeStatus _status = RuntimeStatus.Unit;
   RuntimeStatus get status => _status;
-  final StreamController<RuntimeStatus> _statusController= StreamController();
+  final StreamController<RuntimeStatus> _statusController= StreamController.broadcast();
   Stream<RuntimeStatus> get statusStream => _statusController.stream;
 
   static final ForNetLibManager _sharedInstance = ForNetLibManager._();

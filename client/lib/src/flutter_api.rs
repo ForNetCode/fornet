@@ -9,7 +9,7 @@ use crate::{default_config_path, server_manager};
 use crate::server_api::{ApiClient, get_server_api_socket_path};
 use crate::server_manager::StartMethod;
 
-
+#[derive(Debug)]
 struct DLLRuntime {
     rt:Runtime,
     client: ApiClient,
@@ -74,12 +74,19 @@ pub fn init_runtime(config_path:String, work_thread:usize, log_level: String) ->
 
     //RT.set(tokio::runtime::Builder::new_multi_thread().worker_threads(work_thread).enable_all().build()?).unwrap();
     init_log(log_level);
-    let client = ApiClient::new(get_server_api_socket_path());
+    cfg_if::cfg_if!{
+        if #[cfg(target_os="android")] {
+            let client = ApiClient::new(get_server_api_socket_path(&config_path));
+        }else {
+             let client = ApiClient::new(get_server_api_socket_path());
+        }
+    }
+
     let ddl_runtime = DLLRuntime {
         rt: tokio_runtime,
         client,
     };
-    RT.set(ddl_runtime)?;
+    RT.set(ddl_runtime).unwrap();
     tracing::info!("init tokio runtime and log success, begin to start server");
     //let is_root = nix::unistd::Uid::effective().is_root();
     //tracing::info!("is root, {is_root}, {}",nix::unistd::Uid::effective());
