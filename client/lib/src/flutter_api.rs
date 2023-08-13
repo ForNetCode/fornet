@@ -6,12 +6,23 @@ use tokio::runtime::Runtime;
 use tracing::Level;
 use tracing_subscriber::prelude::*;
 use crate::{default_config_path, server_manager};
+use crate::server_api::{ApiClient, get_server_api_socket_path};
 use crate::server_manager::StartMethod;
 
-static RT:OnceLock<Runtime> = OnceLock::new();
+
+struct DLLRuntime {
+    rt:Runtime,
+    client: ApiClient,
+}
+
+static RT:OnceLock<DLLRuntime> = OnceLock::new();
 
 fn get_rt<'a>() -> &'a Runtime{
-    RT.get().unwrap()
+    &RT.get().unwrap().rt
+}
+
+fn get_client<'a>() -> &'a ApiClient {
+    &RT.get().unwrap().client
 }
 
 pub fn test_one(a: i32, b: i32) -> anyhow::Result<i32> {
@@ -59,15 +70,19 @@ pub fn init_runtime(config_path:String, work_thread:usize, log_level: String) ->
         return Ok(());
     }
 
+    let tokio_runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(work_thread).enable_all().build()?;
 
+    //RT.set(tokio::runtime::Builder::new_multi_thread().worker_threads(work_thread).enable_all().build()?).unwrap();
     init_log(log_level);
-
-    RT.set(tokio::runtime::Builder::new_multi_thread().worker_threads(work_thread).enable_all().build()?).unwrap();
+    let client = ApiClient::new(get_server_api_socket_path());
+    let ddl_runtime = DLLRuntime {
+        rt: tokio_runtime,
+        client,
+    };
+    RT.set(ddl_runtime)?;
     tracing::info!("init tokio runtime and log success, begin to start server");
     //let is_root = nix::unistd::Uid::effective().is_root();
     //tracing::info!("is root, {is_root}, {}",nix::unistd::Uid::effective());
-
-
     get_rt().block_on(server_manager::ServerManager::start_server(config_path, StartMethod::FlutterLib))
 
 }
@@ -81,4 +96,8 @@ pub fn join_network(invite_code:String) -> anyhow::Result<String> {
 pub fn list_network() -> anyhow::Result<String> {
     //get_rt().block_on(crate::api::command_api::list_network())
     todo!()
+}
+
+pub fn version() -> anyhow::Result<String> {
+    Ok(get_client().version())
 }

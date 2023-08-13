@@ -46,8 +46,10 @@ dependencies:
   path: ^1.8.3
   permission_handler: ^10.4.3
   mobile_scanner: ^3.4.1
-#  provider: ^6.0.1
-#  functional_data: ^1.0.0
+  flutter_smart_dialog: ^4.9.4
+  provider: ^6.0.1
+  functional_data: ^1.0.0
+  logger: ^2.0.1
 
 
 

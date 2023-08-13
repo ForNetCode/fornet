@@ -1,27 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:for_net_ui/page/mobile/join_network_page.dart';
+import 'package:for_net_ui/state/fornet_lib_manager.dart';
+import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 
 class MainPage extends StatelessWidget {
-  const MainPage({super.key});
-
+  final log = Logger();
+  MainPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-          title: const Text('ForNet'),
-        leading: IconButton(
-          icon: const Icon(Icons.add),
-          onPressed: () async {
-            await Navigator.push(context, MaterialPageRoute(builder: (_) => const JoinNetworkPage()));
-          },
-        ),
-      ),
-      body: Column(
-        children: [
-          ElevatedButton(onPressed: ()=> {}, child: const Text('Hello World!'))
-        ],
-      )
+    return Consumer<RuntimeStatus>(
+      builder:(_,status,__) {
+        log.i('runtime status: ${status}');
+        return Scaffold(
+            appBar: AppBar(
+              title: const Text('ForNet'),
+              leading: IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const JoinNetworkPage()));
+                },
+              ),
+            ),
+            body: Column(
+              children: [
+                ElevatedButton(
+                    style: const ButtonStyle(),
+                    onPressed: ()=> {}, child: const Text('Hello World!')),
+                const SizedBox(height: 30,),
+                OutlinedButton.icon(onPressed: () => {
+
+                }, icon: const Icon(Icons.info), label: const Text('Info'))
+              ],
+            )
+        );
+      }
     );
   }
 }

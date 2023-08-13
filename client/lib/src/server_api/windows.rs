@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
-use anyhow::{anyhow, bail};
+use std::path::PathBuf;
+use anyhow::bail;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::windows::named_pipe::{NamedPipeServer, ClientOptions, ServerOptions, NamedPipeClient};
 use tokio::task::JoinHandle;
@@ -24,7 +24,7 @@ pub fn init_api_server(sender: tokio::sync::mpsc::Sender<APISocket>, api_socket_
         loop {
             let _ = server.connect().await;
             let _ = sender.send(server).await;
-            server = ServerOptions::new().create(SERVER_API_SOCKET).unwrap();
+            server = ServerOptions::new().create(get_server_api_socket_path()).unwrap();
         }
 
         tracing::info!("api server closed");

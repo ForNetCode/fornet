@@ -33,6 +33,10 @@ impl ApiClient {
         self.client.send_command(&format!("autoLaunch {sub_command}")).await
     }
 
+    pub async fn version(&self) -> String {
+        env!("CARGO_PKG_VERSION").to_owned()
+    }
+
 
 }
 
