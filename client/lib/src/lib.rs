@@ -9,6 +9,7 @@ pub mod device;
 pub mod server_api;
 pub mod api;
 pub mod flutter_api;
+pub mod client_manager;
 
 
 pub mod protobuf {

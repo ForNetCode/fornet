@@ -1,7 +1,10 @@
 name: fornet Android client build
 on:
   workflow_dispatch:
-
+    inputs:
+      version:
+        required: true
+        description: "version to release"
 jobs:
   build_android:
     runs-on: ubuntu-latest

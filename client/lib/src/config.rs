@@ -86,6 +86,7 @@ impl Config {
     }
     cfg_if! {
         if #[cfg(target_os = "windows")] {
+            //TODO: fix it
             pub fn get_tun_name(&self) -> String {
                 //  This must be have
                 self.client_config.tun_guid.get(&self.identity.pk_base64).unwrap().clone()
@@ -267,14 +268,17 @@ impl NetworkInfo {
         }
     }
 }
-#[derive(Deserialize, Serialize, Debug)]
+
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ServerConfig {
-    pub server: String,
+    pub server_url: String,
     pub device_id: String,
     pub mqtt_url: String,
     //networkId, mqttUrl, clientId
     pub info: Vec<NetworkInfo>
 }
+
 
 const SERVER_SAVE_NAME: &str = "config.json";
 
@@ -297,6 +301,28 @@ impl ServerConfig {
         Ok(serde_json::from_str::<ServerConfig>(&config_str)?)
     }
 
+}
+
+pub struct ServerConfigs(Vec<ServerConfig>);
+
+impl ServerConfigs {
+    pub fn exits(config_dir: &PathBuf) -> bool {
+        Self::config_file_path(config_dir).exists()
+    }
+
+    pub fn config_file_path(config_dir:&PathBuf) -> PathBuf{
+        config_dir.join(SERVER_SAVE_NAME)
+    }
+
+    pub fn save_config(&self, config_dir: &PathBuf) -> anyhow::Result<()> {
+        let path = config_dir.join(SERVER_SAVE_NAME);
+        Ok(fs::write(path, serde_json::to_string_pretty(&self.0)?)?) //.unwrap_or_else(|_| panic!("write config file error:{:?}", &config));
+    }
+
+    pub fn read_from_file(config_dir: &PathBuf) -> anyhow::Result<ServerConfigs> {
+        let config_str = fs::read_to_string(config_dir.join(SERVER_SAVE_NAME))?;
+        Ok(ServerConfigs(serde_json::from_str::<Vec<ServerConfig>>(&config_str)?))
+    }
 }
 
 // add lifetime to reduce copy?

@@ -1,3 +1,6 @@
+//#[cfg(not(target_os = "android"))]
+mod file_socket_api_server;
+
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -73,7 +76,7 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
         }
         let device_id_opt = server_config_opt.as_ref().map(|v|v.device_id.clone());
         match server_invite_confirm(
-            identity,
+            &identity,
             &invite_token.endpoint,
             &invite_token.network_token_id,
             invite_token.node_id,
@@ -89,7 +92,7 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
                         server_config
                     },
                     None => ServerConfig {
-                        server: invite_token.endpoint,
+                        server_url: invite_token.endpoint,
                         mqtt_url: resp.mqtt_url,
                         device_id: resp.device_id,
                         info: vec![network_info],
@@ -119,7 +122,7 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
                         server_config
                     },
                     None => ServerConfig {
-                        server: sso_login.endpoint,
+                        server_url: sso_login.endpoint,
                         mqtt_url: resp.mqtt_url,
                         device_id: resp.device_id,
                         info: vec![network_info],
@@ -230,24 +233,32 @@ async fn auto_launch_config(command:Vec<&str>,  stream: &mut APISocket) {
 }
 
 #[derive(Serialize, Deserialize)]
-struct OAuthDevice {
-    device_code: String,
-    user_code: String,
-    verification_uri: String,
-    verification_uri_complete: String,
-    expires_in: u32,
-    interval: u32,
+pub struct OAuthDevice {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: String,
+    pub expires_in: u32,
+    pub interval: u32,
 }
 
 #[derive(Serialize, Deserialize)]
-struct OAuthDeviceJWToken {
-    access_token: String,
-    expires_in: u32,
+pub struct OAuthDeviceJWToken {
+    pub access_token: String,
+    pub expires_in: u32,
     //...
 }
 
+pub async fn handle_oauth2(sso_login: &SSOLogin) -> anyhow::Result<OAuthDevice> {
+    let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
+        .form(&[("client_id", &sso_login.client_id)])
+        .send().await?.json::<OAuthDevice>().await?;
+
+    return Ok(response)
+}
+
 // https://github.com/keycloak/keycloak-community/blob/main/design/oauth2-device-authorization-grant.md
-async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket, device_id: Option<String>) -> anyhow::Result<SuccessResponse> {
+pub async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket, device_id: Option<String>) -> anyhow::Result<SuccessResponse> {
 
     let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
         .form(&[("client_id", &sso_login.client_id)])
@@ -294,8 +305,8 @@ async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_l
 }
 
 
-async fn server_invite_confirm(
-    identity: Identity,
+pub async fn server_invite_confirm(
+    identity: &Identity,
     endpoint: &String,
     network_id: &String,
     node_id: Option<String>,
@@ -327,14 +338,14 @@ async fn server_invite_confirm(
     }
 }
 
-struct InviteToken {
-    endpoint: String,
-    network_token_id: String,
-    node_id: Option<String>,
+pub(crate) struct InviteToken {
+    pub endpoint: String,
+    pub network_token_id: String,
+    pub node_id: Option<String>,
 }
 
 impl InviteToken {
-    fn new(data: Vec<&str>) -> Self {
+    pub fn new(data: Vec<&str>) -> Self {
         let endpoint = data[1].to_owned();
         let network_token_id = data[2].to_owned();
         let node_id = if data.len() > 3 {
@@ -350,16 +361,16 @@ impl InviteToken {
     }
 }
 
-struct SSOLogin {
-    endpoint: String,
-    network_token_id: String,
-    sso_url: String,
-    realm: String,
-    client_id: String,
+pub struct SSOLogin {
+    pub endpoint: String,
+    pub network_token_id: String,
+    pub sso_url: String,
+    pub realm: String,
+    pub client_id: String,
 }
 
 impl SSOLogin {
-    async fn get_login_info(data: Vec<&str>) -> anyhow::Result<(AuthClient<Channel>, SSOLogin)> {
+    pub async fn get_login_info(data: Vec<&str>) -> anyhow::Result<(AuthClient<Channel>, SSOLogin)> {
         let grpc_endpoint = data[1].to_owned();
         let network_token_id = data[2].to_owned();
 
@@ -443,6 +454,15 @@ pub fn api_box_error(data:String) -> Box<dyn ApiJsonResponse> {
     Box::new(api_error(data))
 }
 
+pub enum JoinNetworkResult {
+    JoinSuccess(ServerConfig),
+    WaitingSSOAuth {
+        resp:OAuthDevice,
+        sso:SSOLogin,
+        client:AuthClient<Channel>,
+        device_id:Option<String>
+    }
+}
 
 #[cfg(test)]
 mod test {

@@ -10,7 +10,8 @@ use tokio::sync::mpsc::Sender;
 
 
 use tokio_stream::StreamExt;
-use crate::config::{Config as AppConfig};
+use crate::client_manager::ForNetClient;
+use crate::config::{Config as AppConfig, ServerConfig};
 
 use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
@@ -247,6 +248,7 @@ impl SCManager {
         Ok(())
     }
 
+
     pub async fn mqtt_connect(&mut self, config: Arc<crate::config::Config>) -> anyhow::Result<()> {
         let mut deduplication = Duplication {
             wr_config: None,
@@ -267,14 +269,118 @@ impl SCManager {
     }
 }
 
-#[cfg(test)]
-mod test {
-    #[test]
-    fn test_url_parse() {
-        let obc = reqwest::Url::parse("mqtts://abc.com:392");
+pub struct ConfigSyncManager {
+    client_manager: Arc<ForNetClient>,
+}
+/*
+1. 根据 server_config 创建mqtt链接 （server_config 可能存在多个）
+2. 存储链接，并设置状态。根据 NetworkInfo，发布订阅消息，并将消息传递给 ForNetClient
+3. connection 链接 和 订阅要分开来看
+ */
+impl ConfigSyncManager {
 
-        println!("laa{:?}", obc);
-        //assert!(obc.is_ok());
-        //assert!(!obc.is_ok());
+    /*
+    pub async fn mqtt_connect(&self, server_config:ServerConfig) -> anyhow::Result<()> {
+        let mut deduplication = Duplication {
+            wr_config: None,
+            status: None,
+        };
+        let _config = self.client_manager.config.clone();
+
+        tokio::spawn(async move {
+            loop {
+                let _config = _config.clone();
+                let v = self.mqtt_reconnect(_config, server_config, &mut deduplication).await;
+                tracing::debug!("mqtt connect error, {:?}", v);
+                tokio::time::sleep(Duration::from_secs(20)).await;
+            }
+        });
+        Ok(())
     }
+    async fn mqtt_reconnect(&self, config:Arc<AppConfig>, server_config:ServerConfig, deduplication: &mut Duplication) ->anyhow::Result<()> {
+        let url = reqwest::Url::parse(&server_config.mqtt_url.clone())?;
+        let host = url.host_str().unwrap_or("");
+        let port = url.port_or_known_default().unwrap_or(1883);// secret: 8883
+        let username = config.identity.pk_base64.clone();
+        let mut options = ConnectOptions::new(server_config.device_id.clone());
+        let encrypt = config.identity.sign(vec![server_config.device_id.clone()])?;
+        let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
+        options.password = Some(password);
+        options.username = Some(username);
+
+        let client_topic = format!("client/{}",&server_config.device_id);
+        let network_topics:Vec<String> = server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
+
+        let subscribe_topics:Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions{
+            qos: QoS::AtLeastOnce,
+            ..Default::default()
+        })).collect();
+
+        if url.scheme() == "mqtts" {
+            let (mut network, client) = new_tokio(options);
+            let mut mqtt_wrapper = MqttWrapper {
+                client:client.clone(),
+                client_topic,
+                network_topics,
+                deduplication,
+                sender,
+            };
+
+            let root_certs = tokio_rustls::rustls::RootCertStore::empty();
+            let config = ClientConfig::builder().with_safe_defaults().with_root_certificates(root_certs).with_no_client_auth();
+            let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+            let domain = ServerName::try_from(host)?;
+            let stream = tokio::net::TcpStream::connect((host, port)).await?;
+            let connection = connector.connect(domain, stream).await?;
+
+            //let connection = connector.connect(domain, stream).await?;
+
+            //let cx = tokio_rustls::TlsConnector::builder().build()?;
+            //let cx = tokio_native_tls::TlsConnector::from(cx);
+            //let stream = tokio::net::TcpStream::connect((host, port)).await?;
+            //let connection = cx.connect(host, stream).await?;
+
+            network.connect(connection,&mut mqtt_wrapper).await?;
+            client.subscribe(subscribe_topics).await?;
+            loop {
+                match network.poll(&mut mqtt_wrapper).await {
+                    Ok(mqrstt::tokio::NetworkStatus::Active) => {
+                        continue
+                    }
+                    other => {
+                        tracing::debug!("mqtt network status {:?}", other);
+                    }
+                }
+            }
+
+        } else {
+            let (mut network, client) = new_tokio(options);
+            let mut mqtt_wrapper = MqttWrapper {
+                client:client.clone(),
+                client_topic,
+                network_topics,
+                deduplication,
+                sender,
+            };
+            let stream = tokio::net::TcpStream::connect((host, port)).await?;
+            network.connect(stream, &mut mqtt_wrapper).await?;
+            client.subscribe(subscribe_topics).await?;
+            loop {
+                match network.poll(&mut mqtt_wrapper).await {
+                    Ok(mqrstt::tokio::NetworkStatus::Active) => {
+                        continue
+                    }
+                    other => {
+                        tracing::debug!("mqtt network status {:?}", other);
+                        break;
+
+                    }
+                }
+            }
+
+        };
+
+        Ok(())
+
+    }*/
 }

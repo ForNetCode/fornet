@@ -3,6 +3,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Duration;
 use anyhow::anyhow;
+use cfg_if::cfg_if;
 use serde_derive::{Deserialize, Serialize};
 use crate::config::{Config, Identity, NetworkInfo};
 use crate::device::peer::AllowedIP;
@@ -74,8 +75,14 @@ impl WRManager {
             let sleep_time = if node_type == NodeType::NodeRelay {10} else {20};
             tokio::time::sleep(Duration::from_secs(sleep_time)).await;
         }
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let tun_name = config.get_tun_name();
+            } else {
+                let tun_name = config.get_tun_name(&network_token_id).await;
+            }
+        }
 
-        let tun_name = config.get_tun_name(&network_token_id).await;
         let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
         let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
 
@@ -83,7 +90,7 @@ impl WRManager {
         let key_pair = (config.identity.x25519_sk.clone(), config.identity.x25519_pk.clone());
         tracing::debug!("begin to start device");
         let wr_interface = Device::new(
-            tun_name,
+            &tun_name,
             &address,
             key_pair,
             Some(interface.listen_port as u16),
