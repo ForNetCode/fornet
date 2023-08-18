@@ -4,47 +4,40 @@ use std::time::Duration;
 use anyhow::bail;
 use tonic::transport::{Channel};
 use crate::api::{handle_oauth2, InviteToken, JoinNetworkResult, OAuthDevice, OAuthDeviceJWToken, server_invite_confirm, SSOLogin};
-use crate::config::{Config, NetworkInfo, ServerConfig};
+use crate::config::{AppConfig, Config, NetworkInfo, ServerConfig, ServerInfo};
 use crate::protobuf::auth::auth_client::AuthClient;
 use crate::protobuf::auth::OAuthDeviceCodeRequest;
 use crate::wr_manager::{DeviceInfoResp, WRManager};
 
 pub struct ForNetClient {
     pub wr_manager: WRManager,
-    pub config: Arc<Config>,
-    //pub sc_service: SCManager,
+    pub config: AppConfig,
 }
 
-/*
-//
- */
-
 impl ForNetClient {
-    pub fn new(config:Arc<Config>) -> Self {
+    pub fn new(config:AppConfig) -> Self {
         ForNetClient {
             wr_manager: WRManager::new(),
-
             config,
         }
     }
-    pub async fn join_network(&self, invite_code:&str) ->anyhow::Result<JoinNetworkResult> {
-        let mut server_config_opt = if ServerConfig::exits(&self.config.config_path) {
-            Some(ServerConfig::read_from_file(&self.config.config_path)?)
-        }else {
-            None
-        };
-        if server_config_opt.as_ref().is_some_and(|server_config| !server_config.info.is_empty()) {
-            return bail!("ForNet now don't support join multiple network")
+
+    pub async fn join_network(&mut self, invite_code:&str) ->anyhow::Result<JoinNetworkResult> {
+        if !self.config.local_config.server_info.is_empty() {
+            bail!("ForNet now don't support join multiple network")
         }
         let data = String::from_utf8(base64::decode(invite_code)?)?;
         let data: Vec<&str> = data.split('|').collect();
         let version = data[0].parse::<u32>()?;
-
-        let device_id_opt = server_config_opt.as_ref().map(|v|v.device_id.clone());
-
         if version == 1u32 {
+
             let invite_token = InviteToken::new(data);
-            let server_config = match server_invite_confirm(
+            if self.config.local_config.server_info.iter().find(|x|&x.server_url == &invite_token.endpoint && x.network_id.iter().find(|x| *x == &invite_token.network_token_id).is_some()).is_some() {
+                bail!("this node has joined the network {}", &invite_token.network_token_id)
+            }
+            let info = self.config.local_config.server_info.iter().find(|x|&x.server_url == &invite_token.endpoint);
+            let device_id_opt = info.map(|info| info.device_id.clone());
+            let (mut server_info, network_token_id) = match server_invite_confirm(
                 &self.config.identity,
                 &invite_token.endpoint,
                 &invite_token.network_token_id,
@@ -53,37 +46,48 @@ impl ForNetClient {
             )
                 .await {
                 Ok(resp) => {
-                    let network_info = NetworkInfo {network_id: invite_token.network_token_id, tun_name: None};
-                    match &mut server_config_opt {
-                        Some(server_config) => {
-                            server_config.info.push(network_info);
-                            server_config.save_config(&self.config.config_path)?;
-                            server_config.clone()
+                    match info {
+                        Some(info) => {
+                            let server_url  = info.server_url.clone();
+                            let _resp = info.clone();
+                            let server_info = self.config.local_config.server_info.clone();
+                            self.config.local_config.server_info = server_info.into_iter().map(|mut info|{
+                                if &info.server_url == &server_url {
+                                    info.network_id.push(invite_token.network_token_id.clone())
+                                }
+                                info
+                            }).collect();
+                            (_resp, invite_token.network_token_id)
                         },
                         None => {
-                            let server_config = ServerConfig {
+                            let server_info = ServerInfo {
                                 server_url: invite_token.endpoint,
                                 mqtt_url: resp.mqtt_url,
                                 device_id: resp.device_id,
-                                info: vec![network_info],
+                                network_id: vec![invite_token.network_token_id.clone()]
                             };
-                            server_config.save_config(&self.config.config_path)?;
-                            server_config
+                            self.config.local_config.server_info.push(server_info.clone());
+                            (server_info, invite_token.network_token_id)
                         }
                     }
-
                 }
+
                 Err(e) => {
                     tracing::warn!("connect server error!, {e}");
                     bail!("connect server error!, {e}")
                 }
             };
-            return Ok(JoinNetworkResult::JoinSuccess(server_config))
+            self.config.local_config.save_config(&self.config.config_path)?;
+            server_info.network_id = vec![];
+            return Ok(JoinNetworkResult::JoinSuccess(server_info, network_token_id))
         }else if version == 2u32 {
+            let server_info = &self.config.local_config.server_info;
+
             let (client, sso_login) = SSOLogin::get_login_info(data).await?;
-            if server_config_opt.as_ref().is_some_and(|server_config| server_config.info.iter().find(|x| x.network_id == sso_login.network_token_id).is_some()) {
-                bail!("network has been joined");
+            if server_info.iter().find(|x|&x.server_url == &sso_login.endpoint && x.network_id.iter().find(|x| *x == &sso_login.network_token_id).is_some()).is_some() {
+                bail!("this node has joined the network {}", &sso_login.network_token_id)
             }
+            let device_id_opt = server_info.iter().find_map(|x|if &x.server_url == &sso_login.endpoint {Some(x.device_id.clone())} else {None});
             return Ok(JoinNetworkResult::WaitingSSOAuth{
                 resp:handle_oauth2(&sso_login).await?,
                 sso:sso_login,
@@ -91,7 +95,8 @@ impl ForNetClient {
                 device_id:device_id_opt,
             });
         }
-        return bail!("please upgrade fornet, it does not support the new join network format")
+
+        bail!("please upgrade ForNet, it does not support the new join network format")
     }
 
     pub async fn sso_auth_check(&self, response:OAuthDevice, sso_login:&SSOLogin, client:&mut AuthClient<Channel>, device_id:Option<String>) -> anyhow::Result<ServerConfig>{

@@ -7,6 +7,7 @@ use mqrstt::packets::{Packet, QoS, SubscriptionOptions};
 use prost::Message;
 use tokio_rustls::rustls::{ClientConfig, ServerName};
 use tokio::sync::mpsc::Sender;
+use tokio::sync::RwLock;
 
 
 use tokio_stream::StreamExt;
@@ -270,7 +271,7 @@ impl SCManager {
 }
 
 pub struct ConfigSyncManager {
-    client_manager: Arc<ForNetClient>,
+    client_manager: Arc<RwLock<ForNetClient>>,
 }
 /*
 1. 根据 server_config 创建mqtt链接 （server_config 可能存在多个）

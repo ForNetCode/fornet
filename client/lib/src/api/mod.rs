@@ -8,7 +8,7 @@ use anyhow::{anyhow, bail};
 use serde_derive::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
-use crate::config::{Config, Identity, NetworkInfo, ServerConfig};
+use crate::config::{Config, Identity, LocalConfig, NetworkInfo, ServerConfig, ServerInfo};
 use crate::sc_manager::SCManager;
 use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
 use crate::server_api::APISocket;
@@ -455,7 +455,7 @@ pub fn api_box_error(data:String) -> Box<dyn ApiJsonResponse> {
 }
 
 pub enum JoinNetworkResult {
-    JoinSuccess(ServerConfig),
+    JoinSuccess(ServerInfo, String),
     WaitingSSOAuth {
         resp:OAuthDevice,
         sso:SSOLogin,

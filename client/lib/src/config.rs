@@ -12,8 +12,11 @@ use cfg_if::cfg_if;
 //should not reserve
 use  std::collections::HashMap;
 use std::sync::Arc;
+use anyhow::anyhow;
 use tokio::sync::RwLock;
 use crate::protobuf::auth::EncryptRequest;
+
+const SERVER_SAVE_NAME: &str = "config.json";
 
 #[cfg(target_os="windows")]
 #[derive(Deserialize, Serialize, Debug)]
@@ -57,6 +60,35 @@ impl WindowsClientConfig {
         Ok(fs::write(path, serde_json::to_string_pretty(self)?)?)
     }
 }
+pub struct AppConfig {
+    pub config_path: PathBuf,
+    pub identity: Identity,
+    pub local_config: LocalConfig,
+}
+impl AppConfig {
+    pub fn load_config(config_path: &PathBuf) -> anyhow::Result<Self> {
+        let identity = if Identity::exists(config_path) {
+            Identity::read_from_file(config_path)?
+        } else {
+            let identity = Identity::new();
+            identity.save(config_path)?;
+            identity
+        };
+        let server_config = if LocalConfig::exits(config_path) {
+            LocalConfig::read_from_file(config_path)?
+        } else {
+            let server_config = LocalConfig::new();
+            server_config.save_config(config_path)?;
+            server_config
+        };
+        Ok(Self {
+            config_path: config_path.clone(),
+            identity,
+            local_config: server_config
+        })
+    }
+}
+
 
 pub struct Config {
     pub config_path: PathBuf,
@@ -269,6 +301,13 @@ impl NetworkInfo {
     }
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ServerInfo {
+    pub server_url: String,
+    pub device_id: String,
+    pub mqtt_url: String,
+    pub network_id: Vec<String>,
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ServerConfig {
@@ -279,8 +318,6 @@ pub struct ServerConfig {
     pub info: Vec<NetworkInfo>
 }
 
-
-const SERVER_SAVE_NAME: &str = "config.json";
 
 impl ServerConfig {
     pub fn exits(config_dir: &PathBuf) -> bool {
@@ -303,9 +340,20 @@ impl ServerConfig {
 
 }
 
-pub struct ServerConfigs(Vec<ServerConfig>);
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct LocalConfig {
+    pub server_info: Vec<ServerInfo>,
+    pub tun_name: Option<String>,
+}
 
-impl ServerConfigs {
+impl LocalConfig {
+    pub fn new () -> Self {
+        Self{
+            server_info:vec![],
+            tun_name:None,
+        }
+
+    }
     pub fn exits(config_dir: &PathBuf) -> bool {
         Self::config_file_path(config_dir).exists()
     }
@@ -316,12 +364,12 @@ impl ServerConfigs {
 
     pub fn save_config(&self, config_dir: &PathBuf) -> anyhow::Result<()> {
         let path = config_dir.join(SERVER_SAVE_NAME);
-        Ok(fs::write(path, serde_json::to_string_pretty(&self.0)?)?) //.unwrap_or_else(|_| panic!("write config file error:{:?}", &config));
+        Ok(fs::write(path, serde_json::to_string_pretty(&self)?)?) //.unwrap_or_else(|_| panic!("write config file error:{:?}", &config));
     }
 
-    pub fn read_from_file(config_dir: &PathBuf) -> anyhow::Result<ServerConfigs> {
+    pub fn read_from_file(config_dir: &PathBuf) -> anyhow::Result<LocalConfig> {
         let config_str = fs::read_to_string(config_dir.join(SERVER_SAVE_NAME))?;
-        Ok(ServerConfigs(serde_json::from_str::<Vec<ServerConfig>>(&config_str)?))
+        Ok((serde_json::from_str::<LocalConfig>(&config_str)?))
     }
 }
 
@@ -341,7 +389,21 @@ mod tests {
     use crate::config::Identity;
     use arrayref::array_ref;
     use std::ops::Deref;
+    use serde::{Deserialize, Serialize};
 
+    #[derive(Deserialize, Serialize)]
+    struct A(Vec<String>);
+    #[derive(Deserialize, Serialize)]
+    struct B{
+        pub a:A,
+    }
+
+    #[test]
+    fn JsonParse() {
+        let b = B{a: A(vec!["abc".to_owned()])};
+        let z = serde_json::to_string_pretty(&b).unwrap();
+        println!("{}", z);
+    }
     #[test]
     fn identity_combine() {
         let mut identity = Identity::new();
