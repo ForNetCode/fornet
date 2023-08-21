@@ -348,6 +348,16 @@ pub struct LocalConfig {
 
 impl LocalConfig {
     pub fn new () -> Self {
+        cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                let tun_name = Some("for0".to_owned())
+            } else if #[cfg(target_os = "windows")] {
+                let tun_name = Some(format!("{:?}", windows::core::GUID::new()?))
+            }else {
+                // mac,android
+                let tun_name = None
+            }
+        }
         Self{
             server_info:vec![],
             tun_name:None,

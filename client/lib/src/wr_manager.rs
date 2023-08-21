@@ -5,7 +5,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use cfg_if::cfg_if;
 use serde_derive::{Deserialize, Serialize};
-use crate::config::{Config, Identity, NetworkInfo};
+use crate::config::{AppConfig, Config, Identity, NetworkInfo};
 use crate::device::peer::AllowedIP;
 use crate::protobuf::config::{Protocol, WrConfig, NodeType};
 use crate::device::Device;
@@ -39,7 +39,7 @@ impl WRManager {
                           allowed_ips: &[AllowedIP],
                           ip:IpAddr,
                           keepalive: Option<u16>) {
-        if let Some(device) = &mut self.devices.get_mut(network_token_id) {
+        if let Some(device) = self.devices.get_mut(network_token_id) {
             device.update_peer(
                 pub_key,
                 false,
@@ -53,6 +53,7 @@ impl WRManager {
             tracing::warn!("there's no active device when add/update peer")
         }
     }
+
 
 
     pub async fn start(&mut self, network_token_id:String, config: &Config, wr_config: WrConfig) -> anyhow::Result<()> {

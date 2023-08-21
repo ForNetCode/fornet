@@ -159,11 +159,6 @@ impl DerefMut for Device {
 }
 
 
-//auto start when server up
-pub fn config_start_up(auto:bool) {
-
-}
-
 pub fn check_permission() -> bool {
     true
 }

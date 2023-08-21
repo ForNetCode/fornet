@@ -51,7 +51,7 @@ pub fn create_async_tun(name: Option<String>, mtu: u32, address:&[AllowedIP],
         }
         #[cfg(target_os = "linux")]
         {
-            sys::set_address(&name, add)?;
+            sys::set_route(&name, add)?;
             tracing::info!("set address:{}", &add.to_string());
         }
 

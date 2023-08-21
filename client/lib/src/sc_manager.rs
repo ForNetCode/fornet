@@ -35,6 +35,115 @@ impl Default for Duplication {
         }
     }
 }
+struct MqttWrapper2 {
+    pub mqtt_client:MqttClient,
+    pub client_topic: String,
+    pub network_topics: Vec<String>,
+    pub deduplication: Duplication,
+    pub client: Arc<RwLock<ForNetClient>>,
+    //pub sender: Sender<ServerMessage>,
+}
+
+#[async_trait]
+impl AsyncEventHandler for MqttWrapper2 {
+    async fn handle(&mut self, event: Packet) {
+        match event {
+            Packet::Publish(p) => {
+                match &p.topic {
+                    topic if topic == &self.client_topic => {
+                        if let Ok(client_message) = ClientMessage::decode(p.payload) {
+                            if let Some(info) = client_message.info {
+                                match info {
+                                    Config(wr_config) => {
+                                        if self.deduplication.wr_config == Some(wr_config.clone()) {
+                                            return;
+                                        }
+                                        let network_topic = format!("network/{}", &client_message.network_id);
+                                        if !self.network_topics.contains(&network_topic) {
+                                            self.network_topics.push( network_topic.clone());
+                                            let _ = self.mqtt_client.subscribe((network_topic, SubscriptionOptions{
+                                                qos: QoS::AtLeastOnce,
+                                                ..Default::default()
+                                            })).await;
+                                        }
+                                        self.deduplication.wr_config = Some(wr_config.clone());
+                                        let client = self.client.write().await;
+                                        //client.wr_manager.start(client_message.network_id, client.config, wr_config).await
+                                        //let _ = self.sender.send(ServerMessage::SyncConfig(client_message.network_id.clone(), wr_config)).await;
+                                    }
+                                    Status(status) => {
+                                        if let Some(node_status) = NodeStatus::from_i32(status) {
+                                            if self.deduplication.status == Some(node_status) {
+                                                return;
+                                            }
+                                            match node_status {
+                                                NodeStatus::NodeForbid => {
+                                                    // let _ = self.sender.send(
+                                                    //     ServerMessage::StopWR {
+                                                    //         network_id: client_message.network_id.clone(),
+                                                    //         reason: "node has been forbid or delete".to_owned(),
+                                                    //         delete_tun: true,
+                                                    //     }
+                                                    // ).await;
+                                                    self.deduplication.wr_config = None;
+                                                }
+                                                _ => {
+                                                    // this would conflict with Info::Config message, so ignore this.
+                                                }
+                                            }
+                                            self.deduplication.status = Some(node_status)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            tracing::warn!("client message can not decode, may should update software");
+                        }
+                    }
+                    topic if self.network_topics.contains(topic) => {
+                        if let Ok(network_message) = NetworkMessage::decode(p.payload) {
+                            if let Some(info) = network_message.info {
+                                match info {
+                                    Peer(peer_change) => {
+                                        //let _ = self.sender.send(ServerMessage::SyncPeers(network_message.network_id.clone(), peer_change)).await;
+                                    }
+                                    NStatus(status) => {
+                                        if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
+                                            // let _ = self.sender.send(
+                                            //     ServerMessage::StopWR{network_id: network_message.network_id.clone(),
+                                            //         reason:"network has been delete".to_owned(), delete_tun: true }
+                                            // ).await;
+                                            let d = self.mqtt_client.unsubscribe(topic.clone()).await;
+
+                                            self.network_topics = self.network_topics.iter().filter_map(|x| {
+                                                if x != topic {
+                                                    Some(x.clone())
+                                                }else {
+                                                    None
+                                                }
+                                            }).collect();
+                                            tracing::debug!("unsubscribe topic: {}, result:{:?}", topic, d);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            tracing::warn!("network message can not decode, may should update software");
+                        }
+                    }
+                    _ => {
+                        tracing::warn!("topic:{} message can not decode, may should update software", p.topic);
+                    }
+                }
+            }
+            Packet::ConnAck(_) => {
+                tracing::info!("mqtt connected");
+            }
+            _ => {}
+        }
+
+    }
+}
 
 struct MqttWrapper<'a> {
     pub client:MqttClient,
@@ -222,7 +331,7 @@ impl SCManager {
         } else {
             let (mut network, client) = new_tokio(options);
             let mut mqtt_wrapper = MqttWrapper {
-                client:client.clone(),
+                client,
                 client_topic,
                 network_topics,
                 deduplication,
@@ -230,7 +339,8 @@ impl SCManager {
             };
             let stream = tokio::net::TcpStream::connect((host, port)).await?;
             network.connect(stream, &mut mqtt_wrapper).await?;
-            client.subscribe(subscribe_topics).await?;
+
+            mqtt_wrapper.client.subscribe(subscribe_topics).await?;
             loop {
                 match network.poll(&mut mqtt_wrapper).await {
                     Ok(mqrstt::tokio::NetworkStatus::Active) => {
@@ -272,6 +382,7 @@ impl SCManager {
 
 pub struct ConfigSyncManager {
     client_manager: Arc<RwLock<ForNetClient>>,
+
 }
 /*
 1. 根据 server_config 创建mqtt链接 （server_config 可能存在多个）
@@ -279,6 +390,7 @@ pub struct ConfigSyncManager {
 3. connection 链接 和 订阅要分开来看
  */
 impl ConfigSyncManager {
+
 
     /*
     pub async fn mqtt_connect(&self, server_config:ServerConfig) -> anyhow::Result<()> {

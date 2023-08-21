@@ -1,17 +1,26 @@
-
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
-use anyhow::bail;
+use std::str::FromStr;
+use anyhow::{anyhow, bail};
+use dirs::config_dir;
+use socket2::Protocol;
 use tonic::transport::{Channel};
 use crate::api::{handle_oauth2, InviteToken, JoinNetworkResult, OAuthDevice, OAuthDeviceJWToken, server_invite_confirm, SSOLogin};
-use crate::config::{AppConfig, Config, NetworkInfo, ServerConfig, ServerInfo};
+use crate::config::{AppConfig, NetworkInfo, ServerConfig, ServerInfo};
+use crate::device::Device;
+use crate::device::peer::AllowedIP;
+use crate::device::script_run::Scripts;
 use crate::protobuf::auth::auth_client::AuthClient;
 use crate::protobuf::auth::OAuthDeviceCodeRequest;
+use crate::protobuf::config::{NodeType, WrConfig};
 use crate::wr_manager::{DeviceInfoResp, WRManager};
 
 pub struct ForNetClient {
     pub wr_manager: WRManager,
     pub config: AppConfig,
+    pub device: Option<Device>,
+    wr_configs: HashMap<String, WrConfig>
 }
 
 impl ForNetClient {
@@ -19,6 +28,8 @@ impl ForNetClient {
         ForNetClient {
             wr_manager: WRManager::new(),
             config,
+            device: None,
+            wr_configs: HashMap::new(),
         }
     }
 
@@ -141,12 +152,80 @@ impl ForNetClient {
         return bail!("this login cost more time than expected, please try again");
     }
 
-    pub async fn list_network(&self) -> Vec<DeviceInfoResp>{
-        self.wr_manager.device_info()
+    pub async fn list_network(&self) -> Vec<DeviceInfoResp>  {
+        //TODO: add api to get network name
+        self.config.local_config.server_info.iter().flat_map(|info| info.network_id.clone().into_iter().map(|network_id|{
+            DeviceInfoResp {
+                name: network_id
+            }
+        })).collect()
     }
 
 
+    pub async fn start(&mut self, _network_token_id:String, wr_config:WrConfig) ->anyhow::Result<()>{
+        let interface = wr_config.interface.unwrap();
+        let mut address: Vec<AllowedIP> =Vec::new();
+        for addr in &interface.address {
+            address.push(AllowedIP::from_str(addr).map_err(|e| anyhow!(e))?);
+        }
+        if let Some(device) =&mut self.device {
+            device.close().await;
+            self.device = None;
 
+        }
+
+        let tun_name = self.config.local_config.tun_name.clone();
+        let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
+        let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
+
+        let scripts = Scripts::load_from_interface(&interface);
+        let key_pair = (self.config.identity.x25519_sk.clone(), self.config.identity.x25519_pk.clone());
+
+        tracing::debug!("begin to start device");
+
+        Ok(())
+    }
+
+    pub async fn add_peer(&mut self,
+                          //network_token_id:&str,
+                          pub_key: x25519_dalek::PublicKey,
+                          endpoint: Option<SocketAddr>,
+                          allowed_ips: &[AllowedIP],
+                          ip:IpAddr,
+                          keepalive: Option<u16>) {
+        if let Some(device) = self.device.as_mut() {
+            device.update_peer(
+                pub_key,
+                false,
+                endpoint,
+                allowed_ips,
+                keepalive,
+                ip,
+                None,
+            ).await;
+        } else {
+            tracing::warn!("there's no active device when add/update peer")
+        }
+    }
+
+    pub async fn is_alive(&self) -> bool {self.device.is_some()}
+
+    pub async fn remove_peer(&mut self,public_key: &x25519_dalek::PublicKey) {
+        if let Some(device) = self.device.as_mut() {
+            device.remove_peer(public_key).await;
+        } else {
+            tracing::warn!("there's no device when remove peer")
+        }
+    }
+
+    pub async fn close(&mut self) {
+        if let Some(device)= self.device.as_mut() {
+            device.close().await;
+            self.device = None;
+        }else {
+            tracing::warn!("there's no device to close")
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]
