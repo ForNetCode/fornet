@@ -1,11 +1,13 @@
 use std::str::FromStr;
 use cfg_if::cfg_if;
 use std::sync::OnceLock;
+use flutter_rust_bridge::frb;
 
 use tokio::runtime::Runtime;
 use tracing::Level;
 use tracing_subscriber::prelude::*;
 use crate::{default_config_path, server_manager};
+
 use crate::server_api::{ApiClient, get_server_api_socket_path};
 use crate::server_manager::StartMethod;
 
@@ -25,13 +27,7 @@ fn get_client<'a>() -> &'a ApiClient {
     &RT.get().unwrap().client
 }
 
-pub fn test_one(a: i32, b: i32) -> anyhow::Result<i32> {
-    Ok(a + b)
-}
-pub fn test_two(a:i32) -> anyhow::Result<i32> {
-    println!("test two: {}", a);
-    Ok(1)
-}
+
 // MacOS/Linux/Windows
 pub fn get_config_path() -> String {
     option_env!("FORNET_CONFIG").map(|x|x.to_owned()).unwrap_or_else(||default_config_path())
@@ -108,3 +104,83 @@ pub fn list_network() -> anyhow::Result<String> {
 pub fn version() -> anyhow::Result<String> {
     Ok(get_client().version())
 }
+
+
+
+
+use crate::protobuf::config::*;
+
+
+
+#[frb(mirror(Interface))]
+pub struct _Interface {
+    pub name: ::core::option::Option<::prost::alloc::string::String>,
+    pub address: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub listen_port: i32,
+    pub dns: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub mtu: ::core::option::Option<u32>,
+    pub pre_up: ::core::option::Option<::prost::alloc::string::String>,
+    pub post_up: ::core::option::Option<::prost::alloc::string::String>,
+    pub pre_down: Option<::prost::alloc::string::String>,
+    pub post_down: ::core::option::Option<String>,
+    pub protocol: i32,
+}
+
+#[frb(mirror(Peer))]
+struct _Peer {
+    pub endpoint: Option<String>,
+    pub allowed_ip: Vec<String>,
+    pub public_key: String,
+    pub persistence_keep_alive: u32,
+    pub address:Vec<String>,
+}
+#[frb(mirror(PeerChange))]
+struct _PeerChange {
+
+    pub add_peer: ::core::option::Option<Peer>,
+
+    pub remove_public_key: ::core::option::Option<::prost::alloc::string::String>,
+    pub change_peer: ::core::option::Option<Peer>,
+}
+
+#[frb(mirror(WrConfig))]
+struct _WrConfig {
+    pub interface: ::core::option::Option<Interface>,
+    pub peers: ::prost::alloc::vec::Vec<Peer>,
+    pub typ: i32,
+}
+use client_message::Info as ClientInfo;
+#[frb(mirror(ClientMessage))]
+struct _ClientMessage {
+    pub network_id: ::prost::alloc::string::String,
+    pub info: ::core::option::Option<ClientInfo>,
+}
+#[frb(mirror(ClientInfo))]
+enum _Info {
+    Config(WrConfig),
+    Status(i32),
+}
+
+use network_message::Info as NetworkInfo;
+#[frb(mirror(NetworkMessage))]
+struct _NetworkMessage {
+    pub network_id: ::prost::alloc::string::String,
+    pub info: ::core::option::Option<NetworkInfo>,
+}
+
+#[frb(mirror(NodeType))]
+enum _NodeType {
+    NodeClient = 0,
+    NodeRelay = 1,
+}
+#[frb(mirror(NodeStatus))]
+enum _NodeStatus {
+    NodeWaiting = 0,
+    NodeNormal = 1,
+    NodeForbid = 2,
+}
+
+pub fn test_param(client_message: ClientMessage) -> Option<ClientMessage>{
+None
+}
+

@@ -22,37 +22,6 @@ use std::sync::Arc;
 
 // Section: wire functions
 
-fn wire_test_one_impl(
-    port_: MessagePort,
-    a: impl Wire2Api<i32> + UnwindSafe,
-    b: impl Wire2Api<i32> + UnwindSafe,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, i32>(
-        WrapInfo {
-            debug_name: "test_one",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_a = a.wire2api();
-            let api_b = b.wire2api();
-            move |task_callback| test_one(api_a, api_b)
-        },
-    )
-}
-fn wire_test_two_impl(port_: MessagePort, a: impl Wire2Api<i32> + UnwindSafe) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, i32>(
-        WrapInfo {
-            debug_name: "test_two",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_a = a.wire2api();
-            move |task_callback| test_two(api_a)
-        },
-    )
-}
 fn wire_get_config_path_impl(port_: MessagePort) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, String>(
         WrapInfo {
@@ -116,10 +85,83 @@ fn wire_version_impl(port_: MessagePort) {
         move || move |task_callback| version(),
     )
 }
+fn wire_test_param_impl(
+    port_: MessagePort,
+    client_message: impl Wire2Api<ClientMessage> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Option<ClientMessage>>(
+        WrapInfo {
+            debug_name: "test_param",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_client_message = client_message.wire2api();
+            move |task_callback| Ok(test_param(api_client_message))
+        },
+    )
+}
 // Section: wrapper structs
+
+#[derive(Clone)]
+pub struct mirror_ClientInfo(ClientInfo);
+
+#[derive(Clone)]
+pub struct mirror_ClientMessage(ClientMessage);
+
+#[derive(Clone)]
+pub struct mirror_Interface(Interface);
+
+#[derive(Clone)]
+pub struct mirror_Peer(Peer);
+
+#[derive(Clone)]
+pub struct mirror_WrConfig(WrConfig);
 
 // Section: static checks
 
+const _: fn() = || {
+    match None::<ClientInfo>.unwrap() {
+        ClientInfo::Config(field0) => {
+            let _: WrConfig = field0;
+        }
+        ClientInfo::Status(field0) => {
+            let _: i32 = field0;
+        }
+    }
+    {
+        let ClientMessage = None::<ClientMessage>.unwrap();
+        let _: String = ClientMessage.network_id;
+        let _: Option<ClientInfo> = ClientMessage.info;
+    }
+    {
+        let Interface = None::<Interface>.unwrap();
+        let _: Option<String> = Interface.name;
+        let _: Vec<String> = Interface.address;
+        let _: i32 = Interface.listen_port;
+        let _: Vec<String> = Interface.dns;
+        let _: Option<u32> = Interface.mtu;
+        let _: Option<String> = Interface.pre_up;
+        let _: Option<String> = Interface.post_up;
+        let _: Option<String> = Interface.pre_down;
+        let _: Option<String> = Interface.post_down;
+        let _: i32 = Interface.protocol;
+    }
+    {
+        let Peer = None::<Peer>.unwrap();
+        let _: Option<String> = Peer.endpoint;
+        let _: Vec<String> = Peer.allowed_ip;
+        let _: String = Peer.public_key;
+        let _: u32 = Peer.persistence_keep_alive;
+        let _: Vec<String> = Peer.address;
+    }
+    {
+        let WrConfig = None::<WrConfig>.unwrap();
+        let _: Option<Interface> = WrConfig.interface;
+        let _: Vec<Peer> = WrConfig.peers;
+        let _: i32 = WrConfig.typ;
+    }
+};
 // Section: allocate functions
 
 // Section: related functions
@@ -144,6 +186,12 @@ impl Wire2Api<i32> for i32 {
         self
     }
 }
+
+impl Wire2Api<u32> for u32 {
+    fn wire2api(self) -> u32 {
+        self
+    }
+}
 impl Wire2Api<u8> for u8 {
     fn wire2api(self) -> u8 {
         self
@@ -155,7 +203,100 @@ impl Wire2Api<usize> for usize {
         self
     }
 }
+
 // Section: impl IntoDart
+
+impl support::IntoDart for mirror_ClientInfo {
+    fn into_dart(self) -> support::DartAbi {
+        match self.0 {
+            ClientInfo::Config(field0) => vec![0.into_dart(), field0.into_into_dart().into_dart()],
+            ClientInfo::Status(field0) => vec![1.into_dart(), field0.into_into_dart().into_dart()],
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for mirror_ClientInfo {}
+impl rust2dart::IntoIntoDart<mirror_ClientInfo> for ClientInfo {
+    fn into_into_dart(self) -> mirror_ClientInfo {
+        mirror_ClientInfo(self)
+    }
+}
+
+impl support::IntoDart for mirror_ClientMessage {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.0.network_id.into_into_dart().into_dart(),
+            self.0.info.map(|v| mirror_ClientInfo(v)).into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for mirror_ClientMessage {}
+impl rust2dart::IntoIntoDart<mirror_ClientMessage> for ClientMessage {
+    fn into_into_dart(self) -> mirror_ClientMessage {
+        mirror_ClientMessage(self)
+    }
+}
+
+impl support::IntoDart for mirror_Interface {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.0.name.into_dart(),
+            self.0.address.into_into_dart().into_dart(),
+            self.0.listen_port.into_into_dart().into_dart(),
+            self.0.dns.into_into_dart().into_dart(),
+            self.0.mtu.into_dart(),
+            self.0.pre_up.into_dart(),
+            self.0.post_up.into_dart(),
+            self.0.pre_down.into_dart(),
+            self.0.post_down.into_dart(),
+            self.0.protocol.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for mirror_Interface {}
+impl rust2dart::IntoIntoDart<mirror_Interface> for Interface {
+    fn into_into_dart(self) -> mirror_Interface {
+        mirror_Interface(self)
+    }
+}
+
+impl support::IntoDart for mirror_Peer {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.0.endpoint.into_dart(),
+            self.0.allowed_ip.into_into_dart().into_dart(),
+            self.0.public_key.into_into_dart().into_dart(),
+            self.0.persistence_keep_alive.into_into_dart().into_dart(),
+            self.0.address.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for mirror_Peer {}
+impl rust2dart::IntoIntoDart<mirror_Peer> for Peer {
+    fn into_into_dart(self) -> mirror_Peer {
+        mirror_Peer(self)
+    }
+}
+
+impl support::IntoDart for mirror_WrConfig {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.0.interface.map(|v| mirror_Interface(v)).into_dart(),
+            self.0.peers.into_into_dart().into_dart(),
+            self.0.typ.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for mirror_WrConfig {}
+impl rust2dart::IntoIntoDart<mirror_WrConfig> for WrConfig {
+    fn into_into_dart(self) -> mirror_WrConfig {
+        mirror_WrConfig(self)
+    }
+}
 
 // Section: executor
 

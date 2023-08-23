@@ -7,16 +7,11 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:uuid/uuid.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+
+part 'bridge_definitions.freezed.dart';
 
 abstract class FornetLib {
-  Future<int> testOne({required int a, required int b, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kTestOneConstMeta;
-
-  Future<int> testTwo({required int a, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kTestTwoConstMeta;
-
   Future<String> getConfigPath({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kGetConfigPathConstMeta;
@@ -40,4 +35,83 @@ abstract class FornetLib {
   Future<String> version({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kVersionConstMeta;
+
+  Future<ClientMessage?> testParam(
+      {required ClientMessage clientMessage, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kTestParamConstMeta;
+}
+
+@freezed
+sealed class ClientInfo with _$ClientInfo {
+  const factory ClientInfo.config(
+    WrConfig field0,
+  ) = ClientInfo_Config;
+  const factory ClientInfo.status(
+    int field0,
+  ) = ClientInfo_Status;
+}
+
+class ClientMessage {
+  final String networkId;
+  final ClientInfo? info;
+
+  const ClientMessage({
+    required this.networkId,
+    this.info,
+  });
+}
+
+class Interface {
+  final String? name;
+  final List<String> address;
+  final int listenPort;
+  final List<String> dns;
+  final int? mtu;
+  final String? preUp;
+  final String? postUp;
+  final String? preDown;
+  final String? postDown;
+  final int protocol;
+
+  const Interface({
+    this.name,
+    required this.address,
+    required this.listenPort,
+    required this.dns,
+    this.mtu,
+    this.preUp,
+    this.postUp,
+    this.preDown,
+    this.postDown,
+    required this.protocol,
+  });
+}
+
+class Peer {
+  final String? endpoint;
+  final List<String> allowedIp;
+  final String publicKey;
+  final int persistenceKeepAlive;
+  final List<String> address;
+
+  const Peer({
+    this.endpoint,
+    required this.allowedIp,
+    required this.publicKey,
+    required this.persistenceKeepAlive,
+    required this.address,
+  });
+}
+
+class WrConfig {
+  final Interface? interface;
+  final List<Peer> peers;
+  final int typ;
+
+  const WrConfig({
+    this.interface,
+    required this.peers,
+    required this.typ,
+  });
 }
