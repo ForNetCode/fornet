@@ -3,7 +3,6 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Duration;
 use boringtun::noise::rate_limiter::RateLimiter;
-use cfg_if::cfg_if;
 use socket2::Domain;
 use tokio::sync::{Mutex, RwLock};
 use tokio::io::{AsyncReadExt};

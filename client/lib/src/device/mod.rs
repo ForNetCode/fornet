@@ -4,7 +4,6 @@ mod tunnel;
 mod tun;
 pub mod auto_launch;
 pub mod script_run;
-//pub mod android_device;
 
 cfg_if! {
      if #[cfg(target_os="windows")] {
@@ -12,7 +11,7 @@ cfg_if! {
         pub use windows_device::{Device, check_permission};
     } else if #[cfg(target_os = "android")] {
         mod android_device;
-        pub use android_device::{Device};
+        pub use android_device::Device;
     } else {
         mod unix_device;
         pub use unix_device::{Device, check_permission};

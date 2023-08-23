@@ -350,12 +350,12 @@ impl LocalConfig {
     pub fn new () -> Self {
         cfg_if! {
             if #[cfg(target_os = "linux")] {
-                let tun_name = Some("for0".to_owned())
+                let tun_name = Some("for0".to_owned());
             } else if #[cfg(target_os = "windows")] {
-                let tun_name = Some(format!("{:?}", windows::core::GUID::new()?))
+                let tun_name = Some(format!("{:?}", windows::core::GUID::new().unwrap()));
             }else {
                 // mac,android
-                let tun_name = None
+                let tun_name = None;
             }
         }
         Self{
@@ -379,7 +379,7 @@ impl LocalConfig {
 
     pub fn read_from_file(config_dir: &PathBuf) -> anyhow::Result<LocalConfig> {
         let config_str = fs::read_to_string(config_dir.join(SERVER_SAVE_NAME))?;
-        Ok((serde_json::from_str::<LocalConfig>(&config_str)?))
+        Ok(serde_json::from_str::<LocalConfig>(&config_str)?)
     }
 }
 

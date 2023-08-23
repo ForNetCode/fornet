@@ -3,21 +3,19 @@ use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use std::str::FromStr;
 use anyhow::{anyhow, bail};
-use dirs::config_dir;
-use socket2::Protocol;
+use cfg_if::cfg_if;
 use tonic::transport::{Channel};
 use crate::api::{handle_oauth2, InviteToken, JoinNetworkResult, OAuthDevice, OAuthDeviceJWToken, server_invite_confirm, SSOLogin};
-use crate::config::{AppConfig, NetworkInfo, ServerConfig, ServerInfo};
-use crate::device::Device;
+use crate::config::{AppConfig, Identity, NetworkInfo, ServerConfig, ServerInfo};
+use crate::device::{Device};
 use crate::device::peer::AllowedIP;
 use crate::device::script_run::Scripts;
 use crate::protobuf::auth::auth_client::AuthClient;
 use crate::protobuf::auth::OAuthDeviceCodeRequest;
-use crate::protobuf::config::{NodeType, WrConfig};
-use crate::wr_manager::{DeviceInfoResp, WRManager};
+use crate::protobuf::config::{NodeType, Peer, WrConfig, Protocol};
+use crate::wr_manager::{DeviceInfoResp};
 
 pub struct ForNetClient {
-    pub wr_manager: WRManager,
     pub config: AppConfig,
     pub device: Option<Device>,
     wr_configs: HashMap<String, WrConfig>
@@ -26,7 +24,6 @@ pub struct ForNetClient {
 impl ForNetClient {
     pub fn new(config:AppConfig) -> Self {
         ForNetClient {
-            wr_manager: WRManager::new(),
             config,
             device: None,
             wr_configs: HashMap::new(),
@@ -161,9 +158,27 @@ impl ForNetClient {
         })).collect()
     }
 
+    async fn add_peers(&mut self, peers:&[Peer]) -> anyhow::Result<()> {
+        for peer in peers {
+            let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key)?;
+            let endpoint = peer.endpoint.as_ref().map(|v| SocketAddr::from_str(v).unwrap());
+            let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.iter().map(|ip| AllowedIP::from_str(ip).unwrap()).collect();
+            let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
+            let keepalive = peer.persistence_keep_alive as u16;
+            self.add_peer(x_pub_key,
+                          endpoint,
+                           allowed_ip.as_slice(),
+                           ip,
+                           Some(keepalive)).await;
+        }
+        Ok(())
+    }
 
-    pub async fn start(&mut self, _network_token_id:String, wr_config:WrConfig) ->anyhow::Result<()>{
+
+    #[cfg(not(target_os = "android"))]
+    pub async fn start(&mut self, _network_token_id: String, wr_config: WrConfig) ->anyhow::Result<()>{
         let interface = wr_config.interface.unwrap();
+
         let mut address: Vec<AllowedIP> =Vec::new();
         for addr in &interface.address {
             address.push(AllowedIP::from_str(addr).map_err(|e| anyhow!(e))?);
@@ -173,8 +188,14 @@ impl ForNetClient {
             self.device = None;
 
         }
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let tun_name = &self.config.local_config.tun_name.clone().unwrap();
+            } else {
+                let tun_name = &self.config.local_config.tun_name.clone();
+            }
+        }
 
-        let tun_name = self.config.local_config.tun_name.clone();
         let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
         let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
 
@@ -182,8 +203,30 @@ impl ForNetClient {
         let key_pair = (self.config.identity.x25519_sk.clone(), self.config.identity.x25519_pk.clone());
 
         tracing::debug!("begin to start device");
-
+        let wr_interface = Device::new(
+            &tun_name,
+            &address,
+            key_pair,
+            Some(interface.listen_port as u16),
+            interface.mtu.unwrap_or(1420) as u32,
+            scripts,
+            protocol,
+            node_type,
+        )?;
+        if Some(&wr_interface.name) != self.config.local_config.tun_name.as_ref() {
+            self.config.local_config.tun_name = Some(wr_interface.name.clone());
+            self.config.local_config.save_config(&self.config.config_path)?;
+        }
+        self.add_peers(&wr_config.peers).await?;
         Ok(())
+    }
+    #[cfg(target_os = "android")]
+    pub async fn start(&mut self, raw_fd: i32, protocol:i32, port:Option<u16>) -> anyhow::Result<()>{
+        let protocol = Protocol::from_i32(protocol).unwrap();
+        let key_pair = (self.config.identity.x25519_sk.clone(), self.config.identity.x25519_pk.clone());
+        let raw_fd = std::os::fd::RawFd::from(raw_fd);
+        let device = Device::new(key_pair, port, protocol, raw_fd)?;
+        self.device = Some(device);
     }
 
     pub async fn add_peer(&mut self,
