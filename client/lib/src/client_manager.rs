@@ -174,19 +174,24 @@ impl ForNetClient {
         Ok(())
     }
 
+    pub async fn stop(&mut self) {
+        if let Some(device) =  self.device.as_mut() {
+            device.close().await;
+            self.device = None;
+        }
+    }
 
     #[cfg(not(target_os = "android"))]
-    pub async fn start(&mut self, _network_token_id: String, wr_config: WrConfig) ->anyhow::Result<()>{
+    pub async fn start(&mut self, _network_token_id: String, wr_config: WrConfig) ->anyhow::Result<()> {
+
         let interface = wr_config.interface.unwrap();
 
         let mut address: Vec<AllowedIP> =Vec::new();
         for addr in &interface.address {
             address.push(AllowedIP::from_str(addr).map_err(|e| anyhow!(e))?);
         }
-        if let Some(device) =&mut self.device {
-            device.close().await;
-            self.device = None;
-
+        if self.device.is_some() {
+            bail!("It's already run, please stop it firstly")
         }
         cfg_if! {
             if #[cfg(target_os = "windows")] {
@@ -221,12 +226,17 @@ impl ForNetClient {
         Ok(())
     }
     #[cfg(target_os = "android")]
-    pub async fn start(&mut self, raw_fd: i32, protocol:i32, port:Option<u16>) -> anyhow::Result<()>{
+    pub async fn start(&mut self, raw_fd: i32, protocol:i32, port:Option<u16>, peers:Vec<Peer>) -> anyhow::Result<()>{
+        if self.device.is_some() {
+            bail!("It's already run, please stop it firstly")
+        }
         let protocol = Protocol::from_i32(protocol).unwrap();
         let key_pair = (self.config.identity.x25519_sk.clone(), self.config.identity.x25519_pk.clone());
         let raw_fd = std::os::fd::RawFd::from(raw_fd);
         let device = Device::new(key_pair, port, protocol, raw_fd)?;
         self.device = Some(device);
+        self.add_peers(peers).await?;
+        Ok(())
     }
 
     pub async fn add_peer(&mut self,

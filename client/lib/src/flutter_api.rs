@@ -38,7 +38,7 @@ cfg_if! {
         fn init_log(log_level:String) {
             let log_level: tracing_subscriber::filter::LevelFilter = log_level.parse().unwrap();
             //TODO: need change com.example.for_net_ui
-            let android_layer = paranoid_android::layer("com.example.for_net_ui")
+            let android_layer = paranoid_android::layer("com.fornet.ui")
                 .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
                 .with_thread_names(true)
                 .with_filter(log_level);
@@ -114,15 +114,15 @@ use crate::protobuf::config::*;
 
 #[frb(mirror(Interface))]
 pub struct _Interface {
-    pub name: ::core::option::Option<::prost::alloc::string::String>,
-    pub address: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub name: Option<String>,
+    pub address: Vec<String>,
     pub listen_port: i32,
-    pub dns: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    pub mtu: ::core::option::Option<u32>,
-    pub pre_up: ::core::option::Option<::prost::alloc::string::String>,
-    pub post_up: ::core::option::Option<::prost::alloc::string::String>,
-    pub pre_down: Option<::prost::alloc::string::String>,
-    pub post_down: ::core::option::Option<String>,
+    pub dns: Vec<String>,
+    pub mtu: Option<u32>,
+    pub pre_up: Option<String>,
+    pub post_up: Option<String>,
+    pub pre_down: Option<String>,
+    pub post_down: Option<String>,
     pub protocol: i32,
 }
 
@@ -137,23 +137,23 @@ struct _Peer {
 #[frb(mirror(PeerChange))]
 struct _PeerChange {
 
-    pub add_peer: ::core::option::Option<Peer>,
+    pub add_peer: Option<Peer>,
 
-    pub remove_public_key: ::core::option::Option<::prost::alloc::string::String>,
-    pub change_peer: ::core::option::Option<Peer>,
+    pub remove_public_key: Option<String>,
+    pub change_peer: Option<Peer>,
 }
 
 #[frb(mirror(WrConfig))]
 struct _WrConfig {
-    pub interface: ::core::option::Option<Interface>,
-    pub peers: ::prost::alloc::vec::Vec<Peer>,
+    pub interface: Option<Interface>,
+    pub peers: Vec<Peer>,
     pub typ: i32,
 }
 use client_message::Info as ClientInfo;
 #[frb(mirror(ClientMessage))]
 struct _ClientMessage {
-    pub network_id: ::prost::alloc::string::String,
-    pub info: ::core::option::Option<ClientInfo>,
+    pub network_id: String,
+    pub info: Option<ClientInfo>,
 }
 #[frb(mirror(ClientInfo))]
 enum _Info {
@@ -164,8 +164,8 @@ enum _Info {
 use network_message::Info as NetworkInfo;
 #[frb(mirror(NetworkMessage))]
 struct _NetworkMessage {
-    pub network_id: ::prost::alloc::string::String,
-    pub info: ::core::option::Option<NetworkInfo>,
+    pub network_id: String,
+    pub info: Option<NetworkInfo>,
 }
 
 #[frb(mirror(NodeType))]
@@ -181,6 +181,6 @@ enum _NodeStatus {
 }
 
 pub fn test_param(client_message: ClientMessage) -> Option<ClientMessage>{
-None
+    None
 }
 
