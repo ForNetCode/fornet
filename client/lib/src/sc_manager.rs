@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 use async_trait::async_trait;
 use mqrstt::{AsyncEventHandler, ConnectOptions, MqttClient, new_tokio};
 use mqrstt::packets::{Packet, QoS, SubscriptionOptions};
@@ -12,11 +12,8 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{Mutex, RwLock};
 
 
-use tokio_stream::StreamExt;
-use tracing::instrument::WithSubscriber;
-use windows::Win32::Networking::WinSock::send;
 use crate::client_manager::ForNetClient;
-use crate::config::{Config as AppConfig, ServerConfig};
+use crate::config::{Config as AppConfig};
 
 use crate::protobuf::config::{ClientMessage, NetworkMessage, NetworkStatus, NodeStatus, WrConfig};
 use crate::protobuf::config::client_message::Info::{Config, Status};
@@ -39,16 +36,16 @@ impl Default for Duplication {
         }
     }
 }
+
 struct MqttWrapper2 {
     pub mqtt_client: MqttClient,
     pub deduplication: Duplication,
     pub sender: Sender<ServerMessage>,
     pub network_topics: Vec<String>,
-    pub client_topic:String,
+    pub client_topic: String,
 }
-impl MqttWrapper2 {
 
-}
+impl MqttWrapper2 {}
 
 #[async_trait]
 impl AsyncEventHandler for MqttWrapper2 {
@@ -66,8 +63,8 @@ impl AsyncEventHandler for MqttWrapper2 {
                                         }
                                         let network_topic = format!("network/{}", &client_message.network_id);
                                         if !self.network_topics.contains(&network_topic) {
-                                            self.network_topics.push( network_topic.clone());
-                                            let _ = self.mqtt_client.subscribe((network_topic, SubscriptionOptions{
+                                            self.network_topics.push(network_topic.clone());
+                                            let _ = self.mqtt_client.subscribe((network_topic, SubscriptionOptions {
                                                 qos: QoS::AtLeastOnce,
                                                 ..Default::default()
                                             })).await;
@@ -115,8 +112,11 @@ impl AsyncEventHandler for MqttWrapper2 {
                                     NStatus(status) => {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
                                             let _ = self.sender.send(
-                                                ServerMessage::StopWR{network_id: network_message.network_id.clone(),
-                                                     reason:"network has been delete".to_owned(), delete_network: true }
+                                                ServerMessage::StopWR {
+                                                    network_id: network_message.network_id.clone(),
+                                                    reason: "network has been delete".to_owned(),
+                                                    delete_network: true,
+                                                }
                                             ).await;
                                             let d = self.mqtt_client.unsubscribe(topic.clone()).await;
 
@@ -140,20 +140,20 @@ impl AsyncEventHandler for MqttWrapper2 {
             }
             _ => {}
         }
-
     }
 }
 
 struct MqttWrapper<'a> {
-    pub client:MqttClient,
+    pub client: MqttClient,
     pub client_topic: String,
     pub network_topics: Vec<String>,
     //TODO: Duplication diff by network_token_id, and use timestamp to diff would be more effect and good.
     pub deduplication: &'a mut Duplication,
     pub sender: Sender<ServerMessage>,
 }
+
 #[async_trait]
-impl <'a> AsyncEventHandler for MqttWrapper<'a> {
+impl<'a> AsyncEventHandler for MqttWrapper<'a> {
     async fn handle(&mut self, event: Packet) {
         match event {
             Packet::Publish(p) => {
@@ -168,8 +168,8 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                         }
                                         let network_topic = format!("network/{}", &client_message.network_id);
                                         if !self.network_topics.contains(&network_topic) {
-                                            self.network_topics.push( network_topic.clone());
-                                            let _ = self.client.subscribe((network_topic, SubscriptionOptions{
+                                            self.network_topics.push(network_topic.clone());
+                                            let _ = self.client.subscribe((network_topic, SubscriptionOptions {
                                                 qos: QoS::AtLeastOnce,
                                                 ..Default::default()
                                             })).await;
@@ -216,15 +216,18 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                     NStatus(status) => {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
                                             let _ = self.sender.send(
-                                                ServerMessage::StopWR{network_id: network_message.network_id.clone(),
-                                                    reason:"network has been delete".to_owned(), delete_network: true }
+                                                ServerMessage::StopWR {
+                                                    network_id: network_message.network_id.clone(),
+                                                    reason: "network has been delete".to_owned(),
+                                                    delete_network: true,
+                                                }
                                             ).await;
                                             let d = self.client.unsubscribe(topic.clone()).await;
 
                                             self.network_topics = self.network_topics.iter().filter_map(|x| {
                                                 if x != topic {
                                                     Some(x.clone())
-                                                }else {
+                                                } else {
                                                     None
                                                 }
                                             }).collect();
@@ -251,10 +254,10 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
 }
 
 
-
 pub struct SCManager {
     sender: Sender<ServerMessage>,
 }
+
 impl SCManager {
     pub fn new(sender: Sender<ServerMessage>) -> Self {
         SCManager {
@@ -262,7 +265,7 @@ impl SCManager {
         }
     }
 
-    async fn mqtt_reconnect(sender:Sender<ServerMessage>, config:Arc<AppConfig>, deduplication: &mut Duplication) -> anyhow::Result<()> {
+    async fn mqtt_reconnect(sender: Sender<ServerMessage>, config: Arc<AppConfig>, deduplication: &mut Duplication) -> anyhow::Result<()> {
         let server_config = config.server_config.clone();
         let server_config = server_config.read().await;
         let url = reqwest::Url::parse(&server_config.mqtt_url.clone())?;
@@ -276,10 +279,10 @@ impl SCManager {
         options.password = Some(password);
         options.username = Some(username);
 
-        let client_topic = format!("client/{}",&server_config.device_id);
-        let network_topics:Vec<String> = server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
+        let client_topic = format!("client/{}", &server_config.device_id);
+        let network_topics: Vec<String> = server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
 
-        let subscribe_topics:Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions{
+        let subscribe_topics: Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions {
             qos: QoS::AtLeastOnce,
             ..Default::default()
         })).collect();
@@ -292,7 +295,7 @@ impl SCManager {
         if url.scheme() == "mqtts" {
             let (mut network, client) = new_tokio(options);
             let mut mqtt_wrapper = MqttWrapper {
-                client:client.clone(),
+                client: client.clone(),
                 client_topic,
                 network_topics,
                 deduplication,
@@ -313,20 +316,19 @@ impl SCManager {
             //let stream = tokio::net::TcpStream::connect((host, port)).await?;
             //let connection = cx.connect(host, stream).await?;
 
-            network.connect(connection,&mut mqtt_wrapper).await?;
+            network.connect(connection, &mut mqtt_wrapper).await?;
             client.subscribe(subscribe_topics).await?;
             loop {
                 match network.poll(&mut mqtt_wrapper).await {
                     Ok(mqrstt::tokio::NetworkStatus::Active) => {
-                        continue
+                        continue;
                     }
                     other => {
                         tracing::debug!("mqtt network status {:?}", other);
-                        break
+                        break;
                     }
                 }
             }
-
         } else {
             let (mut network, client) = new_tokio(options);
             let mut mqtt_wrapper = MqttWrapper {
@@ -343,16 +345,14 @@ impl SCManager {
             loop {
                 match network.poll(&mut mqtt_wrapper).await {
                     Ok(mqrstt::tokio::NetworkStatus::Active) => {
-                        continue
+                        continue;
                     }
                     other => {
                         tracing::debug!("mqtt network status {:?}", other);
                         break;
-
                     }
                 }
             }
-
         };
 
         Ok(())
@@ -366,7 +366,7 @@ impl SCManager {
         };
         let _config = config.clone();
         let _sender = self.sender.clone();
-        tokio::spawn(async move{
+        tokio::spawn(async move {
             loop {
                 let _config = _config.clone();
                 let _sender = _sender.clone();
@@ -387,16 +387,16 @@ pub struct ConfigSyncManager {
 }
 
 impl ConfigSyncManager {
-    pub fn new(client_manager: Arc<RwLock<ForNetClient>>) -> (Self,Receiver<ServerMessage>) {
+    pub fn new(client_manager: Arc<RwLock<ForNetClient>>) -> (Self, Receiver<ServerMessage>) {
         let (sender, mut rx) = tokio::sync::mpsc::channel::<ServerMessage>(32);
         (ConfigSyncManager {
             client_manager,
-            mqtt_connections:Arc::new(Mutex::new(HashMap::default())),
+            mqtt_connections: Arc::new(Mutex::new(HashMap::default())),
             sender,
-        },rx)
+        }, rx)
     }
-    pub async fn connect(&mut self, mqtt_url: String) -> anyhow::Result<()>  {
-        let deduplication = Duplication {
+    pub async fn connect(&mut self, mqtt_url: String) -> anyhow::Result<()> {
+        let mut deduplication = Duplication {
             wr_config: None,
             status: None,
         };
@@ -409,19 +409,53 @@ impl ConfigSyncManager {
         let sender = self.sender.clone();
         let client_manager = self.client_manager.clone();
 
-        tokio::spawn(async move  {
-           self.connect_mqtt(mqtt_url,deduplication, sender, client_manager).await;
+        tokio::spawn(async move {
+            let mut deduplication = deduplication;
+            loop {
+                tracing::debug!("begin to connect mqtt {}", &mqtt_url);
+                match ConfigSyncManager::connect_mqtt(mqtt_url.clone(), deduplication.clone(), sender.clone(), client_manager.clone(), mqtt_connections.clone()).await {
+                    Ok((duplication)) => {
+                        let has_connection = { mqtt_connections.lock().await.contains_key(&mqtt_url) };
+                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        {
+                            mqtt_connections.lock().await.remove(&mqtt_url);
+                        }
+                        if has_connection {
+                            deduplication = duplication;
+                        } else {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        let has_connection = { mqtt_connections.lock().await.contains_key(&mqtt_url) };
+                        tracing::warn!("mqtt connection: {} has failed: {e}",&mqtt_url);
+                        {
+                            mqtt_connections.lock().await.remove(&mqtt_url);
+                        }
+                        if !has_connection {
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_secs(30)).await;
+                    }
+                }
+            }
         });
         Ok(())
     }
 
-    async fn connect_mqtt(&mut self, mqtt_url: String, deduplication:Duplication, sender: Sender<ServerMessage>, client_manager:Arc<RwLock<ForNetClient>>) -> anyhow::Result<Duplication> {
-        let (options,device_id, network_ids) = {
+    async fn connect_mqtt(
+        mqtt_url: String,
+        deduplication: Duplication,
+        sender: Sender<ServerMessage>,
+        client_manager: Arc<RwLock<ForNetClient>>,
+        mqtt_connections: Arc<Mutex<HashMap<String, MqttClient>>>,
+    ) -> anyhow::Result<Duplication> {
+        let (options, device_id, network_ids) = {
             let app_config = &client_manager.read().await.config;
-            let info = app_config.local_config.server_info.iter().find_map(|info | {
+            let info = app_config.local_config.server_info.iter().find_map(|info| {
                 if &info.mqtt_url == &mqtt_url {
                     Some((info.device_id.clone(), info.network_id.clone()))
-                }else {
+                } else {
                     None
                 }
             });
@@ -433,7 +467,7 @@ impl ConfigSyncManager {
                 options.password = Some(password);
                 options.username = Some(username);
                 (options, device_id, network_ids)
-            }else {
+            } else {
                 anyhow::bail!("There's no mqtt connection: {}", &mqtt_url)
             }
         };
@@ -441,10 +475,10 @@ impl ConfigSyncManager {
         let url = reqwest::Url::parse(&mqtt_url)?;
         let host = url.host_str().unwrap_or("");
         let port = url.port_or_known_default().unwrap_or(1883);// secret: 8883
-        let client_topic = format!("client/{}",device_id);
-        let network_topics:Vec<String> = network_ids.into_iter().map(|network_id| format!("network/{}", &network_id)).collect();
+        let client_topic = format!("client/{}", device_id);
+        let network_topics: Vec<String> = network_ids.into_iter().map(|network_id| format!("network/{}", &network_id)).collect();
 
-        let subscribe_topics:Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions{
+        let subscribe_topics: Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions {
             qos: QoS::AtLeastOnce,
             ..Default::default()
         })).collect();
@@ -467,18 +501,20 @@ impl ConfigSyncManager {
             let stream = tokio::net::TcpStream::connect((host, port)).await?;
             let connection = connector.connect(domain, stream).await?;
 
-            network.connect(connection,&mut mqtt_wrapper).await?;
+            network.connect(connection, &mut mqtt_wrapper).await?;
             client.subscribe(subscribe_topics).await?;
-            //self.mqtt_connection.insert(mqtt_url.clone(), mqtt_wrapper);
+            {
+                mqtt_connections.lock().await.insert(mqtt_url, client.clone());
+            }
             loop {
                 match network.poll(&mut mqtt_wrapper).await {
                     Ok(mqrstt::tokio::NetworkStatus::Active) => {
-                        continue
+                        continue;
                     }
                     other => {
                         tracing::debug!("mqtt network status {:?}", other);
 
-                        break
+                        break;
                     }
                 }
             }
@@ -496,145 +532,34 @@ impl ConfigSyncManager {
             network.connect(stream, &mut mqtt_wrapper).await?;
 
             mqtt_wrapper.mqtt_client.subscribe(subscribe_topics).await?;
-            //self.mqtt_connection.insert(mqtt_url.clone(), mqtt_wrapper);
+            {
+                mqtt_connections.lock().await.insert(mqtt_url, client.clone());
+            }
             loop {
                 match network.poll(&mut mqtt_wrapper).await {
                     Ok(mqrstt::tokio::NetworkStatus::Active) => {
-                        continue
-                    }
-                    other => {
-                        tracing::debug!("mqtt network status {:?}", other);
-                        break
-                    }
-                }
-            }
-            mqtt_wrapper
-
-        };
-        //self.mqtt_connection.insert(mqtt_url, mqtt_wrapper.mqtt_client);
-        //mqtt_wrapper.mqtt_client.clone();
-        Ok(mqtt_wrapper.deduplication)
-
-        //tokio::time::sleep(Duration::from_secs(20)).await;
-        //self.connect_mqtt(mqtt_url).await?;
-
-    }
-
-
-    pub async fn disconnect_mqtt(&mut self, mqtt_url:String) {
-
-    }
-
-    /*
-    pub async fn mqtt_connect(&self, server_config:ServerConfig) -> anyhow::Result<()> {
-        let mut deduplication = Duplication {
-            wr_config: None,
-            status: None,
-        };
-        let _config = self.client_manager.config.clone();
-
-        tokio::spawn(async move {
-            loop {
-                let _config = _config.clone();
-                let v = self.mqtt_reconnect(_config, server_config, &mut deduplication).await;
-                tracing::debug!("mqtt connect error, {:?}", v);
-                tokio::time::sleep(Duration::from_secs(20)).await;
-            }
-        });
-        Ok(())
-    }
-    async fn mqtt_reconnect(&self, config:Arc<AppConfig>, server_config:ServerConfig, deduplication: &mut Duplication) ->anyhow::Result<()> {
-        let url = reqwest::Url::parse(&server_config.mqtt_url.clone())?;
-        let host = url.host_str().unwrap_or("");
-        let port = url.port_or_known_default().unwrap_or(1883);// secret: 8883
-        let username = config.identity.pk_base64.clone();
-        let mut options = ConnectOptions::new(server_config.device_id.clone());
-        let encrypt = config.identity.sign(vec![server_config.device_id.clone()])?;
-        let password = format!("{}|{}|{}", encrypt.nonce, encrypt.timestamp, encrypt.signature);
-        options.password = Some(password);
-        options.username = Some(username);
-
-        let client_topic = format!("client/{}",&server_config.device_id);
-        let network_topics:Vec<String> = server_config.info.iter().map(|info| format!("network/{}", &info.network_id)).collect();
-
-        let subscribe_topics:Vec<(String, SubscriptionOptions)> = [vec![client_topic.clone()], network_topics.clone()].concat().into_iter().map(|topic| (topic, SubscriptionOptions{
-            qos: QoS::AtLeastOnce,
-            ..Default::default()
-        })).collect();
-
-        if url.scheme() == "mqtts" {
-            let (mut network, client) = new_tokio(options);
-            let mut mqtt_wrapper = MqttWrapper {
-                client:client.clone(),
-                client_topic,
-                network_topics,
-                deduplication,
-                sender,
-            };
-
-            let root_certs = tokio_rustls::rustls::RootCertStore::empty();
-            let config = ClientConfig::builder().with_safe_defaults().with_root_certificates(root_certs).with_no_client_auth();
-            let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-            let domain = ServerName::try_from(host)?;
-            let stream = tokio::net::TcpStream::connect((host, port)).await?;
-            let connection = connector.connect(domain, stream).await?;
-
-            //let connection = connector.connect(domain, stream).await?;
-
-            //let cx = tokio_rustls::TlsConnector::builder().build()?;
-            //let cx = tokio_native_tls::TlsConnector::from(cx);
-            //let stream = tokio::net::TcpStream::connect((host, port)).await?;
-            //let connection = cx.connect(host, stream).await?;
-
-            network.connect(connection,&mut mqtt_wrapper).await?;
-            client.subscribe(subscribe_topics).await?;
-            loop {
-                match network.poll(&mut mqtt_wrapper).await {
-                    Ok(mqrstt::tokio::NetworkStatus::Active) => {
-                        continue
-                    }
-                    other => {
-                        tracing::debug!("mqtt network status {:?}", other);
-                    }
-                }
-            }
-
-        } else {
-            let (mut network, client) = new_tokio(options);
-            let mut mqtt_wrapper = MqttWrapper {
-                client:client.clone(),
-                client_topic,
-                network_topics,
-                deduplication,
-                sender,
-            };
-            let stream = tokio::net::TcpStream::connect((host, port)).await?;
-            network.connect(stream, &mut mqtt_wrapper).await?;
-            client.subscribe(subscribe_topics).await?;
-            loop {
-                match network.poll(&mut mqtt_wrapper).await {
-                    Ok(mqrstt::tokio::NetworkStatus::Active) => {
-                        continue
+                        continue;
                     }
                     other => {
                         tracing::debug!("mqtt network status {:?}", other);
                         break;
-
                     }
                 }
             }
-
+            mqtt_wrapper
         };
+        Ok(mqtt_wrapper.deduplication)
+    }
 
-        Ok(())
-
-    }*/
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    pub fn test_mqtt_reconnect() {
-
+    pub async fn disconnect_mqtt(&mut self, mqtt_url: String) {
+        let client = {
+            self.mqtt_connections.lock().await.remove(&mqtt_url)
+        };
+        if let Some(client) = client {
+            tracing::debug!("begin to disconnect mqtt client: {}", &mqtt_url);
+            let _ = client.disconnect().await;
+        } else {
+            tracing::debug!("There's no mqtt client: {}", &mqtt_url);
+        }
     }
 }
