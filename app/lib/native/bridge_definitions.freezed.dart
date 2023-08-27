@@ -15,59 +15,68 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
-mixin _$ClientInfo {
-  Object get field0 => throw _privateConstructorUsedError;
+mixin _$ServerMessage {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(WrConfig field0) config,
-    required TResult Function(int field0) status,
+    required TResult Function(
+            String networkId, String reason, bool deleteNetwork)
+        stopWr,
+    required TResult Function(String field0, PeerChange field1) syncPeers,
+    required TResult Function(String field0, WrConfig field1) syncConfig,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(WrConfig field0)? config,
-    TResult? Function(int field0)? status,
+    TResult? Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult? Function(String field0, PeerChange field1)? syncPeers,
+    TResult? Function(String field0, WrConfig field1)? syncConfig,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(WrConfig field0)? config,
-    TResult Function(int field0)? status,
+    TResult Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult Function(String field0, PeerChange field1)? syncPeers,
+    TResult Function(String field0, WrConfig field1)? syncConfig,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
-    required TResult Function(ClientInfo_Config value) config,
-    required TResult Function(ClientInfo_Status value) status,
+    required TResult Function(ServerMessage_StopWR value) stopWr,
+    required TResult Function(ServerMessage_SyncPeers value) syncPeers,
+    required TResult Function(ServerMessage_SyncConfig value) syncConfig,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(ClientInfo_Config value)? config,
-    TResult? Function(ClientInfo_Status value)? status,
+    TResult? Function(ServerMessage_StopWR value)? stopWr,
+    TResult? Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult? Function(ServerMessage_SyncConfig value)? syncConfig,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
-    TResult Function(ClientInfo_Config value)? config,
-    TResult Function(ClientInfo_Status value)? status,
+    TResult Function(ServerMessage_StopWR value)? stopWr,
+    TResult Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult Function(ServerMessage_SyncConfig value)? syncConfig,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $ClientInfoCopyWith<$Res> {
-  factory $ClientInfoCopyWith(
-          ClientInfo value, $Res Function(ClientInfo) then) =
-      _$ClientInfoCopyWithImpl<$Res, ClientInfo>;
+abstract class $ServerMessageCopyWith<$Res> {
+  factory $ServerMessageCopyWith(
+          ServerMessage value, $Res Function(ServerMessage) then) =
+      _$ServerMessageCopyWithImpl<$Res, ServerMessage>;
 }
 
 /// @nodoc
-class _$ClientInfoCopyWithImpl<$Res, $Val extends ClientInfo>
-    implements $ClientInfoCopyWith<$Res> {
-  _$ClientInfoCopyWithImpl(this._value, this._then);
+class _$ServerMessageCopyWithImpl<$Res, $Val extends ServerMessage>
+    implements $ServerMessageCopyWith<$Res> {
+  _$ServerMessageCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
@@ -76,31 +85,361 @@ class _$ClientInfoCopyWithImpl<$Res, $Val extends ClientInfo>
 }
 
 /// @nodoc
-abstract class _$$ClientInfo_ConfigCopyWith<$Res> {
-  factory _$$ClientInfo_ConfigCopyWith(
-          _$ClientInfo_Config value, $Res Function(_$ClientInfo_Config) then) =
-      __$$ClientInfo_ConfigCopyWithImpl<$Res>;
+abstract class _$$ServerMessage_StopWRCopyWith<$Res> {
+  factory _$$ServerMessage_StopWRCopyWith(_$ServerMessage_StopWR value,
+          $Res Function(_$ServerMessage_StopWR) then) =
+      __$$ServerMessage_StopWRCopyWithImpl<$Res>;
   @useResult
-  $Res call({WrConfig field0});
+  $Res call({String networkId, String reason, bool deleteNetwork});
 }
 
 /// @nodoc
-class __$$ClientInfo_ConfigCopyWithImpl<$Res>
-    extends _$ClientInfoCopyWithImpl<$Res, _$ClientInfo_Config>
-    implements _$$ClientInfo_ConfigCopyWith<$Res> {
-  __$$ClientInfo_ConfigCopyWithImpl(
-      _$ClientInfo_Config _value, $Res Function(_$ClientInfo_Config) _then)
+class __$$ServerMessage_StopWRCopyWithImpl<$Res>
+    extends _$ServerMessageCopyWithImpl<$Res, _$ServerMessage_StopWR>
+    implements _$$ServerMessage_StopWRCopyWith<$Res> {
+  __$$ServerMessage_StopWRCopyWithImpl(_$ServerMessage_StopWR _value,
+      $Res Function(_$ServerMessage_StopWR) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? networkId = null,
+    Object? reason = null,
+    Object? deleteNetwork = null,
+  }) {
+    return _then(_$ServerMessage_StopWR(
+      networkId: null == networkId
+          ? _value.networkId
+          : networkId // ignore: cast_nullable_to_non_nullable
+              as String,
+      reason: null == reason
+          ? _value.reason
+          : reason // ignore: cast_nullable_to_non_nullable
+              as String,
+      deleteNetwork: null == deleteNetwork
+          ? _value.deleteNetwork
+          : deleteNetwork // ignore: cast_nullable_to_non_nullable
+              as bool,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$ServerMessage_StopWR implements ServerMessage_StopWR {
+  const _$ServerMessage_StopWR(
+      {required this.networkId,
+      required this.reason,
+      required this.deleteNetwork});
+
+  @override
+  final String networkId;
+  @override
+  final String reason;
+  @override
+  final bool deleteNetwork;
+
+  @override
+  String toString() {
+    return 'ServerMessage.stopWr(networkId: $networkId, reason: $reason, deleteNetwork: $deleteNetwork)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ServerMessage_StopWR &&
+            (identical(other.networkId, networkId) ||
+                other.networkId == networkId) &&
+            (identical(other.reason, reason) || other.reason == reason) &&
+            (identical(other.deleteNetwork, deleteNetwork) ||
+                other.deleteNetwork == deleteNetwork));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, networkId, reason, deleteNetwork);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ServerMessage_StopWRCopyWith<_$ServerMessage_StopWR> get copyWith =>
+      __$$ServerMessage_StopWRCopyWithImpl<_$ServerMessage_StopWR>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+            String networkId, String reason, bool deleteNetwork)
+        stopWr,
+    required TResult Function(String field0, PeerChange field1) syncPeers,
+    required TResult Function(String field0, WrConfig field1) syncConfig,
+  }) {
+    return stopWr(networkId, reason, deleteNetwork);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult? Function(String field0, PeerChange field1)? syncPeers,
+    TResult? Function(String field0, WrConfig field1)? syncConfig,
+  }) {
+    return stopWr?.call(networkId, reason, deleteNetwork);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult Function(String field0, PeerChange field1)? syncPeers,
+    TResult Function(String field0, WrConfig field1)? syncConfig,
+    required TResult orElse(),
+  }) {
+    if (stopWr != null) {
+      return stopWr(networkId, reason, deleteNetwork);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ServerMessage_StopWR value) stopWr,
+    required TResult Function(ServerMessage_SyncPeers value) syncPeers,
+    required TResult Function(ServerMessage_SyncConfig value) syncConfig,
+  }) {
+    return stopWr(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ServerMessage_StopWR value)? stopWr,
+    TResult? Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult? Function(ServerMessage_SyncConfig value)? syncConfig,
+  }) {
+    return stopWr?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ServerMessage_StopWR value)? stopWr,
+    TResult Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult Function(ServerMessage_SyncConfig value)? syncConfig,
+    required TResult orElse(),
+  }) {
+    if (stopWr != null) {
+      return stopWr(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class ServerMessage_StopWR implements ServerMessage {
+  const factory ServerMessage_StopWR(
+      {required final String networkId,
+      required final String reason,
+      required final bool deleteNetwork}) = _$ServerMessage_StopWR;
+
+  String get networkId;
+  String get reason;
+  bool get deleteNetwork;
+  @JsonKey(ignore: true)
+  _$$ServerMessage_StopWRCopyWith<_$ServerMessage_StopWR> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$ServerMessage_SyncPeersCopyWith<$Res> {
+  factory _$$ServerMessage_SyncPeersCopyWith(_$ServerMessage_SyncPeers value,
+          $Res Function(_$ServerMessage_SyncPeers) then) =
+      __$$ServerMessage_SyncPeersCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0, PeerChange field1});
+}
+
+/// @nodoc
+class __$$ServerMessage_SyncPeersCopyWithImpl<$Res>
+    extends _$ServerMessageCopyWithImpl<$Res, _$ServerMessage_SyncPeers>
+    implements _$$ServerMessage_SyncPeersCopyWith<$Res> {
+  __$$ServerMessage_SyncPeersCopyWithImpl(_$ServerMessage_SyncPeers _value,
+      $Res Function(_$ServerMessage_SyncPeers) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? field0 = null,
+    Object? field1 = null,
   }) {
-    return _then(_$ClientInfo_Config(
+    return _then(_$ServerMessage_SyncPeers(
       null == field0
           ? _value.field0
           : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+      null == field1
+          ? _value.field1
+          : field1 // ignore: cast_nullable_to_non_nullable
+              as PeerChange,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$ServerMessage_SyncPeers implements ServerMessage_SyncPeers {
+  const _$ServerMessage_SyncPeers(this.field0, this.field1);
+
+  @override
+  final String field0;
+  @override
+  final PeerChange field1;
+
+  @override
+  String toString() {
+    return 'ServerMessage.syncPeers(field0: $field0, field1: $field1)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ServerMessage_SyncPeers &&
+            (identical(other.field0, field0) || other.field0 == field0) &&
+            (identical(other.field1, field1) || other.field1 == field1));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0, field1);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ServerMessage_SyncPeersCopyWith<_$ServerMessage_SyncPeers> get copyWith =>
+      __$$ServerMessage_SyncPeersCopyWithImpl<_$ServerMessage_SyncPeers>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+            String networkId, String reason, bool deleteNetwork)
+        stopWr,
+    required TResult Function(String field0, PeerChange field1) syncPeers,
+    required TResult Function(String field0, WrConfig field1) syncConfig,
+  }) {
+    return syncPeers(field0, field1);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult? Function(String field0, PeerChange field1)? syncPeers,
+    TResult? Function(String field0, WrConfig field1)? syncConfig,
+  }) {
+    return syncPeers?.call(field0, field1);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult Function(String field0, PeerChange field1)? syncPeers,
+    TResult Function(String field0, WrConfig field1)? syncConfig,
+    required TResult orElse(),
+  }) {
+    if (syncPeers != null) {
+      return syncPeers(field0, field1);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ServerMessage_StopWR value) stopWr,
+    required TResult Function(ServerMessage_SyncPeers value) syncPeers,
+    required TResult Function(ServerMessage_SyncConfig value) syncConfig,
+  }) {
+    return syncPeers(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ServerMessage_StopWR value)? stopWr,
+    TResult? Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult? Function(ServerMessage_SyncConfig value)? syncConfig,
+  }) {
+    return syncPeers?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ServerMessage_StopWR value)? stopWr,
+    TResult Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult Function(ServerMessage_SyncConfig value)? syncConfig,
+    required TResult orElse(),
+  }) {
+    if (syncPeers != null) {
+      return syncPeers(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class ServerMessage_SyncPeers implements ServerMessage {
+  const factory ServerMessage_SyncPeers(
+      final String field0, final PeerChange field1) = _$ServerMessage_SyncPeers;
+
+  String get field0;
+  PeerChange get field1;
+  @JsonKey(ignore: true)
+  _$$ServerMessage_SyncPeersCopyWith<_$ServerMessage_SyncPeers> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$ServerMessage_SyncConfigCopyWith<$Res> {
+  factory _$$ServerMessage_SyncConfigCopyWith(_$ServerMessage_SyncConfig value,
+          $Res Function(_$ServerMessage_SyncConfig) then) =
+      __$$ServerMessage_SyncConfigCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0, WrConfig field1});
+}
+
+/// @nodoc
+class __$$ServerMessage_SyncConfigCopyWithImpl<$Res>
+    extends _$ServerMessageCopyWithImpl<$Res, _$ServerMessage_SyncConfig>
+    implements _$$ServerMessage_SyncConfigCopyWith<$Res> {
+  __$$ServerMessage_SyncConfigCopyWithImpl(_$ServerMessage_SyncConfig _value,
+      $Res Function(_$ServerMessage_SyncConfig) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+    Object? field1 = null,
+  }) {
+    return _then(_$ServerMessage_SyncConfig(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+      null == field1
+          ? _value.field1
+          : field1 // ignore: cast_nullable_to_non_nullable
               as WrConfig,
     ));
   }
@@ -108,61 +447,73 @@ class __$$ClientInfo_ConfigCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$ClientInfo_Config implements ClientInfo_Config {
-  const _$ClientInfo_Config(this.field0);
+class _$ServerMessage_SyncConfig implements ServerMessage_SyncConfig {
+  const _$ServerMessage_SyncConfig(this.field0, this.field1);
 
   @override
-  final WrConfig field0;
+  final String field0;
+  @override
+  final WrConfig field1;
 
   @override
   String toString() {
-    return 'ClientInfo.config(field0: $field0)';
+    return 'ServerMessage.syncConfig(field0: $field0, field1: $field1)';
   }
 
   @override
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$ClientInfo_Config &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            other is _$ServerMessage_SyncConfig &&
+            (identical(other.field0, field0) || other.field0 == field0) &&
+            (identical(other.field1, field1) || other.field1 == field1));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, field0, field1);
 
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$ClientInfo_ConfigCopyWith<_$ClientInfo_Config> get copyWith =>
-      __$$ClientInfo_ConfigCopyWithImpl<_$ClientInfo_Config>(this, _$identity);
+  _$$ServerMessage_SyncConfigCopyWith<_$ServerMessage_SyncConfig>
+      get copyWith =>
+          __$$ServerMessage_SyncConfigCopyWithImpl<_$ServerMessage_SyncConfig>(
+              this, _$identity);
 
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(WrConfig field0) config,
-    required TResult Function(int field0) status,
+    required TResult Function(
+            String networkId, String reason, bool deleteNetwork)
+        stopWr,
+    required TResult Function(String field0, PeerChange field1) syncPeers,
+    required TResult Function(String field0, WrConfig field1) syncConfig,
   }) {
-    return config(field0);
+    return syncConfig(field0, field1);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(WrConfig field0)? config,
-    TResult? Function(int field0)? status,
+    TResult? Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult? Function(String field0, PeerChange field1)? syncPeers,
+    TResult? Function(String field0, WrConfig field1)? syncConfig,
   }) {
-    return config?.call(field0);
+    return syncConfig?.call(field0, field1);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(WrConfig field0)? config,
-    TResult Function(int field0)? status,
+    TResult Function(String networkId, String reason, bool deleteNetwork)?
+        stopWr,
+    TResult Function(String field0, PeerChange field1)? syncPeers,
+    TResult Function(String field0, WrConfig field1)? syncConfig,
     required TResult orElse(),
   }) {
-    if (config != null) {
-      return config(field0);
+    if (syncConfig != null) {
+      return syncConfig(field0, field1);
     }
     return orElse();
   }
@@ -170,175 +521,45 @@ class _$ClientInfo_Config implements ClientInfo_Config {
   @override
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
-    required TResult Function(ClientInfo_Config value) config,
-    required TResult Function(ClientInfo_Status value) status,
+    required TResult Function(ServerMessage_StopWR value) stopWr,
+    required TResult Function(ServerMessage_SyncPeers value) syncPeers,
+    required TResult Function(ServerMessage_SyncConfig value) syncConfig,
   }) {
-    return config(this);
+    return syncConfig(this);
   }
 
   @override
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(ClientInfo_Config value)? config,
-    TResult? Function(ClientInfo_Status value)? status,
+    TResult? Function(ServerMessage_StopWR value)? stopWr,
+    TResult? Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult? Function(ServerMessage_SyncConfig value)? syncConfig,
   }) {
-    return config?.call(this);
+    return syncConfig?.call(this);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
-    TResult Function(ClientInfo_Config value)? config,
-    TResult Function(ClientInfo_Status value)? status,
+    TResult Function(ServerMessage_StopWR value)? stopWr,
+    TResult Function(ServerMessage_SyncPeers value)? syncPeers,
+    TResult Function(ServerMessage_SyncConfig value)? syncConfig,
     required TResult orElse(),
   }) {
-    if (config != null) {
-      return config(this);
+    if (syncConfig != null) {
+      return syncConfig(this);
     }
     return orElse();
   }
 }
 
-abstract class ClientInfo_Config implements ClientInfo {
-  const factory ClientInfo_Config(final WrConfig field0) = _$ClientInfo_Config;
+abstract class ServerMessage_SyncConfig implements ServerMessage {
+  const factory ServerMessage_SyncConfig(
+      final String field0, final WrConfig field1) = _$ServerMessage_SyncConfig;
 
-  @override
-  WrConfig get field0;
+  String get field0;
+  WrConfig get field1;
   @JsonKey(ignore: true)
-  _$$ClientInfo_ConfigCopyWith<_$ClientInfo_Config> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class _$$ClientInfo_StatusCopyWith<$Res> {
-  factory _$$ClientInfo_StatusCopyWith(
-          _$ClientInfo_Status value, $Res Function(_$ClientInfo_Status) then) =
-      __$$ClientInfo_StatusCopyWithImpl<$Res>;
-  @useResult
-  $Res call({int field0});
-}
-
-/// @nodoc
-class __$$ClientInfo_StatusCopyWithImpl<$Res>
-    extends _$ClientInfoCopyWithImpl<$Res, _$ClientInfo_Status>
-    implements _$$ClientInfo_StatusCopyWith<$Res> {
-  __$$ClientInfo_StatusCopyWithImpl(
-      _$ClientInfo_Status _value, $Res Function(_$ClientInfo_Status) _then)
-      : super(_value, _then);
-
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? field0 = null,
-  }) {
-    return _then(_$ClientInfo_Status(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
-              as int,
-    ));
-  }
-}
-
-/// @nodoc
-
-class _$ClientInfo_Status implements ClientInfo_Status {
-  const _$ClientInfo_Status(this.field0);
-
-  @override
-  final int field0;
-
-  @override
-  String toString() {
-    return 'ClientInfo.status(field0: $field0)';
-  }
-
-  @override
-  bool operator ==(dynamic other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ClientInfo_Status &&
-            (identical(other.field0, field0) || other.field0 == field0));
-  }
-
-  @override
-  int get hashCode => Object.hash(runtimeType, field0);
-
-  @JsonKey(ignore: true)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$ClientInfo_StatusCopyWith<_$ClientInfo_Status> get copyWith =>
-      __$$ClientInfo_StatusCopyWithImpl<_$ClientInfo_Status>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(WrConfig field0) config,
-    required TResult Function(int field0) status,
-  }) {
-    return status(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(WrConfig field0)? config,
-    TResult? Function(int field0)? status,
-  }) {
-    return status?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(WrConfig field0)? config,
-    TResult Function(int field0)? status,
-    required TResult orElse(),
-  }) {
-    if (status != null) {
-      return status(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(ClientInfo_Config value) config,
-    required TResult Function(ClientInfo_Status value) status,
-  }) {
-    return status(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(ClientInfo_Config value)? config,
-    TResult? Function(ClientInfo_Status value)? status,
-  }) {
-    return status?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(ClientInfo_Config value)? config,
-    TResult Function(ClientInfo_Status value)? status,
-    required TResult orElse(),
-  }) {
-    if (status != null) {
-      return status(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class ClientInfo_Status implements ClientInfo {
-  const factory ClientInfo_Status(final int field0) = _$ClientInfo_Status;
-
-  @override
-  int get field0;
-  @JsonKey(ignore: true)
-  _$$ClientInfo_StatusCopyWith<_$ClientInfo_Status> get copyWith =>
-      throw _privateConstructorUsedError;
+  _$$ServerMessage_SyncConfigCopyWith<_$ServerMessage_SyncConfig>
+      get copyWith => throw _privateConstructorUsedError;
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use async_trait::async_trait;
 use mqrstt::{AsyncEventHandler, ConnectOptions, MqttClient, new_tokio};
 use mqrstt::packets::{Packet, QoS, SubscriptionOptions};
@@ -9,10 +9,12 @@ use mqrstt::packets::{Packet, QoS, SubscriptionOptions};
 use prost::Message;
 use tokio_rustls::rustls::{ClientConfig, ServerName};
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 
 use tokio_stream::StreamExt;
+use tracing::instrument::WithSubscriber;
+use windows::Win32::Networking::WinSock::send;
 use crate::client_manager::ForNetClient;
 use crate::config::{Config as AppConfig, ServerConfig};
 
@@ -22,7 +24,7 @@ use crate::protobuf::config::network_message::Info::{Peer, Status as NStatus};
 use crate::server_manager::ServerMessage;
 
 //Sync Config Manager
-
+#[derive(Clone)]
 struct Duplication {
     wr_config: Option<WrConfig>,
     status: Option<NodeStatus>,
@@ -38,19 +40,14 @@ impl Default for Duplication {
     }
 }
 struct MqttWrapper2 {
-    pub mqtt_client:MqttClient,
-    pub client_topic: String,
-    pub network_topics: Vec<String>,
+    pub mqtt_client: MqttClient,
     pub deduplication: Duplication,
     pub sender: Sender<ServerMessage>,
+    pub network_topics: Vec<String>,
+    pub client_topic:String,
 }
 impl MqttWrapper2 {
 
-}
-impl Drop for MqttWrapper2 {
-    fn drop(&mut self) {
-        self.mqtt_client.disconnect()
-    }
 }
 
 #[async_trait]
@@ -90,7 +87,7 @@ impl AsyncEventHandler for MqttWrapper2 {
                                                         ServerMessage::StopWR {
                                                             network_id: client_message.network_id.clone(),
                                                             reason: "node has been forbid or delete".to_owned(),
-                                                            delete_tun: true,
+                                                            delete_network: true,
                                                         }
                                                     ).await;
                                                     self.deduplication.wr_config = None;
@@ -119,17 +116,11 @@ impl AsyncEventHandler for MqttWrapper2 {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
                                             let _ = self.sender.send(
                                                 ServerMessage::StopWR{network_id: network_message.network_id.clone(),
-                                                     reason:"network has been delete".to_owned(), delete_tun: true }
+                                                     reason:"network has been delete".to_owned(), delete_network: true }
                                             ).await;
                                             let d = self.mqtt_client.unsubscribe(topic.clone()).await;
 
-                                            self.network_topics = self.network_topics.iter().filter_map(|x| {
-                                                if x != topic {
-                                                    Some(x.clone())
-                                                }else {
-                                                    None
-                                                }
-                                            }).collect();
+
                                             tracing::debug!("unsubscribe topic: {}, result:{:?}", topic, d);
                                         }
                                     }
@@ -197,7 +188,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                                         ServerMessage::StopWR {
                                                             network_id: client_message.network_id.clone(),
                                                             reason: "node has been forbid or delete".to_owned(),
-                                                            delete_tun: true,
+                                                            delete_network: true,
                                                         }
                                                     ).await;
                                                     self.deduplication.wr_config = None;
@@ -226,7 +217,7 @@ impl <'a> AsyncEventHandler for MqttWrapper<'a> {
                                         if let Some(NetworkStatus::NetworkDelete) = NetworkStatus::from_i32(status) {
                                             let _ = self.sender.send(
                                                 ServerMessage::StopWR{network_id: network_message.network_id.clone(),
-                                                    reason:"network has been delete".to_owned(), delete_tun: true }
+                                                    reason:"network has been delete".to_owned(), delete_network: true }
                                             ).await;
                                             let d = self.client.unsubscribe(topic.clone()).await;
 
@@ -390,28 +381,45 @@ impl SCManager {
 
 pub struct ConfigSyncManager {
     client_manager: Arc<RwLock<ForNetClient>>,
-    mqtt_connection: HashMap<String, MqttWrapper2>,
+    mqtt_connections: Arc<Mutex<HashMap<String, MqttClient>>>,
+    sender: Sender<ServerMessage>,
+
 }
-/*
-1. 根据 server_config 创建mqtt链接 （server_config 可能存在多个）
-2. 存储链接，并设置状态。根据 NetworkInfo，发布订阅消息，并将消息传递给 ForNetClient
-3. connection 链接 和 订阅要分开来看
- */
+
 impl ConfigSyncManager {
     pub fn new(client_manager: Arc<RwLock<ForNetClient>>) -> (Self,Receiver<ServerMessage>) {
         let (sender, mut rx) = tokio::sync::mpsc::channel::<ServerMessage>(32);
         (ConfigSyncManager {
             client_manager,
-            mqtt_connection: HashMap::default(),
+            mqtt_connections:Arc::new(Mutex::new(HashMap::default())),
+            sender,
         },rx)
     }
+    pub async fn connect(&mut self, mqtt_url: String) -> anyhow::Result<()>  {
+        let deduplication = Duplication {
+            wr_config: None,
+            status: None,
+        };
+        let mqtt_connections = self.mqtt_connections.clone();
+        {
+            if mqtt_connections.lock().await.contains_key(&mqtt_url) {
+                bail!("{} mqtt connection has already started", &mqtt_url)
+            }
+        }
+        let sender = self.sender.clone();
+        let client_manager = self.client_manager.clone();
 
-    pub async fn connect_mqtt(&mut self, mqtt_url:String) -> anyhow::Result<()> {
+        tokio::spawn(async move  {
+           self.connect_mqtt(mqtt_url,deduplication, sender, client_manager).await;
+        });
+        Ok(())
+    }
+
+    async fn connect_mqtt(&mut self, mqtt_url: String, deduplication:Duplication, sender: Sender<ServerMessage>, client_manager:Arc<RwLock<ForNetClient>>) -> anyhow::Result<Duplication> {
         let (options,device_id, network_ids) = {
-            let app_config = &self.client_manager.read().await.config;
+            let app_config = &client_manager.read().await.config;
             let info = app_config.local_config.server_info.iter().find_map(|info | {
-                if info.mqtt_url == &mqtt_url {
-
+                if &info.mqtt_url == &mqtt_url {
                     Some((info.device_id.clone(), info.network_id.clone()))
                 }else {
                     None
@@ -442,7 +450,7 @@ impl ConfigSyncManager {
         })).collect();
 
 
-        if url.scheme() == "mqtts" {
+        let mqtt_wrapper = if url.scheme() == "mqtts" {
             let (mut network, client) = new_tokio(options);
             let mut mqtt_wrapper = MqttWrapper2 {
                 mqtt_client: client.clone(),
@@ -459,15 +467,36 @@ impl ConfigSyncManager {
             let stream = tokio::net::TcpStream::connect((host, port)).await?;
             let connection = connector.connect(domain, stream).await?;
 
-            //let connection = connector.connect(domain, stream).await?;
-
-            //let cx = tokio_rustls::TlsConnector::builder().build()?;
-            //let cx = tokio_native_tls::TlsConnector::from(cx);
-            //let stream = tokio::net::TcpStream::connect((host, port)).await?;
-            //let connection = cx.connect(host, stream).await?;
-
             network.connect(connection,&mut mqtt_wrapper).await?;
             client.subscribe(subscribe_topics).await?;
+            //self.mqtt_connection.insert(mqtt_url.clone(), mqtt_wrapper);
+            loop {
+                match network.poll(&mut mqtt_wrapper).await {
+                    Ok(mqrstt::tokio::NetworkStatus::Active) => {
+                        continue
+                    }
+                    other => {
+                        tracing::debug!("mqtt network status {:?}", other);
+
+                        break
+                    }
+                }
+            }
+            mqtt_wrapper
+        } else {
+            let (mut network, client) = new_tokio(options);
+            let mut mqtt_wrapper = MqttWrapper2 {
+                mqtt_client: client.clone(),
+                network_topics,
+                client_topic,
+                deduplication,
+                sender,
+            };
+            let stream = tokio::net::TcpStream::connect((host, port)).await?;
+            network.connect(stream, &mut mqtt_wrapper).await?;
+
+            mqtt_wrapper.mqtt_client.subscribe(subscribe_topics).await?;
+            //self.mqtt_connection.insert(mqtt_url.clone(), mqtt_wrapper);
             loop {
                 match network.poll(&mut mqtt_wrapper).await {
                     Ok(mqrstt::tokio::NetworkStatus::Active) => {
@@ -479,40 +508,18 @@ impl ConfigSyncManager {
                     }
                 }
             }
-        } else {
-            let (mut network, client) = new_tokio(options);
-            let mut mqtt_wrapper = MqttWrapper {
-                client,
-                client_topic,
-                network_topics,
-                deduplication,
-                sender,
-            };
-            let stream = tokio::net::TcpStream::connect((host, port)).await?;
-            network.connect(stream, &mut mqtt_wrapper).await?;
-
-            mqtt_wrapper.client.subscribe(subscribe_topics).await?;
-            loop {
-                match network.poll(&mut mqtt_wrapper).await {
-                    Ok(mqrstt::tokio::NetworkStatus::Active) => {
-                        continue
-                    }
-                    other => {
-                        tracing::debug!("mqtt network status {:?}", other);
-                        break;
-                    }
-                }
-            }
+            mqtt_wrapper
 
         };
+        //self.mqtt_connection.insert(mqtt_url, mqtt_wrapper.mqtt_client);
+        //mqtt_wrapper.mqtt_client.clone();
+        Ok(mqtt_wrapper.deduplication)
 
+        //tokio::time::sleep(Duration::from_secs(20)).await;
+        //self.connect_mqtt(mqtt_url).await?;
 
-        Ok(())
     }
 
-    pub async fn subscribe_network(&mut self, mqtt_url:&str, network_id:&str) -> anyhow::Result<()>{
-        Ok(())
-    }
 
     pub async fn disconnect_mqtt(&mut self, mqtt_url:String) {
 

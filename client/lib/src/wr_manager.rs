@@ -5,7 +5,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use cfg_if::cfg_if;
 use serde_derive::{Deserialize, Serialize};
-use crate::config::{AppConfig, Config, Identity, NetworkInfo};
+use crate::config::{Config, Identity, NetworkInfo};
 use crate::device::peer::AllowedIP;
 use crate::protobuf::config::{Protocol, WrConfig, NodeType};
 use crate::device::Device;

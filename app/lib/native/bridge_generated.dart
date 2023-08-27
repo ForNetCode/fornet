@@ -115,24 +115,6 @@ class FornetLibImpl implements FornetLib {
         argNames: [],
       );
 
-  Future<ClientMessage?> testParam(
-      {required ClientMessage clientMessage, dynamic hint}) {
-    var arg0 = _platform.api2wire_box_autoadd_client_message(clientMessage);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_test_param(port_, arg0),
-      parseSuccessData: _wire2api_opt_box_autoadd_client_message,
-      constMeta: kTestParamConstMeta,
-      argValues: [clientMessage],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kTestParamConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "test_param",
-        argNames: ["clientMessage"],
-      );
-
   void dispose() {
     _platform.dispose();
   }
@@ -140,118 +122,6 @@ class FornetLibImpl implements FornetLib {
 
   String _wire2api_String(dynamic raw) {
     return raw as String;
-  }
-
-  List<String> _wire2api_StringList(dynamic raw) {
-    return (raw as List<dynamic>).cast<String>();
-  }
-
-  ClientInfo _wire2api_box_autoadd_client_info(dynamic raw) {
-    return _wire2api_client_info(raw);
-  }
-
-  ClientMessage _wire2api_box_autoadd_client_message(dynamic raw) {
-    return _wire2api_client_message(raw);
-  }
-
-  Interface _wire2api_box_autoadd_interface(dynamic raw) {
-    return _wire2api_interface(raw);
-  }
-
-  int _wire2api_box_autoadd_u32(dynamic raw) {
-    return raw as int;
-  }
-
-  WrConfig _wire2api_box_autoadd_wr_config(dynamic raw) {
-    return _wire2api_wr_config(raw);
-  }
-
-  ClientInfo _wire2api_client_info(dynamic raw) {
-    switch (raw[0]) {
-      case 0:
-        return ClientInfo_Config(
-          _wire2api_box_autoadd_wr_config(raw[1]),
-        );
-      case 1:
-        return ClientInfo_Status(
-          _wire2api_i32(raw[1]),
-        );
-      default:
-        throw Exception("unreachable");
-    }
-  }
-
-  ClientMessage _wire2api_client_message(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return ClientMessage(
-      networkId: _wire2api_String(arr[0]),
-      info: _wire2api_opt_box_autoadd_client_info(arr[1]),
-    );
-  }
-
-  int _wire2api_i32(dynamic raw) {
-    return raw as int;
-  }
-
-  Interface _wire2api_interface(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
-    return Interface(
-      name: _wire2api_opt_String(arr[0]),
-      address: _wire2api_StringList(arr[1]),
-      listenPort: _wire2api_i32(arr[2]),
-      dns: _wire2api_StringList(arr[3]),
-      mtu: _wire2api_opt_box_autoadd_u32(arr[4]),
-      preUp: _wire2api_opt_String(arr[5]),
-      postUp: _wire2api_opt_String(arr[6]),
-      preDown: _wire2api_opt_String(arr[7]),
-      postDown: _wire2api_opt_String(arr[8]),
-      protocol: _wire2api_i32(arr[9]),
-    );
-  }
-
-  List<Peer> _wire2api_list_peer(dynamic raw) {
-    return (raw as List<dynamic>).map(_wire2api_peer).toList();
-  }
-
-  String? _wire2api_opt_String(dynamic raw) {
-    return raw == null ? null : _wire2api_String(raw);
-  }
-
-  ClientInfo? _wire2api_opt_box_autoadd_client_info(dynamic raw) {
-    return raw == null ? null : _wire2api_box_autoadd_client_info(raw);
-  }
-
-  ClientMessage? _wire2api_opt_box_autoadd_client_message(dynamic raw) {
-    return raw == null ? null : _wire2api_box_autoadd_client_message(raw);
-  }
-
-  Interface? _wire2api_opt_box_autoadd_interface(dynamic raw) {
-    return raw == null ? null : _wire2api_box_autoadd_interface(raw);
-  }
-
-  int? _wire2api_opt_box_autoadd_u32(dynamic raw) {
-    return raw == null ? null : _wire2api_box_autoadd_u32(raw);
-  }
-
-  Peer _wire2api_peer(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-    return Peer(
-      endpoint: _wire2api_opt_String(arr[0]),
-      allowedIp: _wire2api_StringList(arr[1]),
-      publicKey: _wire2api_String(arr[2]),
-      persistenceKeepAlive: _wire2api_u32(arr[3]),
-      address: _wire2api_StringList(arr[4]),
-    );
-  }
-
-  int _wire2api_u32(dynamic raw) {
-    return raw as int;
   }
 
   int _wire2api_u8(dynamic raw) {
@@ -265,30 +135,9 @@ class FornetLibImpl implements FornetLib {
   void _wire2api_unit(dynamic raw) {
     return;
   }
-
-  WrConfig _wire2api_wr_config(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return WrConfig(
-      interface: _wire2api_opt_box_autoadd_interface(arr[0]),
-      peers: _wire2api_list_peer(arr[1]),
-      typ: _wire2api_i32(arr[2]),
-    );
-  }
 }
 
 // Section: api2wire
-
-@protected
-int api2wire_i32(int raw) {
-  return raw;
-}
-
-@protected
-int api2wire_u32(int raw) {
-  return raw;
-}
 
 @protected
 int api2wire_u8(int raw) {
@@ -299,7 +148,6 @@ int api2wire_u8(int raw) {
 int api2wire_usize(int raw) {
   return raw;
 }
-
 // Section: finalizer
 
 class FornetLibPlatform extends FlutterRustBridgeBase<FornetLibWire> {
@@ -313,81 +161,6 @@ class FornetLibPlatform extends FlutterRustBridgeBase<FornetLibWire> {
   }
 
   @protected
-  ffi.Pointer<wire_StringList> api2wire_StringList(List<String> raw) {
-    final ans = inner.new_StringList_0(raw.length);
-    for (var i = 0; i < raw.length; i++) {
-      ans.ref.ptr[i] = api2wire_String(raw[i]);
-    }
-    return ans;
-  }
-
-  @protected
-  ffi.Pointer<wire_ClientInfo> api2wire_box_autoadd_client_info(
-      ClientInfo raw) {
-    final ptr = inner.new_box_autoadd_client_info_0();
-    _api_fill_to_wire_client_info(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_ClientMessage> api2wire_box_autoadd_client_message(
-      ClientMessage raw) {
-    final ptr = inner.new_box_autoadd_client_message_0();
-    _api_fill_to_wire_client_message(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_Interface> api2wire_box_autoadd_interface(Interface raw) {
-    final ptr = inner.new_box_autoadd_interface_0();
-    _api_fill_to_wire_interface(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<ffi.Uint32> api2wire_box_autoadd_u32(int raw) {
-    return inner.new_box_autoadd_u32_0(api2wire_u32(raw));
-  }
-
-  @protected
-  ffi.Pointer<wire_WrConfig> api2wire_box_autoadd_wr_config(WrConfig raw) {
-    final ptr = inner.new_box_autoadd_wr_config_0();
-    _api_fill_to_wire_wr_config(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_list_peer> api2wire_list_peer(List<Peer> raw) {
-    final ans = inner.new_list_peer_0(raw.length);
-    for (var i = 0; i < raw.length; ++i) {
-      _api_fill_to_wire_peer(raw[i], ans.ref.ptr[i]);
-    }
-    return ans;
-  }
-
-  @protected
-  ffi.Pointer<wire_uint_8_list> api2wire_opt_String(String? raw) {
-    return raw == null ? ffi.nullptr : api2wire_String(raw);
-  }
-
-  @protected
-  ffi.Pointer<wire_ClientInfo> api2wire_opt_box_autoadd_client_info(
-      ClientInfo? raw) {
-    return raw == null ? ffi.nullptr : api2wire_box_autoadd_client_info(raw);
-  }
-
-  @protected
-  ffi.Pointer<wire_Interface> api2wire_opt_box_autoadd_interface(
-      Interface? raw) {
-    return raw == null ? ffi.nullptr : api2wire_box_autoadd_interface(raw);
-  }
-
-  @protected
-  ffi.Pointer<ffi.Uint32> api2wire_opt_box_autoadd_u32(int? raw) {
-    return raw == null ? ffi.nullptr : api2wire_box_autoadd_u32(raw);
-  }
-
-  @protected
   ffi.Pointer<wire_uint_8_list> api2wire_uint_8_list(Uint8List raw) {
     final ans = inner.new_uint_8_list_0(raw.length);
     ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
@@ -397,89 +170,6 @@ class FornetLibPlatform extends FlutterRustBridgeBase<FornetLibWire> {
 // Section: finalizer
 
 // Section: api_fill_to_wire
-
-  void _api_fill_to_wire_box_autoadd_client_info(
-      ClientInfo apiObj, ffi.Pointer<wire_ClientInfo> wireObj) {
-    _api_fill_to_wire_client_info(apiObj, wireObj.ref);
-  }
-
-  void _api_fill_to_wire_box_autoadd_client_message(
-      ClientMessage apiObj, ffi.Pointer<wire_ClientMessage> wireObj) {
-    _api_fill_to_wire_client_message(apiObj, wireObj.ref);
-  }
-
-  void _api_fill_to_wire_box_autoadd_interface(
-      Interface apiObj, ffi.Pointer<wire_Interface> wireObj) {
-    _api_fill_to_wire_interface(apiObj, wireObj.ref);
-  }
-
-  void _api_fill_to_wire_box_autoadd_wr_config(
-      WrConfig apiObj, ffi.Pointer<wire_WrConfig> wireObj) {
-    _api_fill_to_wire_wr_config(apiObj, wireObj.ref);
-  }
-
-  void _api_fill_to_wire_client_info(
-      ClientInfo apiObj, wire_ClientInfo wireObj) {
-    if (apiObj is ClientInfo_Config) {
-      var pre_field0 = api2wire_box_autoadd_wr_config(apiObj.field0);
-      wireObj.tag = 0;
-      wireObj.kind = inner.inflate_ClientInfo_Config();
-      wireObj.kind.ref.Config.ref.field0 = pre_field0;
-      return;
-    }
-    if (apiObj is ClientInfo_Status) {
-      var pre_field0 = api2wire_i32(apiObj.field0);
-      wireObj.tag = 1;
-      wireObj.kind = inner.inflate_ClientInfo_Status();
-      wireObj.kind.ref.Status.ref.field0 = pre_field0;
-      return;
-    }
-  }
-
-  void _api_fill_to_wire_client_message(
-      ClientMessage apiObj, wire_ClientMessage wireObj) {
-    wireObj.network_id = api2wire_String(apiObj.networkId);
-    wireObj.info = api2wire_opt_box_autoadd_client_info(apiObj.info);
-  }
-
-  void _api_fill_to_wire_interface(Interface apiObj, wire_Interface wireObj) {
-    wireObj.name = api2wire_opt_String(apiObj.name);
-    wireObj.address = api2wire_StringList(apiObj.address);
-    wireObj.listen_port = api2wire_i32(apiObj.listenPort);
-    wireObj.dns = api2wire_StringList(apiObj.dns);
-    wireObj.mtu = api2wire_opt_box_autoadd_u32(apiObj.mtu);
-    wireObj.pre_up = api2wire_opt_String(apiObj.preUp);
-    wireObj.post_up = api2wire_opt_String(apiObj.postUp);
-    wireObj.pre_down = api2wire_opt_String(apiObj.preDown);
-    wireObj.post_down = api2wire_opt_String(apiObj.postDown);
-    wireObj.protocol = api2wire_i32(apiObj.protocol);
-  }
-
-  void _api_fill_to_wire_opt_box_autoadd_client_info(
-      ClientInfo? apiObj, ffi.Pointer<wire_ClientInfo> wireObj) {
-    if (apiObj != null)
-      _api_fill_to_wire_box_autoadd_client_info(apiObj, wireObj);
-  }
-
-  void _api_fill_to_wire_opt_box_autoadd_interface(
-      Interface? apiObj, ffi.Pointer<wire_Interface> wireObj) {
-    if (apiObj != null)
-      _api_fill_to_wire_box_autoadd_interface(apiObj, wireObj);
-  }
-
-  void _api_fill_to_wire_peer(Peer apiObj, wire_Peer wireObj) {
-    wireObj.endpoint = api2wire_opt_String(apiObj.endpoint);
-    wireObj.allowed_ip = api2wire_StringList(apiObj.allowedIp);
-    wireObj.public_key = api2wire_String(apiObj.publicKey);
-    wireObj.persistence_keep_alive = api2wire_u32(apiObj.persistenceKeepAlive);
-    wireObj.address = api2wire_StringList(apiObj.address);
-  }
-
-  void _api_fill_to_wire_wr_config(WrConfig apiObj, wire_WrConfig wireObj) {
-    wireObj.interface = api2wire_opt_box_autoadd_interface(apiObj.interface);
-    wireObj.peers = api2wire_list_peer(apiObj.peers);
-    wireObj.typ = api2wire_i32(apiObj.typ);
-  }
 }
 
 // ignore_for_file: camel_case_types, non_constant_identifier_names, avoid_positional_boolean_parameters, annotate_overrides, constant_identifier_names
@@ -660,106 +350,6 @@ class FornetLibWire implements FlutterRustBridgeWireBase {
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>('wire_version');
   late final _wire_version = _wire_versionPtr.asFunction<void Function(int)>();
 
-  void wire_test_param(
-    int port_,
-    ffi.Pointer<wire_ClientMessage> client_message,
-  ) {
-    return _wire_test_param(
-      port_,
-      client_message,
-    );
-  }
-
-  late final _wire_test_paramPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.Int64, ffi.Pointer<wire_ClientMessage>)>>('wire_test_param');
-  late final _wire_test_param = _wire_test_paramPtr
-      .asFunction<void Function(int, ffi.Pointer<wire_ClientMessage>)>();
-
-  ffi.Pointer<wire_StringList> new_StringList_0(
-    int len,
-  ) {
-    return _new_StringList_0(
-      len,
-    );
-  }
-
-  late final _new_StringList_0Ptr = _lookup<
-          ffi.NativeFunction<ffi.Pointer<wire_StringList> Function(ffi.Int32)>>(
-      'new_StringList_0');
-  late final _new_StringList_0 = _new_StringList_0Ptr
-      .asFunction<ffi.Pointer<wire_StringList> Function(int)>();
-
-  ffi.Pointer<wire_ClientInfo> new_box_autoadd_client_info_0() {
-    return _new_box_autoadd_client_info_0();
-  }
-
-  late final _new_box_autoadd_client_info_0Ptr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<wire_ClientInfo> Function()>>(
-          'new_box_autoadd_client_info_0');
-  late final _new_box_autoadd_client_info_0 = _new_box_autoadd_client_info_0Ptr
-      .asFunction<ffi.Pointer<wire_ClientInfo> Function()>();
-
-  ffi.Pointer<wire_ClientMessage> new_box_autoadd_client_message_0() {
-    return _new_box_autoadd_client_message_0();
-  }
-
-  late final _new_box_autoadd_client_message_0Ptr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<wire_ClientMessage> Function()>>(
-          'new_box_autoadd_client_message_0');
-  late final _new_box_autoadd_client_message_0 =
-      _new_box_autoadd_client_message_0Ptr
-          .asFunction<ffi.Pointer<wire_ClientMessage> Function()>();
-
-  ffi.Pointer<wire_Interface> new_box_autoadd_interface_0() {
-    return _new_box_autoadd_interface_0();
-  }
-
-  late final _new_box_autoadd_interface_0Ptr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<wire_Interface> Function()>>(
-          'new_box_autoadd_interface_0');
-  late final _new_box_autoadd_interface_0 = _new_box_autoadd_interface_0Ptr
-      .asFunction<ffi.Pointer<wire_Interface> Function()>();
-
-  ffi.Pointer<ffi.Uint32> new_box_autoadd_u32_0(
-    int value,
-  ) {
-    return _new_box_autoadd_u32_0(
-      value,
-    );
-  }
-
-  late final _new_box_autoadd_u32_0Ptr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Uint32> Function(ffi.Uint32)>>(
-          'new_box_autoadd_u32_0');
-  late final _new_box_autoadd_u32_0 = _new_box_autoadd_u32_0Ptr
-      .asFunction<ffi.Pointer<ffi.Uint32> Function(int)>();
-
-  ffi.Pointer<wire_WrConfig> new_box_autoadd_wr_config_0() {
-    return _new_box_autoadd_wr_config_0();
-  }
-
-  late final _new_box_autoadd_wr_config_0Ptr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<wire_WrConfig> Function()>>(
-          'new_box_autoadd_wr_config_0');
-  late final _new_box_autoadd_wr_config_0 = _new_box_autoadd_wr_config_0Ptr
-      .asFunction<ffi.Pointer<wire_WrConfig> Function()>();
-
-  ffi.Pointer<wire_list_peer> new_list_peer_0(
-    int len,
-  ) {
-    return _new_list_peer_0(
-      len,
-    );
-  }
-
-  late final _new_list_peer_0Ptr = _lookup<
-          ffi.NativeFunction<ffi.Pointer<wire_list_peer> Function(ffi.Int32)>>(
-      'new_list_peer_0');
-  late final _new_list_peer_0 = _new_list_peer_0Ptr
-      .asFunction<ffi.Pointer<wire_list_peer> Function(int)>();
-
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
     int len,
   ) {
@@ -774,26 +364,6 @@ class FornetLibWire implements FlutterRustBridgeWireBase {
               ffi.Int32)>>('new_uint_8_list_0');
   late final _new_uint_8_list_0 = _new_uint_8_list_0Ptr
       .asFunction<ffi.Pointer<wire_uint_8_list> Function(int)>();
-
-  ffi.Pointer<ClientInfoKind> inflate_ClientInfo_Config() {
-    return _inflate_ClientInfo_Config();
-  }
-
-  late final _inflate_ClientInfo_ConfigPtr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<ClientInfoKind> Function()>>(
-          'inflate_ClientInfo_Config');
-  late final _inflate_ClientInfo_Config = _inflate_ClientInfo_ConfigPtr
-      .asFunction<ffi.Pointer<ClientInfoKind> Function()>();
-
-  ffi.Pointer<ClientInfoKind> inflate_ClientInfo_Status() {
-    return _inflate_ClientInfo_Status();
-  }
-
-  late final _inflate_ClientInfo_StatusPtr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<ClientInfoKind> Function()>>(
-          'inflate_ClientInfo_Status');
-  late final _inflate_ClientInfo_Status = _inflate_ClientInfo_StatusPtr
-      .asFunction<ffi.Pointer<ClientInfoKind> Function()>();
 
   void free_WireSyncReturn(
     WireSyncReturn ptr,
@@ -817,94 +387,6 @@ final class wire_uint_8_list extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
-}
-
-final class wire_StringList extends ffi.Struct {
-  external ffi.Pointer<ffi.Pointer<wire_uint_8_list>> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
-final class wire_Interface extends ffi.Struct {
-  external ffi.Pointer<wire_uint_8_list> name;
-
-  external ffi.Pointer<wire_StringList> address;
-
-  @ffi.Int32()
-  external int listen_port;
-
-  external ffi.Pointer<wire_StringList> dns;
-
-  external ffi.Pointer<ffi.Uint32> mtu;
-
-  external ffi.Pointer<wire_uint_8_list> pre_up;
-
-  external ffi.Pointer<wire_uint_8_list> post_up;
-
-  external ffi.Pointer<wire_uint_8_list> pre_down;
-
-  external ffi.Pointer<wire_uint_8_list> post_down;
-
-  @ffi.Int32()
-  external int protocol;
-}
-
-final class wire_Peer extends ffi.Struct {
-  external ffi.Pointer<wire_uint_8_list> endpoint;
-
-  external ffi.Pointer<wire_StringList> allowed_ip;
-
-  external ffi.Pointer<wire_uint_8_list> public_key;
-
-  @ffi.Uint32()
-  external int persistence_keep_alive;
-
-  external ffi.Pointer<wire_StringList> address;
-}
-
-final class wire_list_peer extends ffi.Struct {
-  external ffi.Pointer<wire_Peer> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
-final class wire_WrConfig extends ffi.Struct {
-  external ffi.Pointer<wire_Interface> interface1;
-
-  external ffi.Pointer<wire_list_peer> peers;
-
-  @ffi.Int32()
-  external int typ;
-}
-
-final class wire_ClientInfo_Config extends ffi.Struct {
-  external ffi.Pointer<wire_WrConfig> field0;
-}
-
-final class wire_ClientInfo_Status extends ffi.Struct {
-  @ffi.Int32()
-  external int field0;
-}
-
-final class ClientInfoKind extends ffi.Union {
-  external ffi.Pointer<wire_ClientInfo_Config> Config;
-
-  external ffi.Pointer<wire_ClientInfo_Status> Status;
-}
-
-final class wire_ClientInfo extends ffi.Struct {
-  @ffi.Int32()
-  external int tag;
-
-  external ffi.Pointer<ClientInfoKind> kind;
-}
-
-final class wire_ClientMessage extends ffi.Struct {
-  external ffi.Pointer<wire_uint_8_list> network_id;
-
-  external ffi.Pointer<wire_ClientInfo> info;
 }
 
 typedef DartPostCObjectFnType = ffi.Pointer<

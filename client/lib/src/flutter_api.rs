@@ -108,79 +108,74 @@ pub fn version() -> anyhow::Result<String> {
 
 
 
-use crate::protobuf::config::*;
+// pub use crate::protobuf::config::{Interface, Peer,PeerChange,WrConfig};
+//
+//
+//
+// #[frb(mirror(Interface))]
+// pub struct _Interface {
+//     pub name: Option<String>,
+//     pub address: Vec<String>,
+//     pub listen_port: i32,
+//     pub dns: Vec<String>,
+//     pub mtu: Option<u32>,
+//     pub pre_up: Option<String>,
+//     pub post_up: Option<String>,
+//     pub pre_down: Option<String>,
+//     pub post_down: Option<String>,
+//     pub protocol: i32,
+// }
+//
+// #[frb(mirror(Peer))]
+// pub struct _Peer {
+//     pub endpoint: Option<String>,
+//     pub allowed_ip: Vec<String>,
+//     pub public_key: String,
+//     pub persistence_keep_alive: u32,
+//     pub address:Vec<String>,
+// }
+// #[frb(mirror(PeerChange))]
+// pub struct _PeerChange {
+//     pub add_peer: Option<Peer>,
+//     pub remove_public_key: Option<String>,
+//     pub change_peer: Option<Peer>,
+// }
+//
+// #[frb(mirror(WrConfig))]
+// pub struct _WrConfig {
+//     pub interface: Option<Interface>,
+//     pub peers: Vec<Peer>,
+//     pub r#type: i32,
+// }
+//
+//
+// //#[frb(mirror(crate::protobuf::config::client_message::Info))]
+// //enum _ClientInfo {
+// //    Config(WrConfig),
+// //    Status(i32),
+// //}
+// pub use crate::server_manager::ServerMessage;
+//
+// #[frb(mirror(ServerMessage))]
+// pub enum _ServerMessage{
+//     StopWR{network_id:String,reason:String, delete_network:bool},
+//     SyncPeers(String, PeerChange),
+//     SyncConfig(String, WrConfig),
+// }
+//
+// #[frb(mirror(NodeType))]
+// enum _NodeType {
+//     NodeClient = 0,
+//     NodeRelay = 1,
+// }
+// #[frb(mirror(NodeStatus))]
+// enum _NodeStatus {
+//     NodeWaiting = 0,
+//     NodeNormal = 1,
+//     NodeForbid = 2,
+// }
 
-
-
-#[frb(mirror(Interface))]
-pub struct _Interface {
-    pub name: Option<String>,
-    pub address: Vec<String>,
-    pub listen_port: i32,
-    pub dns: Vec<String>,
-    pub mtu: Option<u32>,
-    pub pre_up: Option<String>,
-    pub post_up: Option<String>,
-    pub pre_down: Option<String>,
-    pub post_down: Option<String>,
-    pub protocol: i32,
-}
-
-#[frb(mirror(Peer))]
-struct _Peer {
-    pub endpoint: Option<String>,
-    pub allowed_ip: Vec<String>,
-    pub public_key: String,
-    pub persistence_keep_alive: u32,
-    pub address:Vec<String>,
-}
-#[frb(mirror(PeerChange))]
-struct _PeerChange {
-
-    pub add_peer: Option<Peer>,
-
-    pub remove_public_key: Option<String>,
-    pub change_peer: Option<Peer>,
-}
-
-#[frb(mirror(WrConfig))]
-struct _WrConfig {
-    pub interface: Option<Interface>,
-    pub peers: Vec<Peer>,
-    pub typ: i32,
-}
-use client_message::Info as ClientInfo;
-#[frb(mirror(ClientMessage))]
-struct _ClientMessage {
-    pub network_id: String,
-    pub info: Option<ClientInfo>,
-}
-#[frb(mirror(ClientInfo))]
-enum _Info {
-    Config(WrConfig),
-    Status(i32),
-}
-
-use network_message::Info as NetworkInfo;
-#[frb(mirror(NetworkMessage))]
-struct _NetworkMessage {
-    pub network_id: String,
-    pub info: Option<NetworkInfo>,
-}
-
-#[frb(mirror(NodeType))]
-enum _NodeType {
-    NodeClient = 0,
-    NodeRelay = 1,
-}
-#[frb(mirror(NodeStatus))]
-enum _NodeStatus {
-    NodeWaiting = 0,
-    NodeNormal = 1,
-    NodeForbid = 2,
-}
-
-pub fn test_param(client_message: ClientMessage) -> Option<ClientMessage>{
-    None
-}
+// pub fn test_param(client_message: ServerMessage) -> Option<ServerMessage>{
+//    None
+// }
 

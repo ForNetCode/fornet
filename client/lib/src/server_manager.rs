@@ -77,9 +77,9 @@ impl ServerManager {
                     Some(message) = rx.recv() => {
                         tracing::debug!("GOT = {:?}", message);
                         match message {
-                            ServerMessage::StopWR{ network_id,reason, delete_tun} => {
+                            ServerMessage::StopWR{ network_id,reason, delete_network} => {
                                 tracing::info!("stop proxy, reason: {}", reason);
-                                if delete_tun {
+                                if delete_network {
                                     // this must be true...
                                     if let Some(config) = &mut server_manager.config {
                                         let mut server_config = config.server_config.write().await;
@@ -162,7 +162,7 @@ impl ServerManager {
 #[derive(Debug, Clone)]
 pub enum ServerMessage {
     // NodeStatus::Normal => start WireGuard, other => stop WireGuard
-    StopWR{network_id:String,reason:String, delete_tun:bool},
+    StopWR{network_id:String,reason:String, delete_network:bool},
     SyncPeers(String, crate::protobuf::config::PeerChange),
     SyncConfig(String, WrConfig),
 }
