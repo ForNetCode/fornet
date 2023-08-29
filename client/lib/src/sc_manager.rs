@@ -45,8 +45,6 @@ struct MqttWrapper2 {
     pub client_topic: String,
 }
 
-impl MqttWrapper2 {}
-
 #[async_trait]
 impl AsyncEventHandler for MqttWrapper2 {
     async fn handle(&mut self, event: Packet) {
@@ -87,6 +85,7 @@ impl AsyncEventHandler for MqttWrapper2 {
                                                             delete_network: true,
                                                         }
                                                     ).await;
+                                                    self.network_topics = self.network_topics.into_iter().filter(|network_topic| &network_topic != topic).collect();
                                                     self.deduplication.wr_config = None;
                                                 }
                                                 _ => {
@@ -118,6 +117,7 @@ impl AsyncEventHandler for MqttWrapper2 {
                                                     delete_network: true,
                                                 }
                                             ).await;
+                                            self.network_topics = self.network_topics.into_iter().filter(|network_topic| &network_topic != topic).collect();
                                             let d = self.mqtt_client.unsubscribe(topic.clone()).await;
 
 
@@ -131,7 +131,7 @@ impl AsyncEventHandler for MqttWrapper2 {
                         }
                     }
                     _ => {
-                        tracing::warn!("topic:{} message can not decode, may should update software", p.topic);
+                        tracing::warn!("topic:{} message does not handle, may should update software", p.topic);
                     }
                 }
             }

@@ -162,7 +162,7 @@ impl ServerManager {
 #[derive(Debug, Clone)]
 pub enum ServerMessage {
     // NodeStatus::Normal => start WireGuard, other => stop WireGuard
-    StopWR{network_id:String,reason:String, delete_network:bool},
+    StopWR{network_id:String,reason:String, delete_network:bool, },
     SyncPeers(String, crate::protobuf::config::PeerChange),
     SyncConfig(String, WrConfig),
 }

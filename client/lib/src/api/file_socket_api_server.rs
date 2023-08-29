@@ -1,35 +1,34 @@
 use std::sync::Arc;
+use anyhow::Context;
 use cfg_if::cfg_if;
-use libc::read;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::Receiver;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Mutex};
 use tokio::task::JoinHandle;
 use crate::api::{api_error, api_success, ApiJsonResponse, ApiResponse, JoinNetworkResult};
 use crate::client_manager::ForNetClient;
+use crate::sc_manager::ConfigSyncManager;
 use crate::server_api::{APISocket, get_server_api_socket_path};
 
-struct FileSocketApiServer {
-    client_manager:Arc<RwLock<ForNetClient>>,
+pub struct FileSocketApiServer {
     handler: JoinHandle<()>
 }
 
 impl FileSocketApiServer {
-    pub fn start(client_manager:Arc<RwLock<ForNetClient>>) ->anyhow::Result<()> {
-        let (sender, mut receiver) = tokio::sync::mpsc::channel::<APISocket>(10);
+    pub fn start(client_manager:Arc<RwLock<ForNetClient>>,  config_sync_manager: Arc<Mutex<ConfigSyncManager>>) ->anyhow::Result<FileSocketApiServer> {
+        let (sender, receiver) = tokio::sync::mpsc::channel::<APISocket>(10);
         let handler = crate::server_api::init_api_server(
             sender, get_server_api_socket_path()
-        )?;
-        let server = Arc::new(FileSocketApiServer{
-            client_manager,
+        ).with_context(|| "init file socket api server fail")?;
+        let server = FileSocketApiServer {
             handler,
-        });
-        FileSocketApiServer::api_handler(server.clone(), receiver);
-        Ok(())
-
+        };
+        server.api_handler(client_manager, config_sync_manager, receiver);
+        Ok(server)
     }
-    fn api_handler(server:Arc<FileSocketApiServer>, mut receiver:Receiver<APISocket>) {
-        tokio::spawn(async move{
+
+    fn api_handler(&self, client_manager:Arc<RwLock<ForNetClient>>,  config_sync_manager: Arc<Mutex<ConfigSyncManager>>, mut receiver:Receiver<APISocket>) {
+        tokio::spawn(async move {
             while let Some(mut stream) = receiver.recv().await  {
                 let mut buffer = vec![0u8;1024];
                 if let Ok(size) = stream.read(&mut buffer).await {
@@ -37,15 +36,22 @@ impl FileSocketApiServer {
                     let command:Vec<&str> = command.split(' ').collect::<Vec<&str>>();
                     match command[0] {
                         "join" => {
-                            let mut client_manager = server.client_manager.write().await;
-                            match client_manager.join_network(command[1]).await {
+                            let join_network_result = {
+                                client_manager.write().await.join_network(command[1]).await
+                            };
+                            match join_network_result {
                                 Ok(JoinNetworkResult::JoinSuccess(server_info, network_token_id))=> {
                                     let _ = stream.write(api_success("join success".to_owned()).to_json().as_bytes()).await;
+                                    let _  = config_sync_manager.lock().await.connect(server_info.mqtt_url).await;
                                 }
                                 Ok(JoinNetworkResult::WaitingSSOAuth {resp,sso,mut client,device_id}) => {
-                                    match client_manager.sso_auth_check(resp,&sso,&mut client, device_id).await {
-                                        Ok(server_config) => {
+                                    let sso_auth_check_result = {
+                                        client_manager.write().await.sso_auth_check(resp,&sso,&mut client, device_id).await
+                                    };
+                                    match sso_auth_check_result {
+                                        Ok((server_info, network_token_id)) => {
                                             let _ = stream.write(api_success("join success".to_owned()).to_json().as_bytes()).await;
+                                            let _  = config_sync_manager.lock().await.connect(server_info.mqtt_url).await;
                                         }
                                         Err(e)=> {
                                             let _ = stream.write(api_error(e.to_string()).to_json().as_bytes()).await;
@@ -58,7 +64,7 @@ impl FileSocketApiServer {
                             }
                         }
                         "list" => {
-                            let data = server.client_manager.read().await.list_network().await;
+                            let data = client_manager.read().await.list_network().await;
                             let _ = stream.write(ApiResponse::boxed(data).to_json().as_bytes()).await;
                         }
                         "autoLaunch" => {

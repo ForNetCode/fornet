@@ -1,7 +1,6 @@
-//#[cfg(not(target_os = "android"))]
-mod file_socket_api_server;
+#[cfg(not(target_os = "android"))]
+pub mod file_socket_api_server;
 
-use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 use anyhow::{anyhow, bail};

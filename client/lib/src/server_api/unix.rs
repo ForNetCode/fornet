@@ -11,19 +11,8 @@ pub type StreamResponse = Lines<BufReader<UnixStream>>;
 
 // pub const SERVER_API_SOCKET: &str =  "/var/run/fornet.sock";
 
-cfg_if!{
-    if #[cfg(target_os = "android")] {
-        pub fn get_server_api_socket_path(dir:&str) -> PathBuf {
-            //PathBuf::from("/tmp/fornet.sock")
-            PathBuf::from(dir).join("fornet.sock")
-        }
-
-    } else {
-        pub fn get_server_api_socket_path()-> PathBuf {
-            PathBuf::from("/var/run/fornet.sock")
-        }
-
-    }
+pub fn get_server_api_socket_path()-> PathBuf {
+    PathBuf::from("/var/run/fornet.sock")
 }
 
 pub fn init_api_server(sender: tokio::sync::mpsc::Sender<APISocket>, api_socket_path:PathBuf) -> anyhow::Result<JoinHandle<()>> {
@@ -31,18 +20,8 @@ pub fn init_api_server(sender: tokio::sync::mpsc::Sender<APISocket>, api_socket_
     if api_socket_path.exists() {
         std::fs::remove_file(&api_socket_path).with_context(||format!("remove api socket fail: {}", api_socket_path.display()))?;
     }
-    /*
-    match File::create("/storage/emulated/0/Android/data/com.fornet.ui/files/config/fornet_socket1.sock") {
-        Ok(_) => {
-            tracing::info!("create file success");
-        }
-        Err(e) => {
-            tracing::error!("create file failure,{}",e);
-        }
-    }*/
 
     let unix_listener = UnixListener::bind(&api_socket_path).with_context(|| format!("create api socket fail: {}", api_socket_path.display()))?;
-    //let unix_listener = UnixListener::bind("com.fornet.ui").with_context(|| format!("create api socket fail: {}", api_socket_path.display()))?;
     tracing::info!("api server open");
     let task:JoinHandle<()> = tokio::spawn(async move {
         while let Ok((stream, _)) = unix_listener.accept().await {

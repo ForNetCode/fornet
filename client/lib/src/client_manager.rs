@@ -2,17 +2,20 @@ use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use std::str::FromStr;
+use std::sync::Arc;
 use anyhow::{anyhow, bail};
 use cfg_if::cfg_if;
+use tokio::sync::RwLock;
 use tonic::transport::{Channel};
 use crate::api::{handle_oauth2, InviteToken, JoinNetworkResult, OAuthDevice, OAuthDeviceJWToken, server_invite_confirm, SSOLogin};
-use crate::config::{AppConfig, Identity, NetworkInfo, ServerConfig, ServerInfo};
+use crate::config::{AppConfig, Identity, ServerInfo};
 use crate::device::{Device};
 use crate::device::peer::AllowedIP;
 use crate::device::script_run::Scripts;
 use crate::protobuf::auth::auth_client::AuthClient;
 use crate::protobuf::auth::OAuthDeviceCodeRequest;
 use crate::protobuf::config::{NodeType, Peer, WrConfig, Protocol};
+use crate::server_manager::ServerMessage;
 use crate::wr_manager::{DeviceInfoResp};
 
 pub struct ForNetClient {
@@ -107,7 +110,7 @@ impl ForNetClient {
         bail!("please upgrade ForNet, it does not support the new join network format")
     }
 
-    pub async fn sso_auth_check(&self, response:OAuthDevice, sso_login:&SSOLogin, client:&mut AuthClient<Channel>, device_id:Option<String>) -> anyhow::Result<ServerConfig>{
+    pub async fn sso_auth_check(&mut self, response:OAuthDevice, sso_login:&SSOLogin, client:&mut AuthClient<Channel>, device_id:Option<String>) -> anyhow::Result<(ServerInfo,String)>{
         let mut max_retry = response.expires_in / (response.interval+1) -1;
         while max_retry > 0 {
             max_retry -= 1;
@@ -132,13 +135,15 @@ impl ForNetClient {
                 return match response {
                     Some(crate::protobuf::auth::action_response::Response::Error(message)) => bail!(message),
                     Some(crate::protobuf::auth::action_response::Response::Success(resp))=> {
-                        let network_info = NetworkInfo {network_id: sso_login.network_token_id.clone(), tun_name: None};
-                        Ok(ServerConfig {
+                        let server_config = ServerInfo {
                             server_url: sso_login.endpoint.clone(),
                             mqtt_url: resp.mqtt_url,
                             device_id: resp.device_id,
-                            info: vec![network_info],
-                        })
+                            network_id: vec![sso_login.network_token_id.clone()],
+                        };
+                        self.config.local_config.server_info.push(server_config.clone());
+                        self.config.local_config.save_config(&self.config.config_path)?;
+                        Ok((server_config, sso_login.network_token_id.clone()))
                     },
                     _ => bail!("analyse auth response error"),
                 }
@@ -279,6 +284,79 @@ impl ForNetClient {
             tracing::warn!("there's no device to close")
         }
     }
+}
+pub async  fn pc_handle_server_message(client:Arc<RwLock<ForNetClient>>, message:ServerMessage) {
+    tracing::debug!("GOT = {:?}", message);
+    match message {
+        ServerMessage::StopWR{ network_id,reason, delete_network} => {
+            tracing::info!("stop proxy, reason: {}", reason);
+            if delete_network {
+                // this must be true...
+                let mut client = client.write().await;
+                client.config.local_config.server_info = client.config.local_config.server_info.into_iter().filter_map(|mut x|{
+                    x.network_id = x.network_id.into_iter().filter(|x| x != &network_id).collect();
+                    if !x.network_id.is_empty() {
+                        Some(x)
+                    } else {
+                        None
+                    }}).collect();
+                let _ = client.config.local_config.save_config(&client.config.config_path);
+
+            }
+            client.write().await.close().await;
+        }
+        ServerMessage::SyncConfig(network_token_id,wr_config) => {
+            let mut client = client.write().await;
+            client.stop().await;
+            let _ = client.start(network_token_id, wr_config).await;
+        }
+        ServerMessage::SyncPeers(network_token_id, peer_change_message) => {
+
+            if let Some(public_key) = peer_change_message.remove_public_key {
+                let mut client = client.write().await;
+                if client.config.identity.pk_base64 != public_key {
+                    match Identity::get_pub_identity_from_base64(&public_key) {
+                        Ok((x_pub_key, _)) => {
+                            client.remove_peer(&x_pub_key).await;
+                        }
+                        Err(_) => {
+                            tracing::warn!("peer identity parse error")
+                        }
+                    }
+                }
+            }
+            if let Some(peer) = peer_change_message.add_peer {
+                let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
+                let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+                let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
+                if let Ok((x_pub_key,_)) = Identity::get_pub_identity_from_base64(&peer.public_key) {
+                    client.write().await.add_peer(
+                        x_pub_key,
+                        endpoint,
+                        &allowed_ip,
+                        ip,
+                        Some(peer.persistence_keep_alive as u16),
+                    ).await;
+                }
+
+            }
+            if let Some(peer) = peer_change_message.change_peer {
+                let mut client = client.write().await;
+                if &client.config.identity.pk_base64 != peer.public_key {
+                    let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
+                    let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+                    let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
+                    let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key).unwrap();
+                    client.add_peer(
+                        x_pub_key,
+                        endpoint,
+                        &allowed_ip,
+                        ip,
+                        Some(peer.persistence_keep_alive as u16),).await;
+                }
+            }
+        }
+    };
 }
 
 #[cfg(target_os = "macos")]
