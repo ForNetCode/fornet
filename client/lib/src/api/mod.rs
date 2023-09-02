@@ -1,5 +1,6 @@
 #[cfg(not(target_os = "android"))]
 pub mod file_socket_api_server;
+pub(crate) mod flutter_ffi;
 
 use std::path::PathBuf;
 use std::sync::Arc;

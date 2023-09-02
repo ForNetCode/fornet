@@ -26,11 +26,6 @@ pub extern "C" fn wire_list_network(port_: i64) {
     wire_list_network_impl(port_)
 }
 
-#[no_mangle]
-pub extern "C" fn wire_version(port_: i64) {
-    wire_version_impl(port_)
-}
-
 // Section: allocate functions
 
 #[no_mangle]

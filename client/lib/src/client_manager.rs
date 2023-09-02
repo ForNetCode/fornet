@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter, Pointer};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use std::str::FromStr;
@@ -18,10 +19,17 @@ use crate::protobuf::config::{NodeType, Peer, WrConfig, Protocol};
 use crate::server_manager::ServerMessage;
 use crate::wr_manager::{DeviceInfoResp};
 
+
 pub struct ForNetClient {
     pub config: AppConfig,
     pub device: Option<Device>,
     wr_configs: HashMap<String, WrConfig>
+}
+
+impl Debug for ForNetClient {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ForNetClient").finish()
+    }
 }
 
 impl ForNetClient {
@@ -285,7 +293,7 @@ impl ForNetClient {
         }
     }
 }
-pub async  fn pc_handle_server_message(client:Arc<RwLock<ForNetClient>>, message:ServerMessage) {
+pub async fn command_handle_server_message(client:Arc<RwLock<ForNetClient>>, message:ServerMessage) {
     tracing::debug!("GOT = {:?}", message);
     match message {
         ServerMessage::StopWR{ network_id,reason, delete_network} => {
@@ -293,7 +301,7 @@ pub async  fn pc_handle_server_message(client:Arc<RwLock<ForNetClient>>, message
             if delete_network {
                 // this must be true...
                 let mut client = client.write().await;
-                client.config.local_config.server_info = client.config.local_config.server_info.into_iter().filter_map(|mut x|{
+                client.config.local_config.server_info = client.config.local_config.server_info.clone().into_iter().filter_map(|mut x|{
                     x.network_id = x.network_id.into_iter().filter(|x| x != &network_id).collect();
                     if !x.network_id.is_empty() {
                         Some(x)
@@ -310,7 +318,7 @@ pub async  fn pc_handle_server_message(client:Arc<RwLock<ForNetClient>>, message
             client.stop().await;
             let _ = client.start(network_token_id, wr_config).await;
         }
-        ServerMessage::SyncPeers(network_token_id, peer_change_message) => {
+        ServerMessage::SyncPeers(_network_token_id, peer_change_message) => {
 
             if let Some(public_key) = peer_change_message.remove_public_key {
                 let mut client = client.write().await;
@@ -342,7 +350,7 @@ pub async  fn pc_handle_server_message(client:Arc<RwLock<ForNetClient>>, message
             }
             if let Some(peer) = peer_change_message.change_peer {
                 let mut client = client.write().await;
-                if &client.config.identity.pk_base64 != peer.public_key {
+                if &client.config.identity.pk_base64 != &peer.public_key {
                     let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
                     let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
                     let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());

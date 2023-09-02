@@ -13,7 +13,7 @@ abstract class FornetLib {
 
   FlutterRustBridgeTaskConstMeta get kGetConfigPathConstMeta;
 
-  Future<void> initRuntime(
+  Stream<ForNetFlutterMessage> initRuntime(
       {required String configPath,
       required int workThread,
       required String logLevel,
@@ -28,8 +28,9 @@ abstract class FornetLib {
   Future<String> listNetwork({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kListNetworkConstMeta;
+}
 
-  Future<String> version({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kVersionConstMeta;
+enum ForNetFlutterMessage {
+  Stop,
+  Start,
 }

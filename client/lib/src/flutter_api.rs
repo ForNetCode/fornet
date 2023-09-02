@@ -1,20 +1,21 @@
-use std::str::FromStr;
+use std::path::PathBuf;
 use cfg_if::cfg_if;
-use std::sync::OnceLock;
-use flutter_rust_bridge::frb;
+use std::sync::{Arc, OnceLock};
+use flutter_rust_bridge::StreamSink;
 
 use tokio::runtime::Runtime;
-use tracing::Level;
-use tracing_subscriber::prelude::*;
-use crate::{default_config_path, server_manager};
-
-use crate::server_api::{ApiClient, get_server_api_socket_path};
-use crate::server_manager::StartMethod;
+use tokio::sync::{Mutex, RwLock};
+use crate::{default_config_path};
+use crate::api::flutter_ffi::flutter_handler_server_message;
+use crate::client_manager::ForNetClient;
+use crate::config::AppConfig;
+use crate::sc_manager::ConfigSyncManager;
 
 #[derive(Debug)]
 struct DLLRuntime {
     rt:Runtime,
-    client: ApiClient,
+    client:Arc<RwLock<ForNetClient>>,
+    sync_manager:Arc<Mutex<ConfigSyncManager>>,
 }
 
 static RT:OnceLock<DLLRuntime> = OnceLock::new();
@@ -23,9 +24,9 @@ fn get_rt<'a>() -> &'a Runtime{
     &RT.get().unwrap().rt
 }
 
-fn get_client<'a>() -> &'a ApiClient {
-    &RT.get().unwrap().client
-}
+// fn get_client<'a>() -> &'a ApiClient {
+//     &RT.get().unwrap().client
+// }
 
 
 // MacOS/Linux/Windows
@@ -48,18 +49,23 @@ cfg_if! {
                 .init();
         }
     } else {
+        use std::str::FromStr;
         fn init_log(log_level:String) {
             tracing_subscriber::fmt()
                 .pretty()
-                .with_max_level(Level::from_str(&log_level).unwrap_or(Level::INFO))
+                .with_max_level(tracing::Level::from_str(&log_level).unwrap_or(tracing::Level::INFO))
                 .init();
         }
     }
 }
 
 
+pub enum ForNetFlutterMessage {
+    Stop,
+    Start,
+}
 
-pub fn init_runtime(config_path:String, work_thread:usize, log_level: String) -> anyhow::Result<()> {
+pub fn init_runtime(config_path:String, work_thread:usize, log_level: String, stream:StreamSink<ForNetFlutterMessage>) -> anyhow::Result<()> {
     // This is a workaround for the fact that Flutter always call in dev mode
     //tracing_subscriber::registry().with()
     if RT.get().is_some() {
@@ -70,23 +76,36 @@ pub fn init_runtime(config_path:String, work_thread:usize, log_level: String) ->
 
     //RT.set(tokio::runtime::Builder::new_multi_thread().worker_threads(work_thread).enable_all().build()?).unwrap();
     init_log(log_level);
-    cfg_if::cfg_if!{
-        if #[cfg(target_os="android")] {
-            let client = ApiClient::new(get_server_api_socket_path(&config_path));
-        }else {
-             let client = ApiClient::new(get_server_api_socket_path());
-        }
-    }
+
+
+    tracing::info!("init tokio runtime and log success, begin to start server");
+
+    let config_dir = PathBuf::from(config_path);
+    let app_config = AppConfig::load_config(&config_dir)?;
+    let client = Arc::new(RwLock::new(ForNetClient::new(app_config)));
+
+
+    let (config_sync_manager,mut receiver ) = ConfigSyncManager::new(client.clone());
+    let config_sync_manager = Arc::new(Mutex::new(config_sync_manager));
 
     let ddl_runtime = DLLRuntime {
         rt: tokio_runtime,
-        client,
+        client: client.clone(),
+        sync_manager: config_sync_manager,
     };
+
+
+    let stream = Arc::new(stream);
+    ddl_runtime.rt.spawn(async move {
+       while let Some(message) = receiver.recv().await {
+           flutter_handler_server_message(client.clone(),message, stream.clone()).await;
+       }
+    });
     RT.set(ddl_runtime).unwrap();
-    tracing::info!("init tokio runtime and log success, begin to start server");
     //let is_root = nix::unistd::Uid::effective().is_root();
     //tracing::info!("is root, {is_root}, {}",nix::unistd::Uid::effective());
-    get_rt().block_on(server_manager::ServerManager::start_server(config_path, StartMethod::FlutterLib))
+
+    Ok(())
 
 }
 
@@ -101,9 +120,9 @@ pub fn list_network() -> anyhow::Result<String> {
     todo!()
 }
 
-pub fn version() -> anyhow::Result<String> {
-    Ok(get_client().version())
-}
+//pub fn version() -> anyhow::Result<String> {
+//    Ok(get_client().version())
+//}
 
 
 

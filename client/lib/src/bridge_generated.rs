@@ -42,13 +42,20 @@ fn wire_init_runtime_impl(
         WrapInfo {
             debug_name: "init_runtime",
             port: Some(port_),
-            mode: FfiCallMode::Normal,
+            mode: FfiCallMode::Stream,
         },
         move || {
             let api_config_path = config_path.wire2api();
             let api_work_thread = work_thread.wire2api();
             let api_log_level = log_level.wire2api();
-            move |task_callback| init_runtime(api_config_path, api_work_thread, api_log_level)
+            move |task_callback| {
+                init_runtime(
+                    api_config_path,
+                    api_work_thread,
+                    api_log_level,
+                    task_callback.stream_sink::<_, ForNetFlutterMessage>(),
+                )
+            }
         },
     )
 }
@@ -73,16 +80,6 @@ fn wire_list_network_impl(port_: MessagePort) {
             mode: FfiCallMode::Normal,
         },
         move || move |task_callback| list_network(),
-    )
-}
-fn wire_version_impl(port_: MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, String>(
-        WrapInfo {
-            debug_name: "version",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || move |task_callback| version(),
     )
 }
 // Section: wrapper structs
@@ -120,6 +117,22 @@ impl Wire2Api<usize> for usize {
     }
 }
 // Section: impl IntoDart
+
+impl support::IntoDart for ForNetFlutterMessage {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Stop => 0,
+            Self::Start => 1,
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for ForNetFlutterMessage {}
+impl rust2dart::IntoIntoDart<ForNetFlutterMessage> for ForNetFlutterMessage {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
 
 // Section: executor
 

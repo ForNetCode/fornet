@@ -85,7 +85,7 @@ impl AsyncEventHandler for MqttWrapper2 {
                                                             delete_network: true,
                                                         }
                                                     ).await;
-                                                    self.network_topics = self.network_topics.into_iter().filter(|network_topic| &network_topic != topic).collect();
+                                                    self.network_topics = self.network_topics.clone().into_iter().filter(|network_topic| &network_topic != &topic).collect();
                                                     self.deduplication.wr_config = None;
                                                 }
                                                 _ => {
@@ -117,7 +117,7 @@ impl AsyncEventHandler for MqttWrapper2 {
                                                     delete_network: true,
                                                 }
                                             ).await;
-                                            self.network_topics = self.network_topics.into_iter().filter(|network_topic| &network_topic != topic).collect();
+                                            self.network_topics = self.network_topics.clone().into_iter().filter(|network_topic| &network_topic != &topic).collect();
                                             let d = self.mqtt_client.unsubscribe(topic.clone()).await;
 
 
@@ -379,6 +379,7 @@ impl SCManager {
     }
 }
 
+#[derive(Debug)]
 pub struct ConfigSyncManager {
     client_manager: Arc<RwLock<ForNetClient>>,
     mqtt_connections: Arc<Mutex<HashMap<String, MqttClient>>>,
@@ -414,7 +415,7 @@ impl ConfigSyncManager {
             loop {
                 tracing::debug!("begin to connect mqtt {}", &mqtt_url);
                 match ConfigSyncManager::connect_mqtt(mqtt_url.clone(), deduplication.clone(), sender.clone(), client_manager.clone(), mqtt_connections.clone()).await {
-                    Ok((duplication)) => {
+                    Ok(duplication) => {
                         let has_connection = { mqtt_connections.lock().await.contains_key(&mqtt_url) };
                         tokio::time::sleep(Duration::from_secs(10)).await;
                         {

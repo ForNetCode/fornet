@@ -42,7 +42,7 @@ class FornetLibImpl implements FornetLib {
         argNames: [],
       );
 
-  Future<void> initRuntime(
+  Stream<ForNetFlutterMessage> initRuntime(
       {required String configPath,
       required int workThread,
       required String logLevel,
@@ -50,10 +50,10 @@ class FornetLibImpl implements FornetLib {
     var arg0 = _platform.api2wire_String(configPath);
     var arg1 = api2wire_usize(workThread);
     var arg2 = _platform.api2wire_String(logLevel);
-    return _platform.executeNormal(FlutterRustBridgeTask(
+    return _platform.executeStream(FlutterRustBridgeTask(
       callFfi: (port_) =>
           _platform.inner.wire_init_runtime(port_, arg0, arg1, arg2),
-      parseSuccessData: _wire2api_unit,
+      parseSuccessData: _wire2api_for_net_flutter_message,
       constMeta: kInitRuntimeConstMeta,
       argValues: [configPath, workThread, logLevel],
       hint: hint,
@@ -99,22 +99,6 @@ class FornetLibImpl implements FornetLib {
         argNames: [],
       );
 
-  Future<String> version({dynamic hint}) {
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_version(port_),
-      parseSuccessData: _wire2api_String,
-      constMeta: kVersionConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kVersionConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "version",
-        argNames: [],
-      );
-
   void dispose() {
     _platform.dispose();
   }
@@ -124,16 +108,20 @@ class FornetLibImpl implements FornetLib {
     return raw as String;
   }
 
+  ForNetFlutterMessage _wire2api_for_net_flutter_message(dynamic raw) {
+    return ForNetFlutterMessage.values[raw as int];
+  }
+
+  int _wire2api_i32(dynamic raw) {
+    return raw as int;
+  }
+
   int _wire2api_u8(dynamic raw) {
     return raw as int;
   }
 
   Uint8List _wire2api_uint_8_list(dynamic raw) {
     return raw as Uint8List;
-  }
-
-  void _wire2api_unit(dynamic raw) {
-    return;
   }
 }
 
@@ -337,18 +325,6 @@ class FornetLibWire implements FlutterRustBridgeWireBase {
           'wire_list_network');
   late final _wire_list_network =
       _wire_list_networkPtr.asFunction<void Function(int)>();
-
-  void wire_version(
-    int port_,
-  ) {
-    return _wire_version(
-      port_,
-    );
-  }
-
-  late final _wire_versionPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>('wire_version');
-  late final _wire_version = _wire_versionPtr.asFunction<void Function(int)>();
 
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
     int len,

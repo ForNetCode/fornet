@@ -10,6 +10,7 @@ cfg_if! {
         pub use self::windows::*;
     }
 }
+
 #[derive(Debug)]
 pub struct ApiClient {
     client: _ApiClient
@@ -20,7 +21,6 @@ impl ApiClient {
             client: _ApiClient::new(path)
         }
     }
-
     pub async fn join_network(&self, invite_code:&str)->anyhow::Result<StreamResponse> {
         self.client.send_command_stream(&format!("join {}", invite_code)).await
     }
@@ -33,11 +33,9 @@ impl ApiClient {
         self.client.send_command(&format!("autoLaunch {sub_command}")).await
     }
 
-    pub fn version(&self) -> String {
-        env!("CARGO_PKG_VERSION").to_owned()
-    }
-
-
+    // pub fn version(&self) -> String {
+    //     env!("CARGO_PKG_VERSION").to_owned()
+    // }
 }
 
 
