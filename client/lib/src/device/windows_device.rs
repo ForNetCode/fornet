@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use anyhow::anyhow;
 use boringtun::noise::rate_limiter::RateLimiter;
 use socket2::Domain;
 use tokio::net::UdpSocket;
