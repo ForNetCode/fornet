@@ -138,15 +138,12 @@ pub fn join_network(invite_code:String) -> anyhow::Result<String> {
     }
 }
 
-#[frb(mirror(DeviceInfoResp))]
-pub struct _DeviceInfoResp {
-    name:String
-}
-pub fn list_network() -> anyhow::Result<Vec<DeviceInfoResp>> {
+pub fn list_network() -> anyhow::Result<Vec<String>> {
     let client = get_client();
-    Ok(get_rt().block_on(async move {
+    let result = get_rt().block_on(async move {
        client.read().await.list_network().await
-    }))
+    });
+    Ok(result.into_iter().map(|info| info.name).collect())
 }
 
 pub fn version() -> String {

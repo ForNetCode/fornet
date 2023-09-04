@@ -83,10 +83,10 @@ class FornetLibImpl implements FornetLib {
         argNames: ["inviteCode"],
       );
 
-  Future<List<DeviceInfoResp>> listNetwork({dynamic hint}) {
+  Future<List<String>> listNetwork({dynamic hint}) {
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner.wire_list_network(port_),
-      parseSuccessData: _wire2api_list_device_info_resp,
+      parseSuccessData: _wire2api_StringList,
       constMeta: kListNetworkConstMeta,
       argValues: [],
       hint: hint,
@@ -124,13 +124,8 @@ class FornetLibImpl implements FornetLib {
     return raw as String;
   }
 
-  DeviceInfoResp _wire2api_device_info_resp(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return DeviceInfoResp(
-      name: _wire2api_String(arr[0]),
-    );
+  List<String> _wire2api_StringList(dynamic raw) {
+    return (raw as List<dynamic>).cast<String>();
   }
 
   ForNetFlutterMessage _wire2api_for_net_flutter_message(dynamic raw) {
@@ -139,10 +134,6 @@ class FornetLibImpl implements FornetLib {
 
   int _wire2api_i32(dynamic raw) {
     return raw as int;
-  }
-
-  List<DeviceInfoResp> _wire2api_list_device_info_resp(dynamic raw) {
-    return (raw as List<dynamic>).map(_wire2api_device_info_resp).toList();
   }
 
   int _wire2api_u8(dynamic raw) {
