@@ -126,7 +126,7 @@ pub fn join_network(invite_code:String) -> anyhow::Result<String> {
              let _ = get_rt().block_on(async {
                  sync_manager.lock().await.connect(server_info.mqtt_url).await
              });
-             Ok("Join Success".to_owned)
+             Ok("Join Success".to_owned())
         }
 
         Ok(JoinNetworkResult::WaitingSSOAuth {..}) => {
@@ -139,14 +139,14 @@ pub fn join_network(invite_code:String) -> anyhow::Result<String> {
 }
 
 #[frb(mirror(DeviceInfoResp))]
-struct _DeviceInfoResp {
+pub struct _DeviceInfoResp {
     name:String
 }
 pub fn list_network() -> anyhow::Result<Vec<DeviceInfoResp>> {
     let client = get_client();
-    get_rt().block_on(async move {
-       client.read().await.list_network()
-    })
+    Ok(get_rt().block_on(async move {
+       client.read().await.list_network().await
+    }))
 }
 
 pub fn version() -> String {

@@ -8,12 +8,13 @@ use anyhow::{anyhow, bail};
 use serde_derive::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::Sender;
-use crate::config::{Config, Identity, LocalConfig, NetworkInfo, ServerConfig, ServerInfo};
+use crate::config::{Config, Identity, NetworkInfo, ServerConfig, ServerInfo};
 use crate::sc_manager::SCManager;
 use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
 use crate::server_api::APISocket;
 use crate::server_manager::{ServerManager, ServerMessage};
 use std::time::Duration;
+use base64::Engine;
 use cfg_if::cfg_if;
 use tonic::{
     transport::Channel,
@@ -35,7 +36,8 @@ async fn join_network(server_manager: &mut ServerManager, invite_code: &str, str
     } else {
         None
     };
-    let data = String::from_utf8(base64::decode(invite_code)?)?;
+
+    let data = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(invite_code)?)?;
     let data: Vec<&str> = data.split('|').collect();
     let version = data[0].parse::<u32>()?;
 
@@ -178,7 +180,7 @@ pub async fn api_handler(server_manager: &mut ServerManager, command: String, st
 
 #[cfg(target_os="macos")]
 async fn auto_launch_config(command:Vec<&str>,  stream: &mut APISocket) {
-    match env::current_dir()  {
+    match std::env::current_dir()  {
         Ok(x) => {
             let app_path = x.join(APP_NAME);
             let auto = crate::device::auto_launch::AutoLaunch::new( MAC_OS_PACKAGE_NAME.to_owned(), app_path.to_str().unwrap().to_owned());
@@ -394,7 +396,7 @@ impl SSOLogin {
 }
 
 pub fn invite_token_parse(data: &str) -> anyhow::Result<(u32, String, String, Option<String>)> {
-    let data = String::from_utf8(base64::decode(data)?)?;
+    let data = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(data)?)?;
     let data: Vec<&str> = data.split('|').collect();
     let version = data[0].parse::<u32>()?;
     if version == 1u32 || version == 2u32 {

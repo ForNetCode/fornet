@@ -5,6 +5,7 @@ use std::time::Duration;
 use std::str::FromStr;
 use std::sync::Arc;
 use anyhow::{anyhow, bail};
+use base64::Engine;
 use cfg_if::cfg_if;
 use tokio::sync::RwLock;
 use tonic::transport::{Channel};
@@ -45,7 +46,7 @@ impl ForNetClient {
         if !self.config.local_config.server_info.is_empty() {
             bail!("ForNet now don't support join multiple network")
         }
-        let data = String::from_utf8(base64::decode(invite_code)?)?;
+        let data = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(invite_code)?)?;
         let data: Vec<&str> = data.split('|').collect();
         let version = data[0].parse::<u32>()?;
         if version == 1u32 {
@@ -210,7 +211,7 @@ impl ForNetClient {
             if #[cfg(target_os = "windows")] {
                 let tun_name = &self.config.local_config.tun_name.clone().unwrap();
             } else {
-                let tun_name = &self.config.local_config.tun_name.clone();
+                let tun_name = self.config.local_config.tun_name.clone();
             }
         }
 
@@ -222,7 +223,7 @@ impl ForNetClient {
 
         tracing::debug!("begin to start device");
         let wr_interface = Device::new(
-            &tun_name,
+            tun_name,
             &address,
             key_pair,
             Some(interface.listen_port as u16),
@@ -374,7 +375,7 @@ pub async fn auto_launch(param:&str)->anyhow::Result<String> {
             let app_path = x.join(crate::APP_NAME);
             let auto = crate::device::auto_launch::AutoLaunch::new( crate::MAC_OS_PACKAGE_NAME.to_owned(), app_path.to_str().unwrap().to_owned());
 
-            tracing::debug!("app name:{APP_NAME}, app path: {:?}", app_path);
+            tracing::debug!("app name:{}, app path: {:?}",crate::APP_NAME, app_path);
             let is_enabled = auto.is_enabled();
             match param {
                 "enable" => {
@@ -388,7 +389,7 @@ pub async fn auto_launch(param:&str)->anyhow::Result<String> {
                         "enable auto launch success".to_owned()
                     })
                 }
-                Some(&"disable") => {
+                "disable" => {
                     (if is_enabled.is_err() {
                         Err(is_enabled.err().unwrap())
                     } else if !is_enabled.unwrap_or(false) {
@@ -405,13 +406,13 @@ pub async fn auto_launch(param:&str)->anyhow::Result<String> {
                     } else {
                         Ok(is_enabled.unwrap_or(false))
                     }).map(|x| {
-                        format!("{APP_NAME} auto launch: {}", if x { "enabled" } else { "disabled" })
+                        format!("{} auto launch: {}", crate::APP_NAME, if x { "enabled" } else { "disabled" })
                     })
                 }
             }
         }
         Err(e) => {
-            anyhow::anyhow!((e))
+            Err(anyhow::anyhow!(e))
         }
     }
 }

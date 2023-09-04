@@ -78,7 +78,7 @@ impl WRManager {
         }
         cfg_if! {
             if #[cfg(target_os = "windows")] {
-                let tun_name = config.get_tun_name();
+                let tun_name = &config.get_tun_name();
             } else {
                 let tun_name = config.get_tun_name(&network_token_id).await;
             }
@@ -91,7 +91,7 @@ impl WRManager {
         let key_pair = (config.identity.x25519_sk.clone(), config.identity.x25519_pk.clone());
         tracing::debug!("begin to start device");
         let wr_interface = Device::new(
-            &tun_name,
+            tun_name,
             &address,
             key_pair,
             Some(interface.listen_port as u16),

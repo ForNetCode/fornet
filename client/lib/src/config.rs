@@ -12,7 +12,7 @@ use cfg_if::cfg_if;
 //should not reserve
 use  std::collections::HashMap;
 use std::sync::Arc;
-use anyhow::anyhow;
+use base64::Engine;
 use tokio::sync::RwLock;
 use crate::protobuf::auth::EncryptRequest;
 
@@ -177,7 +177,7 @@ impl Identity {
         let ed25519_keypair = ed25519_compact::KeyPair::from_seed(Seed::default());
 
         Identity {
-            pk_base64: base64::encode(
+            pk_base64: base64::engine::general_purpose::STANDARD.encode(
                 [
                     x25519_public_key.to_bytes(),
                     ed25519_keypair.pk.deref().clone(),
@@ -217,7 +217,7 @@ impl Identity {
             x25519_pk,
             x25519_sk,
             ed25519_sk,
-            pk_base64: base64::encode(public_key),
+            pk_base64: base64::engine::general_purpose::STANDARD.encode(public_key),
             ed25519_pk,
         })
     }
@@ -241,7 +241,7 @@ impl Identity {
     pub fn get_pub_identity_from_base64(
         base64_str: &str,
     ) -> anyhow::Result<(x25519_dalek::PublicKey, ed25519_compact::PublicKey)> {
-        let public_key = base64::decode(base64_str)?;
+        let public_key = base64::engine::general_purpose::STANDARD.decode(base64_str)?;
         let x25519_pk = x25519_dalek::PublicKey::from(array_ref![public_key, 0, 32].clone());
         let ed25519_pk = ed25519_compact::PublicKey::new(array_ref![public_key, 32, 32].clone());
         Ok((x25519_pk, ed25519_pk))
@@ -251,7 +251,7 @@ impl Identity {
         let mut raw = vec![0; 16];
         OsRng.fill_bytes(&mut raw);
 
-        let nonce = base64::encode(&raw);
+        let nonce = base64::engine::general_purpose::STANDARD.encode(&raw);
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         let plain_text = if !params.is_empty() {
             let mut plain_text = params.join("|");
@@ -262,7 +262,7 @@ impl Identity {
         };
         //tracing::debug!("plain_text: {plain_text}");
         let signature = self.ed25519_sk.sign(plain_text, None);
-        let signature = base64::encode(*signature);
+        let signature =base64::engine::general_purpose::STANDARD.encode(*signature);
         Ok(EncryptRequest {
             public_key: self.pk_base64.clone(),
             timestamp,
@@ -271,16 +271,16 @@ impl Identity {
         })
     }
 }
-
 impl Debug for Identity {
+
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "Identity(x_sk:{}, x_pk:{}, ed_sk:{}, ed_pk:{})",
-            base64::encode(self.x25519_sk.to_bytes()),
-            base64::encode(self.x25519_pk.to_bytes()),
-            base64::encode(self.ed25519_sk.deref()),
-            base64::encode(self.ed25519_pk.deref()),
+            base64::engine::general_purpose::STANDARD.encode(self.x25519_sk.to_bytes()),
+            base64::engine::general_purpose::STANDARD.encode(self.x25519_pk.to_bytes()),
+            base64::engine::general_purpose::STANDARD.encode(self.ed25519_sk.deref()),
+            base64::engine::general_purpose::STANDARD.encode(self.ed25519_pk.deref()),
         )
     }
 }
@@ -360,7 +360,7 @@ impl LocalConfig {
         }
         Self{
             server_info:vec![],
-            tun_name:None,
+            tun_name,
         }
 
     }
@@ -414,38 +414,5 @@ mod tests {
         let z = serde_json::to_string_pretty(&b).unwrap();
         println!("{}", z);
     }
-    #[test]
-    fn identity_combine() {
-        let mut identity = Identity::new();
 
-        let x25519_pk: [u8; 32] = base64::decode("lpgpJqleWa1zqrk/O/jRThnqK1dGDzogKKicoefQrFs=")
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let x25519_sk: [u8; 32] = base64::decode("6LI166lIZJmAxMWzTf/r/KyIjKJXXFsry3Z0XDIRbHo=")
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let x25519_pk = x25519_dalek::PublicKey::from(x25519_pk);
-        let x25519_sk = x25519_dalek::StaticSecret::from(x25519_sk);
-        identity.x25519_sk = x25519_sk;
-        identity.x25519_pk = x25519_pk;
-
-        let public_key = base64::encode(
-            [
-                identity.x25519_pk.to_bytes(),
-                identity.ed25519_pk.deref().clone(),
-            ]
-            .concat(),
-        );
-        let private_key = base64::encode(
-            [
-                identity.x25519_sk.to_bytes(),
-                array_ref![identity.ed25519_sk.deref(), 0, 32].clone(),
-            ]
-            .concat(),
-        );
-        println!("{}", public_key);
-        println!("{}", private_key);
-    }
 }
