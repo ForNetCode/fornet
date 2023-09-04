@@ -25,9 +25,21 @@ abstract class FornetLib {
 
   FlutterRustBridgeTaskConstMeta get kJoinNetworkConstMeta;
 
-  Future<String> listNetwork({dynamic hint});
+  Future<List<DeviceInfoResp>> listNetwork({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kListNetworkConstMeta;
+
+  Future<String> version({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kVersionConstMeta;
+}
+
+class DeviceInfoResp {
+  final String name;
+
+  const DeviceInfoResp({
+    required this.name,
+  });
 }
 
 enum ForNetFlutterMessage {

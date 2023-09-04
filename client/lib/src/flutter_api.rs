@@ -1,15 +1,17 @@
 use std::path::PathBuf;
 use cfg_if::cfg_if;
 use std::sync::{Arc, OnceLock};
-use flutter_rust_bridge::StreamSink;
+use flutter_rust_bridge::{frb, StreamSink};
 
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, RwLock};
 use crate::{default_config_path};
 use crate::api::flutter_ffi::flutter_handler_server_message;
+use crate::api::JoinNetworkResult;
 use crate::client_manager::ForNetClient;
 use crate::config::AppConfig;
 use crate::sc_manager::ConfigSyncManager;
+use crate::wr_manager::DeviceInfoResp;
 
 #[derive(Debug)]
 struct DLLRuntime {
@@ -24,9 +26,13 @@ fn get_rt<'a>() -> &'a Runtime{
     &RT.get().unwrap().rt
 }
 
-// fn get_client<'a>() -> &'a ApiClient {
-//     &RT.get().unwrap().client
-// }
+fn get_client() -> Arc<RwLock<ForNetClient>> {
+    RT.get().unwrap().client.clone()
+}
+
+fn get_sync_manager() -> Arc<Mutex<ConfigSyncManager>> {
+    RT.get().unwrap().sync_manager.clone()
+}
 
 
 // MacOS/Linux/Windows
@@ -110,19 +116,42 @@ pub fn init_runtime(config_path:String, work_thread:usize, log_level: String, st
 }
 
 pub fn join_network(invite_code:String) -> anyhow::Result<String> {
-    todo!()
-    //get_rt().block_on(crate::api::command_api::join_network(&invite_code))
+    let client = get_client();
+    let sync_manager = get_sync_manager();
+    let result = get_rt().block_on(async move{
+        client.write().await.join_network(&invite_code).await
+    });
+    match result {
+         Ok(JoinNetworkResult::JoinSuccess(server_info,_)) => {
+             let _ = get_rt().block_on(async {
+                 sync_manager.lock().await.connect(server_info.mqtt_url).await
+             });
+             Ok("Join Success".to_owned)
+        }
 
+        Ok(JoinNetworkResult::WaitingSSOAuth {..}) => {
+            Ok("Not Implement".to_owned())
+        }
+        Err(e) => {
+            Err(e)
+        }
+    }
 }
 
-pub fn list_network() -> anyhow::Result<String> {
-    //get_rt().block_on(crate::api::command_api::list_network())
-    todo!()
+#[frb(mirror(DeviceInfoResp))]
+struct _DeviceInfoResp {
+    name:String
+}
+pub fn list_network() -> anyhow::Result<Vec<DeviceInfoResp>> {
+    let client = get_client();
+    get_rt().block_on(async move {
+       client.read().await.list_network()
+    })
 }
 
-//pub fn version() -> anyhow::Result<String> {
-//    Ok(get_client().version())
-//}
+pub fn version() -> String {
+   env!("CARGO_PKG_VERSION").to_owned()
+}
 
 
 

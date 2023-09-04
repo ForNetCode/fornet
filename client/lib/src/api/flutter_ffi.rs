@@ -7,5 +7,6 @@ use crate::server_manager::ServerMessage;
 
 pub async fn flutter_handler_server_message(client:Arc<RwLock<ForNetClient>>, message:ServerMessage, stream:Arc<StreamSink<ForNetFlutterMessage>>) {
     tracing::debug!("GOT = {:?}", message);
+    //stream.add(ForNetFlutterMessage::Stop);
 
 }

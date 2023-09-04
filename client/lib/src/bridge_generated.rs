@@ -73,7 +73,7 @@ fn wire_join_network_impl(port_: MessagePort, invite_code: impl Wire2Api<String>
     )
 }
 fn wire_list_network_impl(port_: MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, String>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Vec<mirror_DeviceInfoResp>>(
         WrapInfo {
             debug_name: "list_network",
             port: Some(port_),
@@ -82,10 +82,27 @@ fn wire_list_network_impl(port_: MessagePort) {
         move || move |task_callback| list_network(),
     )
 }
+fn wire_version_impl(port_: MessagePort) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, String>(
+        WrapInfo {
+            debug_name: "version",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || move |task_callback| Ok(version()),
+    )
+}
 // Section: wrapper structs
+
+#[derive(Clone)]
+pub struct mirror_DeviceInfoResp(DeviceInfoResp);
 
 // Section: static checks
 
+const _: fn() = || {
+    let DeviceInfoResp = None::<DeviceInfoResp>.unwrap();
+    let _: String = DeviceInfoResp.name;
+};
 // Section: allocate functions
 
 // Section: related functions
@@ -117,6 +134,18 @@ impl Wire2Api<usize> for usize {
     }
 }
 // Section: impl IntoDart
+
+impl support::IntoDart for mirror_DeviceInfoResp {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.0.name.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for mirror_DeviceInfoResp {}
+impl rust2dart::IntoIntoDart<mirror_DeviceInfoResp> for DeviceInfoResp {
+    fn into_into_dart(self) -> mirror_DeviceInfoResp {
+        mirror_DeviceInfoResp(self)
+    }
+}
 
 impl support::IntoDart for ForNetFlutterMessage {
     fn into_dart(self) -> support::DartAbi {

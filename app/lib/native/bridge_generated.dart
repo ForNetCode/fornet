@@ -83,10 +83,10 @@ class FornetLibImpl implements FornetLib {
         argNames: ["inviteCode"],
       );
 
-  Future<String> listNetwork({dynamic hint}) {
+  Future<List<DeviceInfoResp>> listNetwork({dynamic hint}) {
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner.wire_list_network(port_),
-      parseSuccessData: _wire2api_String,
+      parseSuccessData: _wire2api_list_device_info_resp,
       constMeta: kListNetworkConstMeta,
       argValues: [],
       hint: hint,
@@ -99,6 +99,22 @@ class FornetLibImpl implements FornetLib {
         argNames: [],
       );
 
+  Future<String> version({dynamic hint}) {
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_version(port_),
+      parseSuccessData: _wire2api_String,
+      constMeta: kVersionConstMeta,
+      argValues: [],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kVersionConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "version",
+        argNames: [],
+      );
+
   void dispose() {
     _platform.dispose();
   }
@@ -108,12 +124,25 @@ class FornetLibImpl implements FornetLib {
     return raw as String;
   }
 
+  DeviceInfoResp _wire2api_device_info_resp(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return DeviceInfoResp(
+      name: _wire2api_String(arr[0]),
+    );
+  }
+
   ForNetFlutterMessage _wire2api_for_net_flutter_message(dynamic raw) {
     return ForNetFlutterMessage.values[raw as int];
   }
 
   int _wire2api_i32(dynamic raw) {
     return raw as int;
+  }
+
+  List<DeviceInfoResp> _wire2api_list_device_info_resp(dynamic raw) {
+    return (raw as List<dynamic>).map(_wire2api_device_info_resp).toList();
   }
 
   int _wire2api_u8(dynamic raw) {
@@ -325,6 +354,18 @@ class FornetLibWire implements FlutterRustBridgeWireBase {
           'wire_list_network');
   late final _wire_list_network =
       _wire_list_networkPtr.asFunction<void Function(int)>();
+
+  void wire_version(
+    int port_,
+  ) {
+    return _wire_version(
+      port_,
+    );
+  }
+
+  late final _wire_versionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>('wire_version');
+  late final _wire_version = _wire_versionPtr.asFunction<void Function(int)>();
 
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
     int len,
