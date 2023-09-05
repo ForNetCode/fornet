@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use cfg_if::cfg_if;
 use std::sync::{Arc, OnceLock};
+use anyhow::bail;
 use flutter_rust_bridge::StreamSink;
 
 use tokio::runtime::Runtime;
@@ -67,6 +68,7 @@ cfg_if! {
 
 pub enum ForNetFlutterMessage {
     Stop,
+    ConfigChange,
     Start,
 }
 
@@ -122,7 +124,7 @@ pub fn join_network(invite_code:String) -> anyhow::Result<String> {
     });
     match result {
          Ok(JoinNetworkResult::JoinSuccess(server_info,_)) => {
-             let _ = get_rt().block_on(async {
+             let _ = get_rt().spawn(async {
                  sync_manager.lock().await.connect(server_info.mqtt_url).await
              });
              Ok("Join Success".to_owned())
@@ -145,6 +147,30 @@ pub fn list_network() -> anyhow::Result<Vec<String>> {
     Ok(result.into_iter().map(|info| info.name).collect())
 }
 
+//This is for Android
+pub fn start(network_id:String, raw_fd: Option<i32>) -> anyhow::Result<()> {
+    if cfg!(android)  && raw_fd.is_none() {
+        bail!("raw_fd show not been null")
+    }
+    let client = get_client();
+    // WRConfig
+    get_rt().block_on(async move {
+
+    });
+    get_rt().block_on(async move {
+        let client = client.write().await;
+        cfg_if! {
+            if #[cfg(target_os = "android")] {
+
+            }else {
+
+            }
+        }
+
+        //client.start()
+    });
+    Ok(())
+}
 pub fn version() -> String {
    env!("CARGO_PKG_VERSION").to_owned()
 }

@@ -16,7 +16,7 @@ use crate::device::peer::AllowedIP;
 use crate::device::script_run::Scripts;
 use crate::protobuf::auth::auth_client::AuthClient;
 use crate::protobuf::auth::OAuthDeviceCodeRequest;
-use crate::protobuf::config::{NodeType, Peer, WrConfig, Protocol};
+use crate::protobuf::config::{NodeType, Peer, WrConfig, Protocol, PeerChange};
 use crate::server_manager::ServerMessage;
 use crate::wr_manager::{DeviceInfoResp};
 
@@ -239,6 +239,52 @@ impl ForNetClient {
         self.add_peers(&wr_config.peers).await?;
         Ok(())
     }
+    pub async fn peer_change_sync(&mut self, peer_change_message:PeerChange) {
+        if let Some(public_key) = peer_change_message.remove_public_key {
+
+            if self.config.identity.pk_base64 != public_key {
+                match Identity::get_pub_identity_from_base64(&public_key) {
+                    Ok((x_pub_key, _)) => {
+                        self.remove_peer(&x_pub_key).await;
+                    }
+                    Err(_) => {
+                        tracing::warn!("peer identity parse error")
+                    }
+                }
+            }
+        }
+        if let Some(peer) = peer_change_message.add_peer {
+            let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
+            let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+            let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
+            if let Ok((x_pub_key,_)) = Identity::get_pub_identity_from_base64(&peer.public_key) {
+                self.add_peer(
+                    x_pub_key,
+                    endpoint,
+                    &allowed_ip,
+                    ip,
+                    Some(peer.persistence_keep_alive as u16),
+                ).await;
+            }
+
+        }
+        if let Some(peer) = peer_change_message.change_peer {
+
+            if &self.config.identity.pk_base64 != &peer.public_key {
+                let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
+                let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
+                let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
+                let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key).unwrap();
+                self.add_peer(
+                    x_pub_key,
+                    endpoint,
+                    &allowed_ip,
+                    ip,
+                    Some(peer.persistence_keep_alive as u16),).await;
+            }
+        }
+    }
+
     #[cfg(target_os = "android")]
     pub async fn start(&mut self, raw_fd: i32, protocol:i32, port:Option<u16>, peers:Vec<Peer>) -> anyhow::Result<()>{
         if self.device.is_some() {
@@ -314,56 +360,16 @@ pub async fn command_handle_server_message(client:Arc<RwLock<ForNetClient>>, mes
             }
             client.write().await.close().await;
         }
+
         ServerMessage::SyncConfig(network_token_id,wr_config) => {
             let mut client = client.write().await;
             client.stop().await;
             let _ = client.start(network_token_id, wr_config).await;
         }
+
         ServerMessage::SyncPeers(_network_token_id, peer_change_message) => {
-
-            if let Some(public_key) = peer_change_message.remove_public_key {
-                let mut client = client.write().await;
-                if client.config.identity.pk_base64 != public_key {
-                    match Identity::get_pub_identity_from_base64(&public_key) {
-                        Ok((x_pub_key, _)) => {
-                            client.remove_peer(&x_pub_key).await;
-                        }
-                        Err(_) => {
-                            tracing::warn!("peer identity parse error")
-                        }
-                    }
-                }
-            }
-            if let Some(peer) = peer_change_message.add_peer {
-                let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
-                let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
-                let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
-                if let Ok((x_pub_key,_)) = Identity::get_pub_identity_from_base64(&peer.public_key) {
-                    client.write().await.add_peer(
-                        x_pub_key,
-                        endpoint,
-                        &allowed_ip,
-                        ip,
-                        Some(peer.persistence_keep_alive as u16),
-                    ).await;
-                }
-
-            }
-            if let Some(peer) = peer_change_message.change_peer {
-                let mut client = client.write().await;
-                if &client.config.identity.pk_base64 != &peer.public_key {
-                    let ip:IpAddr = peer.address.first().unwrap().parse().unwrap();
-                    let allowed_ip:Vec<AllowedIP> = peer.allowed_ip.into_iter().map(|ip| AllowedIP::from_str(&ip).unwrap()).collect();
-                    let endpoint = peer.endpoint.map(|endpoint| endpoint.parse::<SocketAddr>().unwrap());
-                    let (x_pub_key,_) = Identity::get_pub_identity_from_base64(&peer.public_key).unwrap();
-                    client.add_peer(
-                        x_pub_key,
-                        endpoint,
-                        &allowed_ip,
-                        ip,
-                        Some(peer.persistence_keep_alive as u16),).await;
-                }
-            }
+            let mut client = client.write().await;
+            client.peer_change_sync(peer_change_message).await;
         }
     };
 }
