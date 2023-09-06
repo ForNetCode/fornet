@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use cfg_if::cfg_if;
 use std::sync::{Arc, OnceLock};
 use flutter_rust_bridge::StreamSink;
-
+use anyhow::bail;
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, RwLock};
 use crate::{default_config_path};
@@ -129,7 +129,7 @@ pub fn join_network(invite_code:String) -> anyhow::Result<String> {
     });
     match result {
          Ok(JoinNetworkResult::JoinSuccess(server_info,_)) => {
-             let _ = get_rt().spawn(async {
+             let _ = get_rt().spawn(async move{
                  sync_manager.lock().await.connect(server_info.mqtt_url).await
              });
              Ok("Join Success".to_owned())
@@ -153,22 +153,26 @@ pub fn list_network() -> anyhow::Result<Vec<String>> {
 }
 
 //This is for Android
-#[cfg(target_os = "android")]
+
 pub fn start(network_id:String, raw_fd: i32) -> anyhow::Result<()> {
+    cfg_if!{
+        if #[cfg(target_os = "android")] {
+            let client = get_client();
+            return get_rt().block_on(async move {
+                let client = client.write().await;
+                if let Some(wr_config) = client.wr_configs.get(&network_id) {
+                    let interface = &wr_config.interface.unwrap();
+                    let protocol = interface.protocol;
+                    let port = interface.listen_port.clone();
+                    return client.start(network_id,wr_config.clone(),protocol, port, wr_config.peers.clone()).await;
+                }
+                bail!("can not start without wr_config")
+            });
 
-    let client = get_client();
-    // WRConfig
-
-    return get_rt().block_on(async move {
-        let client = client.write().await;
-        if let Some(wr_config) = client.wr_configs.get(&network_id) {
-            let interface = &wr_config.interface.unwrap();
-            let protocol = interface.protocol;
-            let port = interface.listen_port.clone();
-            return client.start(network_id,wr_config.clone(),protocol, port, wr_config.peers.clone()).await;
+        } else {
+            bail!("only support Android")
         }
-        bail!("can not start without wr_config")
-    });
+    }
 }
 pub fn version() -> String {
    env!("CARGO_PKG_VERSION").to_owned()

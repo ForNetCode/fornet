@@ -82,6 +82,24 @@ fn wire_list_network_impl(port_: MessagePort) {
         move || move |task_callback| list_network(),
     )
 }
+fn wire_start_impl(
+    port_: MessagePort,
+    network_id: impl Wire2Api<String> + UnwindSafe,
+    raw_fd: impl Wire2Api<i32> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, ()>(
+        WrapInfo {
+            debug_name: "start",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_network_id = network_id.wire2api();
+            let api_raw_fd = raw_fd.wire2api();
+            move |task_callback| start(api_network_id, api_raw_fd)
+        },
+    )
+}
 fn wire_version_impl(port_: MessagePort) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, String>(
         WrapInfo {
@@ -115,6 +133,11 @@ where
     }
 }
 
+impl Wire2Api<i32> for i32 {
+    fn wire2api(self) -> i32 {
+        self
+    }
+}
 impl Wire2Api<u8> for u8 {
     fn wire2api(self) -> u8 {
         self
@@ -132,7 +155,8 @@ impl support::IntoDart for ForNetFlutterMessage {
     fn into_dart(self) -> support::DartAbi {
         match self {
             Self::Stop => 0,
-            Self::Start => 1,
+            Self::ConfigChange => 1,
+            Self::Start => 2,
         }
         .into_dart()
     }

@@ -99,6 +99,25 @@ class FornetLibImpl implements FornetLib {
         argNames: [],
       );
 
+  Future<void> start(
+      {required String networkId, required int rawFd, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(networkId);
+    var arg1 = api2wire_i32(rawFd);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_start(port_, arg0, arg1),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kStartConstMeta,
+      argValues: [networkId, rawFd],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kStartConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "start",
+        argNames: ["networkId", "rawFd"],
+      );
+
   Future<String> version({dynamic hint}) {
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner.wire_version(port_),
@@ -143,9 +162,18 @@ class FornetLibImpl implements FornetLib {
   Uint8List _wire2api_uint_8_list(dynamic raw) {
     return raw as Uint8List;
   }
+
+  void _wire2api_unit(dynamic raw) {
+    return;
+  }
 }
 
 // Section: api2wire
+
+@protected
+int api2wire_i32(int raw) {
+  return raw;
+}
 
 @protected
 int api2wire_u8(int raw) {
@@ -345,6 +373,25 @@ class FornetLibWire implements FlutterRustBridgeWireBase {
           'wire_list_network');
   late final _wire_list_network =
       _wire_list_networkPtr.asFunction<void Function(int)>();
+
+  void wire_start(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> network_id,
+    int raw_fd,
+  ) {
+    return _wire_start(
+      port_,
+      network_id,
+      raw_fd,
+    );
+  }
+
+  late final _wire_startPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Pointer<wire_uint_8_list>,
+              ffi.Int32)>>('wire_start');
+  late final _wire_start = _wire_startPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>, int)>();
 
   void wire_version(
     int port_,

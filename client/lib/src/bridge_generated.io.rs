@@ -27,6 +27,11 @@ pub extern "C" fn wire_list_network(port_: i64) {
 }
 
 #[no_mangle]
+pub extern "C" fn wire_start(port_: i64, network_id: *mut wire_uint_8_list, raw_fd: i32) {
+    wire_start_impl(port_, network_id, raw_fd)
+}
+
+#[no_mangle]
 pub extern "C" fn wire_version(port_: i64) {
     wire_version_impl(port_)
 }

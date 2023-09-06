@@ -29,6 +29,11 @@ abstract class FornetLib {
 
   FlutterRustBridgeTaskConstMeta get kListNetworkConstMeta;
 
+  Future<void> start(
+      {required String networkId, required int rawFd, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kStartConstMeta;
+
   Future<String> version({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kVersionConstMeta;
@@ -36,5 +41,6 @@ abstract class FornetLib {
 
 enum ForNetFlutterMessage {
   Stop,
+  ConfigChange,
   Start,
 }
