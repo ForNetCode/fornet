@@ -60,8 +60,11 @@ async fn main() -> anyhow::Result<()> {
     let config_dir = PathBuf::from(config_dir);
     let app_config = AppConfig::load_config(&config_dir)?;
 
-
+    if app_config.local_config.server_info.is_empty() {
+        tracing::info!("please use `fornet-cli join $TOKEN` to join the network, the $Token can be found at admin web");
+    }
     let client = Arc::new(RwLock::new(ForNetClient::new(app_config)));
+
     //ConfigSyncManager
     let (config_sync_manager,mut receiver ) = ConfigSyncManager::new(client.clone());
     let config_sync_manager = Arc::new(Mutex::new(config_sync_manager));

@@ -72,7 +72,6 @@ case class Node(
   networkId: IntID,
   deviceId: IntID,
   ip: String,
-  publicKey: String, // TODO: rm it
   setting: NodeSetting,
   nodeType: NodeType,
   status: NodeStatus,
