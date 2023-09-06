@@ -1,15 +1,13 @@
 use std::path::PathBuf;
 use cfg_if::cfg_if;
 use std::sync::{Arc, OnceLock};
-use anyhow::bail;
 use flutter_rust_bridge::StreamSink;
 
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, RwLock};
 use crate::{default_config_path};
-use crate::api::flutter_ffi::flutter_handler_server_message;
 use crate::api::JoinNetworkResult;
-use crate::client_manager::ForNetClient;
+use crate::client_manager::{command_handle_server_message, ForNetClient};
 use crate::config::AppConfig;
 use crate::sc_manager::ConfigSyncManager;
 
@@ -105,7 +103,14 @@ pub fn init_runtime(config_path:String, work_thread:usize, log_level: String, st
     let stream = Arc::new(stream);
     ddl_runtime.rt.spawn(async move {
        while let Some(message) = receiver.recv().await {
-           flutter_handler_server_message(client.clone(),message, stream.clone()).await;
+
+           cfg_if!{
+               if #[cfg(target_os = "android")] {
+                   crate::api::flutter_ffi::flutter_handler_server_message::flutter_handler_server_message(client.clone(),message, stream.clone()).await;
+               } else {
+                   command_handle_server_message(client.clone(), message).await;
+               }
+           }
        }
     });
     RT.set(ddl_runtime).unwrap();
@@ -148,28 +153,22 @@ pub fn list_network() -> anyhow::Result<Vec<String>> {
 }
 
 //This is for Android
-pub fn start(network_id:String, raw_fd: Option<i32>) -> anyhow::Result<()> {
-    if cfg!(android)  && raw_fd.is_none() {
-        bail!("raw_fd show not been null")
-    }
+#[cfg(target_os = "android")]
+pub fn start(network_id:String, raw_fd: i32) -> anyhow::Result<()> {
+
     let client = get_client();
     // WRConfig
-    get_rt().block_on(async move {
 
-    });
-    get_rt().block_on(async move {
+    return get_rt().block_on(async move {
         let client = client.write().await;
-        cfg_if! {
-            if #[cfg(target_os = "android")] {
-
-            }else {
-
-            }
+        if let Some(wr_config) = client.wr_configs.get(&network_id) {
+            let interface = &wr_config.interface.unwrap();
+            let protocol = interface.protocol;
+            let port = interface.listen_port.clone();
+            return client.start(network_id,wr_config.clone(),protocol, port, wr_config.peers.clone()).await;
         }
-
-        //client.start()
+        bail!("can not start without wr_config")
     });
-    Ok(())
 }
 pub fn version() -> String {
    env!("CARGO_PKG_VERSION").to_owned()

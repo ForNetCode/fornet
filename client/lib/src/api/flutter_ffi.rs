@@ -11,7 +11,11 @@ pub async fn flutter_handler_server_message(client:Arc<RwLock<ForNetClient>>, me
         ServerMessage::StopWR{..} => {
             stream.add(ForNetFlutterMessage::Stop);
         }
-        ServerMessage::SyncConfig(_network_token_id,wr_config) => {
+        ServerMessage::SyncConfig(network_token_id,wr_config) => {
+            {
+                let mut client = client.write().await;
+                client.wr_configs.insert(network_token_id, wr_config);
+            }
             stream.add(ForNetFlutterMessage::ConfigChange);
         }
 

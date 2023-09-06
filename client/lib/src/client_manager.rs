@@ -24,7 +24,7 @@ use crate::wr_manager::{DeviceInfoResp};
 pub struct ForNetClient {
     pub config: AppConfig,
     pub device: Option<Device>,
-    wr_configs: HashMap<String, WrConfig>
+    pub wr_configs: HashMap<String, WrConfig>
 }
 
 impl Debug for ForNetClient {
