@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter, Pointer};
+use std::fmt::{Debug, Formatter};
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use std::str::FromStr;
@@ -17,8 +17,9 @@ use crate::device::script_run::Scripts;
 use crate::protobuf::auth::auth_client::AuthClient;
 use crate::protobuf::auth::OAuthDeviceCodeRequest;
 use crate::protobuf::config::{NodeType, Peer, WrConfig, Protocol, PeerChange};
-use crate::server_manager::ServerMessage;
 use crate::wr_manager::{DeviceInfoResp};
+
+
 
 
 pub struct ForNetClient {
@@ -421,4 +422,13 @@ pub async fn auto_launch(param:&str)->anyhow::Result<String> {
             Err(anyhow::anyhow!(e))
         }
     }
+}
+
+
+#[derive(Debug, Clone)]
+pub enum ServerMessage {
+    // NodeStatus::Normal => start WireGuard, other => stop WireGuard
+    StopWR{network_id:String,reason:String, delete_network:bool, },
+    SyncPeers(String, crate::protobuf::config::PeerChange),
+    SyncConfig(String, WrConfig),
 }

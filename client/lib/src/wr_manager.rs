@@ -1,15 +1,10 @@
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
-use std::time::Duration;
-use anyhow::anyhow;
-use cfg_if::cfg_if;
 use serde_derive::{Deserialize, Serialize};
-use crate::config::{Config, Identity, NetworkInfo};
+
 use crate::device::peer::AllowedIP;
-use crate::protobuf::config::{Protocol, WrConfig, NodeType};
 use crate::device::Device;
-use crate::device::script_run::Scripts;
 
 //WireGuard Manager
 // rewrite boring/Device, mainly change thread pool to tokio.
@@ -55,7 +50,7 @@ impl WRManager {
     }
 
 
-
+    /*
     pub async fn start(&mut self, network_token_id:String, config: &Config, wr_config: WrConfig) -> anyhow::Result<()> {
         let interface = wr_config.interface.unwrap();
         //let address = AllowedIP::from_str(interface.address.as_str()).map_err(|e| anyhow!(e))?;
@@ -144,7 +139,7 @@ impl WRManager {
             tracing::debug!("peer: {} join network", peer.public_key);
         }
         Ok(())
-    }
+    }*/
 
     pub fn is_alive(&self, network_token_id:&str) -> bool { self.devices.contains_key(network_token_id) }
 

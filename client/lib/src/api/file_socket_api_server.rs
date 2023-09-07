@@ -83,7 +83,6 @@ impl FileSocketApiServer {
                                 }
                             }
                         }
-
                         _ => {
                             tracing::error!("unknown command");
                             let _ = stream.write(b"unknown command").await;
