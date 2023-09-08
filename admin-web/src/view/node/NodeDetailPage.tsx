@@ -12,14 +12,14 @@ export function RelayConfigView({hide}: {hide:boolean}) {
     const postUpTooltip =(
         <>
             <p>This command run after node up, it normally used for config os to allow ForNet redirect network packages. The command would be:</p>
-            <p style={{fontStyle:'italic'}}>iptables -A FORWARD -i for0 -j ACCEPT; iptables -A FORWARD -o for0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE</p>
+            <p style={{fontStyle:'italic'}} dangerouslySetInnerHTML={{__html:'iptables -A FORWARD -i {tun} -j ACCEPT; iptables -A FORWARD -o {tun} -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE'}}></p>
             <p>(Please remember to change <span style={{fontWeight:'bold'}}>eth0</span> to correct ethernet interface)</p>
         </>
     )
     const postDownToolTip = (
         <>
             <p>This command run after node down, it normally used for config OS to remove ForNet postUp command effects. The command would be:</p>
-            <p style={{fontStyle:'italic'}}>iptables -D FORWARD -i for0 -j ACCEPT; iptables -D FORWARD -o for0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE</p>
+            <p style={{fontStyle:'italic'}} dangerouslySetInnerHTML={{__html: 'iptables -D FORWARD -i {tun} -j ACCEPT; iptables -D FORWARD -o {tun} -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE'}}></p>
             <p>(Please remember to change <span style={{fontWeight:'bold'}}>eth0</span> to correct ethernet interface)</p>
 
         </>

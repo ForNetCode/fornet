@@ -5,11 +5,11 @@ package com.timzaak.fornet.dao
 import com.timzaak.fornet.dao.NetworkProtocol.TCP
 import org.hashids.Hashids
 import very.util.persistence.quill.DBSerializer
-import very.util.security.IntID
+import very.util.security.{IntID, TokenID}
 import zio.json.*
 
 import java.time.OffsetDateTime
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 enum NetworkStatus {
   case Normal, Delete
@@ -29,7 +29,7 @@ enum NetworkProtocol {
   case TCP, UDP
 
   import com.timzaak.fornet.protobuf.config.Protocol as PProtocol
-  def gRPCProtocol:PProtocol = {
+  def gRPCProtocol: PProtocol = {
     this match {
       case TCP => PProtocol.Protocol_TCP
       case UDP => PProtocol.Protocol_UDP
@@ -59,13 +59,16 @@ object NetworkProtocol {
 case class Network(
   id: IntID,
   name: String,
+  token: String,
   groupId: String,
   addressRange: String,
   setting: NetworkSetting,
   status: NetworkStatus,
   createdAt: OffsetDateTime,
   updatedAt: OffsetDateTime,
-)
+) {
+  def tokenId:TokenID = TokenID(id, token)
+}
 //object Network {
 //  given networkUpdateMeta:UpdateMeta[Network] = updateMeta[Network](_.id)
 //}
@@ -73,23 +76,22 @@ case class NetworkSetting(
   port: Int = 51820,
   keepAlive: Int = 30,
   mtu: Int = 1420,
-  protocol:NetworkProtocol = NetworkProtocol.UDP,
+  protocol: NetworkProtocol = NetworkProtocol.UDP,
   dns: Option[Seq[String]] = None,
 ) extends DBSerializer
 
 object Network {
-  import very.util.web.json.{ intIDDecoder, intIDEncoder }
+  import very.util.web.json.{intIDDecoder, intIDEncoder}
   given networkDerive(using hashId: Hashids): JsonCodec[Network] = DeriveJsonCodec.gen
 }
 object NetworkSetting {
   given JsonCodec[NetworkSetting] = DeriveJsonCodec.gen
 }
 
-
 import io.getquill.*
 import org.hashids.Hashids
 
-class NetworkDao(using quill: DB, hashIds:Hashids) {
+class NetworkDao(using quill: DB, hashIds: Hashids) {
   import quill.{*, given}
 
   def findById(id: IntID): Option[Network] = {
@@ -105,6 +107,8 @@ class NetworkDao(using quill: DB, hashIds:Hashids) {
 
   def existGroupNetwork(networkId: IntID, groupId: String): Boolean = {
     quill.run(quote(query[Network]).filter(n => n.id == lift(networkId) && n.groupId == lift(groupId)).nonEmpty)
-
   }
+
+  def findByTokenId(tokenId:TokenID): Option[Network] = 
+    quill.run(quote(query[Network]).filter(n => n.id == lift(tokenId.intId) && n.name == lift(tokenId.token)).single).headOption
 }

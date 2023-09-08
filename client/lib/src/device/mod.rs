@@ -9,6 +9,9 @@ cfg_if! {
      if #[cfg(target_os="windows")] {
         mod windows_device;
         pub use windows_device::{Device, check_permission};
+    } else if #[cfg(target_os = "android")] {
+        mod android_device;
+        pub use android_device::Device;
     } else {
         mod unix_device;
         pub use unix_device::{Device, check_permission};
@@ -40,7 +43,7 @@ use allowed_ips::AllowedIps;
 use peer::{AllowedIP, Peer};
 use script_run::Scripts;
 use crate::device::peer::TcpConnection;
-use crate::device::script_run::run_opt_script;
+use crate::device::script_run::{run_opt_script, run_opt_script_with_param};
 use crate::protobuf::config::NodeType;
 use self::tun::WritePart;
 
@@ -232,7 +235,9 @@ impl DeviceData {
 
 impl Drop for DeviceData {
     fn drop(&mut self) {
-        let _ = run_opt_script(&self.scripts.post_down);
+        let mut script_param:HashMap<&str, String> = HashMap::new();
+        script_param.insert("tun", self.name.clone());
+        let _ = run_opt_script_with_param(&self.scripts.post_down , &script_param);
     }
 }
 

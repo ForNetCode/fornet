@@ -4,7 +4,7 @@ import './index.less';
 import {Provider} from "react-redux";
 import {store} from "./store";
 import AppRouter from "./routes";
-import {ConfigProvider} from "antd";
+import {ConfigProvider, theme} from "antd";
 import 'dayjs/locale/zh-cn'
 import 'dayjs/locale/en'
 import {RawIntlProvider} from 'react-intl'
@@ -18,7 +18,7 @@ const root = ReactDOM.createRoot(
 );
 const render = () => root.render(
     <Provider store={store}>
-        <ConfigProvider locale={antdLocale}>
+        <ConfigProvider locale={antdLocale} theme={{algorithm: theme.darkAlgorithm}}>
             <RawIntlProvider value={intl}>
                 <AppRouter/>
             </RawIntlProvider>

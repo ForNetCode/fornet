@@ -9,90 +9,37 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use cfg_if::cfg_if;
-//should not reserve
-use  std::collections::HashMap;
+use base64::Engine;
 use crate::protobuf::auth::EncryptRequest;
 
-#[cfg(target_os="windows")]
-#[derive(Deserialize, Serialize, Debug)]
-pub struct WindowsClientConfig {
-    //key: public_key, value: windows tun device guid
-    pub tun_guid: HashMap<String, String>
-}
-#[cfg(target_os="windows")]
-impl WindowsClientConfig {
-    pub fn load(config_dir:&PathBuf, identity:&Identity)->anyhow::Result<Self> {
-        let pub_key = identity.pk_base64.clone();
-        if Self::exists(config_dir) {
-            let mut config = Self::read_from_file(config_dir)?;
-            if config.tun_guid.contains_key(&pub_key) {
-                Ok(config)
-            } else {
-                config.tun_guid.insert(pub_key, format!("{:?}", windows::core::GUID::new()?));
-                config.save_config(config_dir)?;
-                Ok(config)
-            }
-        } else {
-            let config = WindowsClientConfig {
-                tun_guid: HashMap::from([
-                    (pub_key,format!("{:?}", windows::core::GUID::new()?))
-                ])
-            };
-            config.save_config(config_dir)?;
-            Ok(config)
-        }
-    }
-    pub fn exists(config_dir:&PathBuf)->bool {
-        config_dir.join("windows_client.json").exists()
-    }
-    pub fn read_from_file(config_dir:&PathBuf) -> anyhow::Result<Self>{
-        let config_str = fs::read_to_string(config_dir.join("windows_client.json"))?;
-        Ok(serde_json::from_str::<WindowsClientConfig>(&config_str)?)
-    }
+const SERVER_SAVE_NAME: &str = "config.json";
 
-    pub fn save_config(&self, config_dir: &PathBuf) -> anyhow::Result<()> {
-        let path = config_dir.join("windows_client.json");
-        Ok(fs::write(path, serde_json::to_string_pretty(self)?)?)
-    }
-}
-
-pub struct Config {
+pub struct AppConfig {
     pub config_path: PathBuf,
-    pub server_config: ServerConfig,
     pub identity: Identity,
-    #[cfg(target_os = "windows")]
-    pub client_config: WindowsClientConfig
+    pub local_config: LocalConfig,
 }
-
-impl Config {
-    pub fn load_config(config_path: &PathBuf) -> anyhow::Result<Option<Config>> {
-        if !ServerConfig::exits(config_path) {
-            return Ok(None)
-        }
-        let server_config = ServerConfig::read_from_file(&config_path)?;
-        let identity = Identity::read_from_file(&config_path)?;
-
-        #[cfg(target_os = "windows")]
-        let client_config = WindowsClientConfig::load(&config_path, &identity)?;
-        Ok(Some(Config {
-            config_path: config_path.clone(),
-            server_config,
-            identity,
-            #[cfg(target_os = "windows")]
-            client_config,
-        }))
-    }
-    cfg_if! {
-        if #[cfg(target_os = "windows")] {
-            pub fn get_tun_name(&self) -> String {
-                //  This must be have
-                self.client_config.tun_guid.get(&self.identity.pk_base64).unwrap().clone()
-            }
+impl AppConfig {
+    pub fn load_config(config_path: &PathBuf) -> anyhow::Result<Self> {
+        let identity = if Identity::exists(config_path) {
+            Identity::read_from_file(config_path)?
         } else {
-            pub fn get_tun_name(&self) -> String {
-                "for0".to_owned()
-            }
-        }
+            let identity = Identity::new();
+            identity.save(config_path)?;
+            identity
+        };
+        let server_config = if LocalConfig::exits(config_path) {
+            LocalConfig::read_from_file(config_path)?
+        } else {
+            let server_config = LocalConfig::new();
+            server_config.save_config(config_path)?;
+            server_config
+        };
+        Ok(Self {
+            config_path: config_path.clone(),
+            identity,
+            local_config: server_config
+        })
     }
 }
 
@@ -114,7 +61,7 @@ impl Identity {
         let ed25519_keypair = ed25519_compact::KeyPair::from_seed(Seed::default());
 
         Identity {
-            pk_base64: base64::encode(
+            pk_base64: base64::engine::general_purpose::STANDARD.encode(
                 [
                     x25519_public_key.to_bytes(),
                     ed25519_keypair.pk.deref().clone(),
@@ -154,7 +101,7 @@ impl Identity {
             x25519_pk,
             x25519_sk,
             ed25519_sk,
-            pk_base64: base64::encode(public_key),
+            pk_base64: base64::engine::general_purpose::STANDARD.encode(public_key),
             ed25519_pk,
         })
     }
@@ -178,31 +125,17 @@ impl Identity {
     pub fn get_pub_identity_from_base64(
         base64_str: &str,
     ) -> anyhow::Result<(x25519_dalek::PublicKey, ed25519_compact::PublicKey)> {
-        let public_key = base64::decode(base64_str)?;
+        let public_key = base64::engine::general_purpose::STANDARD.decode(base64_str)?;
         let x25519_pk = x25519_dalek::PublicKey::from(array_ref![public_key, 0, 32].clone());
         let ed25519_pk = ed25519_compact::PublicKey::new(array_ref![public_key, 32, 32].clone());
         Ok((x25519_pk, ed25519_pk))
     }
-    pub fn sign(&self, network_id: &str) -> anyhow::Result<GRPCAuth> {
+
+    pub fn sign(&self, params:Vec<String>) -> anyhow::Result<EncryptRequest> {
         let mut raw = vec![0; 16];
         OsRng.fill_bytes(&mut raw);
-        let nonce = base64::encode_config(raw, base64::STANDARD);
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-        let plain_text = format!("{}-{}-{}", timestamp, network_id, nonce);
-        let signature = self.ed25519_sk.sign(plain_text, None);
-        let signature = base64::encode(*signature);
-        Ok(GRPCAuth {
-            timestamp,
-            network_id: network_id.to_owned(),
-            nonce,
-            sign: signature,
-            public_key: self.pk_base64.clone(),
-        })
-    }
-    pub fn sign2(&self, params:Vec<String>) -> anyhow::Result<EncryptRequest> {
-        let mut raw = vec![0; 16];
-        OsRng.fill_bytes(&mut raw);
-        let nonce = base64::encode_config(raw, base64::STANDARD);
+
+        let nonce = base64::engine::general_purpose::STANDARD.encode(&raw);
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         let plain_text = if !params.is_empty() {
             let mut plain_text = params.join("|");
@@ -213,7 +146,7 @@ impl Identity {
         };
         //tracing::debug!("plain_text: {plain_text}");
         let signature = self.ed25519_sk.sign(plain_text, None);
-        let signature = base64::encode(*signature);
+        let signature =base64::engine::general_purpose::STANDARD.encode(*signature);
         Ok(EncryptRequest {
             public_key: self.pk_base64.clone(),
             timestamp,
@@ -222,43 +155,53 @@ impl Identity {
         })
     }
 }
-
 impl Debug for Identity {
+
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "Identity(x_sk:{}, x_pk:{}, ed_sk:{}, ed_pk:{})",
-            base64::encode(self.x25519_sk.to_bytes()),
-            base64::encode(self.x25519_pk.to_bytes()),
-            base64::encode(self.ed25519_sk.deref()),
-            base64::encode(self.ed25519_pk.deref()),
+            base64::engine::general_purpose::STANDARD.encode(self.x25519_sk.to_bytes()),
+            base64::engine::general_purpose::STANDARD.encode(self.x25519_pk.to_bytes()),
+            base64::engine::general_purpose::STANDARD.encode(self.ed25519_sk.deref()),
+            base64::engine::general_purpose::STANDARD.encode(self.ed25519_pk.deref()),
         )
     }
 }
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct NodeInfo {
+pub struct NetworkInfo {
     pub network_id: String,
-    pub mqtt_url: String,
-    pub node_id: String,
+    pub tun_name: Option<String>,
+
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ServerConfig {
-    pub server: String,
-    //networkId, mqttUrl, clientId
-    pub info: Vec<NodeInfo>
-}
-
-/* impl default for serverconfig {
-    fn default() -> self {
-        serverconfig {
-            server: "http://127.0.0.1:9000".to_owned(),
-            network_id: "".to_owned(),
+impl NetworkInfo {
+    pub fn new(network_id:String) -> Self {
+        Self {
+            network_id,
+            tun_name: None,
         }
     }
 }
- */
-const SERVER_SAVE_NAME: &str = "config.json";
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ServerInfo {
+    pub server_url: String,
+    pub device_id: String,
+    pub mqtt_url: String,
+    pub network_id: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ServerConfig {
+    pub server_url: String,
+    pub device_id: String,
+    pub mqtt_url: String,
+    //networkId, mqttUrl, clientId
+    pub info: Vec<NetworkInfo>
+}
+
 
 impl ServerConfig {
     pub fn exits(config_dir: &PathBuf) -> bool {
@@ -281,6 +224,49 @@ impl ServerConfig {
 
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct LocalConfig {
+    pub server_info: Vec<ServerInfo>,
+    pub tun_name: Option<String>,
+}
+
+impl LocalConfig {
+    pub fn new () -> Self {
+        cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                let tun_name = Some("for0".to_owned());
+            } else if #[cfg(target_os = "windows")] {
+                let tun_name = Some(format!("{:?}", windows::core::GUID::new().unwrap()));
+            }else {
+                // mac,android
+                let tun_name = None;
+            }
+        }
+        Self{
+            server_info:vec![],
+            tun_name,
+        }
+
+    }
+    pub fn exits(config_dir: &PathBuf) -> bool {
+        Self::config_file_path(config_dir).exists()
+    }
+
+    pub fn config_file_path(config_dir:&PathBuf) -> PathBuf{
+        config_dir.join(SERVER_SAVE_NAME)
+    }
+
+    pub fn save_config(&self, config_dir: &PathBuf) -> anyhow::Result<()> {
+        let path = config_dir.join(SERVER_SAVE_NAME);
+        Ok(fs::write(path, serde_json::to_string_pretty(&self)?)?) //.unwrap_or_else(|_| panic!("write config file error:{:?}", &config));
+    }
+
+    pub fn read_from_file(config_dir: &PathBuf) -> anyhow::Result<LocalConfig> {
+        let config_str = fs::read_to_string(config_dir.join(SERVER_SAVE_NAME))?;
+        Ok(serde_json::from_str::<LocalConfig>(&config_str)?)
+    }
+}
+
 // add lifetime to reduce copy?
 // or add ARC to public_key
 #[derive(Serialize)]
@@ -297,39 +283,20 @@ mod tests {
     use crate::config::Identity;
     use arrayref::array_ref;
     use std::ops::Deref;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Deserialize, Serialize)]
+    struct A(Vec<String>);
+    #[derive(Deserialize, Serialize)]
+    struct B{
+        pub a:A,
+    }
 
     #[test]
-    fn identity_combine() {
-        let mut identity = Identity::new();
-
-        let x25519_pk: [u8; 32] = base64::decode("lpgpJqleWa1zqrk/O/jRThnqK1dGDzogKKicoefQrFs=")
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let x25519_sk: [u8; 32] = base64::decode("6LI166lIZJmAxMWzTf/r/KyIjKJXXFsry3Z0XDIRbHo=")
-            .unwrap()
-            .try_into()
-            .unwrap();
-        let x25519_pk = x25519_dalek::PublicKey::from(x25519_pk);
-        let x25519_sk = x25519_dalek::StaticSecret::from(x25519_sk);
-        identity.x25519_sk = x25519_sk;
-        identity.x25519_pk = x25519_pk;
-
-        let public_key = base64::encode(
-            [
-                identity.x25519_pk.to_bytes(),
-                identity.ed25519_pk.deref().clone(),
-            ]
-            .concat(),
-        );
-        let private_key = base64::encode(
-            [
-                identity.x25519_sk.to_bytes(),
-                array_ref![identity.ed25519_sk.deref(), 0, 32].clone(),
-            ]
-            .concat(),
-        );
-        println!("{}", public_key);
-        println!("{}", private_key);
+    fn JsonParse() {
+        let b = B{a: A(vec!["abc".to_owned()])};
+        let z = serde_json::to_string_pretty(&b).unwrap();
+        println!("{}", z);
     }
+
 }

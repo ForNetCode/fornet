@@ -1,10 +1,16 @@
+use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 use clap::{Arg, Command};
+use tokio::sync::{Mutex, RwLock};
 
 use fornet_lib::{APP_NAME, default_config_path};
-use fornet_lib::server_manager::{ServerManager, StartMethod};
 use tracing_subscriber::EnvFilter;
+use fornet_lib::api::file_socket_api_server::FileSocketApiServer;
+use fornet_lib::client_manager::{ForNetClient, command_handle_server_message};
+use fornet_lib::config::AppConfig;
 use fornet_lib::device::check_permission;
+use fornet_lib::sc_manager::ConfigSyncManager;
 
 
 #[tokio::main]
@@ -51,7 +57,24 @@ async fn main() -> anyhow::Result<()> {
             .init();
     }
 
-    ServerManager::start_server(config_dir, StartMethod::CommandLine).await?;
+    let config_dir = PathBuf::from(config_dir);
+    let app_config = AppConfig::load_config(&config_dir)?;
+
+    if app_config.local_config.server_info.is_empty() {
+        tracing::info!("please use `fornet-cli join $TOKEN` to join the network, the $Token can be found at admin web");
+    }
+    let client = Arc::new(RwLock::new(ForNetClient::new(app_config)));
+
+    //ConfigSyncManager
+    let (config_sync_manager,mut receiver ) = ConfigSyncManager::new(client.clone());
+    let config_sync_manager = Arc::new(Mutex::new(config_sync_manager));
+    FileSocketApiServer::start(client.clone(), config_sync_manager)?;
+
+    tokio::spawn(async move {
+        while let Some(message) = receiver.recv().await {
+            command_handle_server_message(client.clone(), message).await;
+        }
+    });
     tokio::signal::ctrl_c().await.unwrap();
     Ok(())
 }

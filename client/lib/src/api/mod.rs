@@ -1,222 +1,94 @@
-use std::env;
-use std::path::PathBuf;
-use std::sync::Arc;
-use anyhow::{anyhow, bail};
-use serde_derive::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::Sender;
-use crate::config::{Config, Identity, NodeInfo, ServerConfig};
-use crate::sc_manager::SCManager;
-use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
-use crate::server_api::APISocket;
-use crate::server_manager::{ServerManager, ServerMessage};
-use std::time::Duration;
 use cfg_if::cfg_if;
+#[cfg(not(target_os = "android"))]
+pub mod file_socket_api_server;
+pub(crate) mod flutter_ffi;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        mod unix;
+        pub use self::unix::*;
+    } else if #[cfg(windows)] {
+        mod windows;
+        pub use self::windows::*;
+    }
+}
+
+use std::path::PathBuf;
+use anyhow::anyhow;
+use tokio::io::AsyncWriteExt;
+use crate::config::{Identity, ServerInfo};
+use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
+use std::time::Duration;
+use base64::Engine;
+use serde_derive::{Deserialize, Serialize};
+
 use tonic::{
     transport::Channel,
     Request,
 };
-use crate::{APP_NAME, MAC_OS_PACKAGE_NAME};
 use crate::protobuf::auth::action_response::Response;
 
-pub mod command_api;
 
 
-async fn join_network(server_manager: &mut ServerManager, invite_code: &str, stream: &mut APISocket, tx: Sender<ServerMessage>) -> anyhow::Result<()> {
-    let config_dir = PathBuf::from(&server_manager.config_path);
-    if ServerConfig::exits(&PathBuf::from(&server_manager.config_path)) {
-        bail!("config file already exists, it now do not support join multiple network");
-    }
-    let data = String::from_utf8(base64::decode(invite_code)?)?;
-    let data: Vec<&str> = data.split('|').collect();
-    let version = data[0].parse::<u32>()?;
 
-    let identity = if !Identity::exists(&config_dir) {
-        let identity = Identity::new();
-        if let Ok(_) = identity.save(&config_dir) {
-            identity
-        } else {
-            bail!("write identity file error")
-        }
-    } else {
-        if let Ok(identity) = Identity::read_from_file(&config_dir) {
-            identity
-        } else {
-            bail!("read identity file error")
-
-        }
-    };
-    let change_config_and_init_sync_manger=  || {
-        let config = Config::load_config(&config_dir).unwrap().unwrap();
-        let config = Arc::new(config);
-        server_manager.config = Some(config.clone());
-        let mut sc_manager = SCManager::new(tx);
-        let _ = tokio::spawn(async move {
-            match sc_manager.mqtt_connect(config).await {
-                Ok(()) => tracing::warn!("sync config manager close, now can not receive any update from server"),
-                Err(e) => tracing::error!("sync config manager connect server result:{:?}", e),
-            };
-        });
-    };
-    if version == 1u32 {
-        let invite_token = InviteToken::new(data);
-        match server_invite_confirm(
-            identity,
-            &invite_token.endpoint,
-            &invite_token.network_id,
-            invite_token.node_id,
-        )
-            .await
-        {
-            Ok(resp) => {
-
-                //This must be success
-                let server_config = ServerConfig {
-                    server: invite_token.endpoint,
-                    info: vec![NodeInfo {network_id: invite_token.network_id, mqtt_url:resp.mqtt_url, node_id:  resp.client_id}],
-                };
-                server_config.save_config(&config_dir)?;
-                change_config_and_init_sync_manger();
-            }
-            Err(e) => {
-                tracing::warn!("connect server error!, {e}");
-                bail!("connect server error!, {e}")
-            }
-        };
-    } else if version == 2u32 { // keycloak login
-        let (mut client,sso_login) = SSOLogin::get_login_info(data).await?;
-        match handle_oauth(identity, &mut client, &sso_login, stream).await {
-            Ok(resp) => {
-                let server_config = ServerConfig {
-                    server: sso_login.endpoint,
-                    info: vec![NodeInfo {network_id: sso_login.network_id.clone(), mqtt_url: resp.mqtt_url, node_id: resp.client_id}],
-                };
-                server_config.save_config(&config_dir)?;
-                change_config_and_init_sync_manger();
-            }
-            Err(e) => {
-                tracing::warn!("handle oauth error:{e}");
-                bail!("Oauth error");
-            }
-        }
-    } else {
-        bail!("can not parse invite token, please upgrade");
-    }
-    Ok(())
-
+#[derive(Debug)]
+pub struct ApiClient {
+    client: _ApiClient
 }
-pub async fn api_handler(server_manager: &mut ServerManager, command: String, stream: &mut APISocket, tx: Sender<ServerMessage>) {
-    let command:Vec<&str> = command.split(' ').collect::<Vec<&str>>();
-    match command[0] {
-        "join" => {
-            match join_network(server_manager, command[1], stream, tx).await {
-                Ok(()) => {
-                    let _ = stream.write(api_success("join success".to_owned()).to_json().as_bytes()).await;
-                }
-                Err(e) => {
-                    let _ = stream.write(api_error(e.to_string()).to_json().as_bytes()).await;
-                }
-            }
-        }
-        "list" => {
-            if server_manager.wr_manager.is_alive() {
-                let data = server_manager.wr_manager.device_info();
-                let _ = stream.write(ApiResponse::boxed(data).to_json().as_bytes()).await;
-            }
-        }
-        "autoLaunch" => {
-            cfg_if! {
-                if #[cfg(target_os="macos")] {
-                    let _ = auto_launch_config(command, stream).await;
-                } else {
-                    let _ = stream.write(api_error("do not support".to_owned()).to_json().as_bytes()).await;
-                }
-            }
-        }
-        _ => {
-            tracing::error!("unknown command");
-            let _ = stream.write(b"unknown command").await;
+impl ApiClient {
+    pub fn new(path:PathBuf) -> Self{
+        Self {
+            client: _ApiClient::new(path)
         }
     }
+    pub async fn join_network(&self, invite_code:&str)->anyhow::Result<StreamResponse> {
+        self.client.send_command_stream(&format!("join {}", invite_code)).await
+    }
+
+    pub async fn list_network(&self) -> anyhow::Result<String> {
+        self.client.send_command( "list").await
+    }
+
+    pub async fn auto_launch(&self, sub_command:&str) -> anyhow::Result<String> {
+        self.client.send_command(&format!("autoLaunch {sub_command}")).await
+    }
+
+    // pub fn version(&self) -> String {
+    //     env!("CARGO_PKG_VERSION").to_owned()
+    // }
 }
 
-#[cfg(target_os="macos")]
-async fn auto_launch_config(command:Vec<&str>,  stream: &mut APISocket) {
-    match env::current_dir()  {
-        Ok(x) => {
-            let app_path = x.join(APP_NAME);
-            let auto = crate::device::auto_launch::AutoLaunch::new( MAC_OS_PACKAGE_NAME.to_owned(), app_path.to_str().unwrap().to_owned());
 
-            tracing::debug!("app name:{APP_NAME}, app path: {:?}", app_path);
-            let is_enabled = auto.is_enabled();
-            let result = match command.get(1) {
-                Some(&"enable") => {
-                    (if is_enabled.is_err() {
-                        Err(is_enabled.err().unwrap())
-                    } else if is_enabled.unwrap_or(false) {
-                        Ok(())
-                    } else {
-                        auto.enable()
-                    }).map(|_| {
-                        api_success("enable auto launch success".to_owned())
-                    })
-                }
-                Some(&"disable") => {
-                    (if is_enabled.is_err() {
-                        Err(is_enabled.err().unwrap())
-                    } else if !is_enabled.unwrap_or(false) {
-                        Ok(())
-                    } else {
-                        auto.disable()
-                    }).map(|_| {
-                        api_success("disable auto launch success".to_owned())
-                    })
-                }
-                _ => {
-                    (if is_enabled.is_err() {
-                        Err(is_enabled.err().unwrap())
-                    } else {
-                        Ok(is_enabled.unwrap_or(false))
-                    }).map(|x| {
-                        api_success(format!("{APP_NAME} auto launch: {}", if x { "enabled" } else { "disabled" }))
-                    })
-                }
-            };
-            match result {
-                Ok(response) => {
-                    let _ = stream.write(response.to_json().as_bytes()).await;
-                }
-                Err(e) => {
-                    let _ = stream.write(api_error(e.to_string()).to_json().as_bytes()).await;
-                }}
-        }
-        Err(e) => {
-            let _ = stream.write(api_error(e.to_string()).to_json().as_bytes()).await;
-        }
-    }
+
+
+
+#[derive(Serialize, Deserialize)]
+pub struct OAuthDevice {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: String,
+    pub expires_in: u32,
+    pub interval: u32,
 }
 
 #[derive(Serialize, Deserialize)]
-struct OAuthDevice {
-    device_code: String,
-    user_code: String,
-    verification_uri: String,
-    verification_uri_complete: String,
-    expires_in: u32,
-    interval: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-struct OAuthDeviceJWToken {
-    access_token: String,
-    expires_in: u32,
+pub struct OAuthDeviceJWToken {
+    pub access_token: String,
+    pub expires_in: u32,
     //...
 }
 
-// https://github.com/keycloak/keycloak-community/blob/main/design/oauth2-device-authorization-grant.md
-async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket) -> anyhow::Result<SuccessResponse> {
+pub async fn handle_oauth2(sso_login: &SSOLogin) -> anyhow::Result<OAuthDevice> {
+    let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
+        .form(&[("client_id", &sso_login.client_id)])
+        .send().await?.json::<OAuthDevice>().await?;
 
-    let network_id = sso_login.network_id.clone();
+    return Ok(response)
+}
+
+// https://github.com/keycloak/keycloak-community/blob/main/design/oauth2-device-authorization-grant.md
+pub async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket, device_id: Option<String>) -> anyhow::Result<SuccessResponse> {
 
     let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
         .form(&[("client_id", &sso_login.client_id)])
@@ -239,13 +111,15 @@ async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_l
             .send().await?;
         if loop_response.status().is_success() {
             let loop_response = loop_response.json::<OAuthDeviceJWToken>().await?;
-            //Seq(request.accessToken, request.deviceCode, request.networkId)
-            let encrypt = identity.sign2(vec![loop_response.access_token.clone(), response.device_code.clone(), sso_login.network_id.clone()])?;
+            //Seq(request.accessToken, request.deviceCode, deviceId, request.networkId)
+            let params = vec![Some(loop_response.access_token.clone()), Some(response.device_code.clone()), device_id.clone(), Some(sso_login.network_token_id.clone())].into_iter().filter_map(|v|v).collect::<Vec<String>>();
+            let encrypt = identity.sign(params)?;
             let request = Request::new(OAuthDeviceCodeRequest {
                 device_code: (&response.device_code).clone(),
                 access_token: loop_response.access_token,
-                network_id,
+                network_token_id: sso_login.network_token_id.clone(),
                 encrypt:Some(encrypt),
+                device_id,
             });
             let response= client.oauth_device_code_confirm(request).await?.into_inner().response;
             return match response {
@@ -261,28 +135,29 @@ async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_l
 }
 
 
-async fn server_invite_confirm(
-    identity: Identity,
+pub async fn server_invite_confirm(
+    identity: &Identity,
     endpoint: &String,
     network_id: &String,
     node_id: Option<String>,
+    device_id: Option<String>,
 ) -> anyhow::Result<SuccessResponse> {
     tracing::debug!("endpoint: {endpoint}");
     let channel = Channel::from_shared(endpoint.clone())?.connect().await?;
     let mut client = AuthClient::new(channel);
 
+    let params = vec!(device_id.clone(),Some(network_id.to_owned()),node_id.clone()).into_iter().filter_map(|v|{
+        v
+    }).collect::<Vec<String>>();
 
-    let mut params = vec!(network_id.to_owned());
-    if let Some(ref node_id) = node_id {
-        params.push(node_id.clone());
-    }
-    let encrypt = identity.sign2(params)?;
+    let encrypt = identity.sign(params)?;
     tracing::debug!("encrypt: {encrypt:?}");
 
     let request = Request::new(InviteConfirmRequest {
         node_id,
-        network_id: network_id.clone(),
+        network_token_id: network_id.clone(),
         encrypt: Some(encrypt),
+        device_id,
     });
     let response = client.invite_confirm(request).await?;
 
@@ -293,16 +168,16 @@ async fn server_invite_confirm(
     }
 }
 
-struct InviteToken {
-    endpoint: String,
-    network_id: String,
-    node_id: Option<String>,
+pub(crate) struct InviteToken {
+    pub endpoint: String,
+    pub network_token_id: String,
+    pub node_id: Option<String>,
 }
 
 impl InviteToken {
-    fn new(data: Vec<&str>) -> Self {
+    pub fn new(data: Vec<&str>) -> Self {
         let endpoint = data[1].to_owned();
-        let network_id = data[2].to_owned();
+        let network_token_id = data[2].to_owned();
         let node_id = if data.len() > 3 {
             Some(data[3].to_owned())
         } else {
@@ -310,36 +185,36 @@ impl InviteToken {
         };
         InviteToken {
             endpoint,
-            network_id,
+            network_token_id,
             node_id,
         }
     }
 }
 
-struct SSOLogin {
-    endpoint: String,
-    network_id: String,
-    sso_url: String,
-    realm: String,
-    client_id: String,
+pub struct SSOLogin {
+    pub endpoint: String,
+    pub network_token_id: String,
+    pub sso_url: String,
+    pub realm: String,
+    pub client_id: String,
 }
 
 impl SSOLogin {
-    async fn get_login_info(data: Vec<&str>) -> anyhow::Result<(AuthClient<Channel>, SSOLogin)> {
+    pub async fn get_login_info(data: Vec<&str>) -> anyhow::Result<(AuthClient<Channel>, SSOLogin)> {
         let grpc_endpoint = data[1].to_owned();
-        let network_id = data[2].to_owned();
+        let network_token_id = data[2].to_owned();
 
         let channel = Channel::from_shared(grpc_endpoint.clone())?.connect().await?;
         let mut client = AuthClient::new(channel);
         let request = Request::new(SsoLoginInfoRequest {
-            network_id: network_id.clone(),
+            network_id: network_token_id.clone(),
         });
         let response = client.get_sso_login_info(request).await?;
         let response = response.into_inner();
         //let response = reqwest::get(format!("{}/api/auth/oauth/device_code?n_id={}", &grpc_endpoint, &network_id)).await?;
         Ok((client, SSOLogin {
             endpoint: grpc_endpoint,
-            network_id,
+            network_token_id,
             sso_url: response.sso_url,
             realm: response.realm,
             client_id: response.client_id,
@@ -349,7 +224,7 @@ impl SSOLogin {
 }
 
 pub fn invite_token_parse(data: &str) -> anyhow::Result<(u32, String, String, Option<String>)> {
-    let data = String::from_utf8(base64::decode(data)?)?;
+    let data = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(data)?)?;
     let data: Vec<&str> = data.split('|').collect();
     let version = data[0].parse::<u32>()?;
     if version == 1u32 || version == 2u32 {
@@ -409,6 +284,15 @@ pub fn api_box_error(data:String) -> Box<dyn ApiJsonResponse> {
     Box::new(api_error(data))
 }
 
+pub enum JoinNetworkResult {
+    JoinSuccess(ServerInfo, String),
+    WaitingSSOAuth {
+        resp:OAuthDevice,
+        sso:SSOLogin,
+        client:AuthClient<Channel>,
+        device_id:Option<String>
+    }
+}
 
 #[cfg(test)]
 mod test {

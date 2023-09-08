@@ -1,15 +1,15 @@
 package com.timzaak.fornet.di
 
-import com.timzaak.fornet.config.{ AppConfig, AppConfigImpl }
+import com.timzaak.fornet.config.{AppConfig, AppConfigImpl}
 import com.timzaak.fornet.controller.*
 import com.timzaak.fornet.grpc.AuthGRPCController
-import com.timzaak.fornet.keycloak.{ KeycloakJWTSaaSAuthStrategy, KeycloakJWTSaaSCompatAuthStrategy }
+import com.timzaak.fornet.keycloak.{KeycloakJWTSaaSAuthStrategy, KeycloakJWTSaaSCompatAuthStrategy}
 import com.timzaak.fornet.mqtt.MqttCallbackController
 import com.timzaak.fornet.mqtt.api.RMqttApiClient
-import com.timzaak.fornet.pubsub.{ MqttConnectionManager, NodeChangeNotifyService }
+import com.timzaak.fornet.pubsub.{MqttConnectionManager, NodeChangeNotifyService}
 import com.timzaak.fornet.service.*
-import very.util.keycloak.{ JWKPublicKeyLocator, JWKTokenVerifier }
-import very.util.web.auth.{ AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy }
+import very.util.keycloak.{JWKPublicKeyLocator, JWKTokenVerifier}
+import very.util.web.auth.{AuthStrategy, AuthStrategyProvider, SingleUserAuthStrategy}
 object DI extends DaoDI { di =>
 
   object appConfig extends AppConfigImpl(config)
@@ -30,6 +30,7 @@ object DI extends DaoDI { di =>
     extends NodeChangeNotifyService(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
+      deviceDao = di.deviceDao,
       connectionManager = di.connectionManager,
       nodeService = di.nodeService,
     )
@@ -84,6 +85,7 @@ object DI extends DaoDI { di =>
     extends NodeController(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
+      deviceDao = di.deviceDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
       appConfig = di.appConfig,
     )
@@ -100,6 +102,7 @@ object DI extends DaoDI { di =>
     extends AuthGRPCController(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
+      deviceDao = di.deviceDao,
       nodeChangeNotifyService = di.nodeChangeNotifyService,
       config = di.config,
       appConfig = di.appConfig,
@@ -112,6 +115,7 @@ object DI extends DaoDI { di =>
     extends MqttCallbackController(
       nodeDao = di.nodeDao,
       networkDao = di.networkDao,
+      deviceDao = di.deviceDao,
       nodeService = di.nodeService,
       mqttConnectionManager = di.connectionManager
     )

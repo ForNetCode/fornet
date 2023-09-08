@@ -2,16 +2,6 @@ use super::*;
 // Section: wire functions
 
 #[no_mangle]
-pub extern "C" fn wire_test_one(port_: i64, a: i32, b: i32) {
-    wire_test_one_impl(port_, a, b)
-}
-
-#[no_mangle]
-pub extern "C" fn wire_test_two(port_: i64, a: i32) {
-    wire_test_two_impl(port_, a)
-}
-
-#[no_mangle]
 pub extern "C" fn wire_get_config_path(port_: i64) {
     wire_get_config_path_impl(port_)
 }
@@ -19,10 +9,11 @@ pub extern "C" fn wire_get_config_path(port_: i64) {
 #[no_mangle]
 pub extern "C" fn wire_init_runtime(
     port_: i64,
+    config_path: *mut wire_uint_8_list,
     work_thread: usize,
     log_level: *mut wire_uint_8_list,
 ) {
-    wire_init_runtime_impl(port_, work_thread, log_level)
+    wire_init_runtime_impl(port_, config_path, work_thread, log_level)
 }
 
 #[no_mangle]
@@ -33,6 +24,16 @@ pub extern "C" fn wire_join_network(port_: i64, invite_code: *mut wire_uint_8_li
 #[no_mangle]
 pub extern "C" fn wire_list_network(port_: i64) {
     wire_list_network_impl(port_)
+}
+
+#[no_mangle]
+pub extern "C" fn wire_start(port_: i64, network_id: *mut wire_uint_8_list, raw_fd: i32) {
+    wire_start_impl(port_, network_id, raw_fd)
+}
+
+#[no_mangle]
+pub extern "C" fn wire_version(port_: i64) {
+    wire_version_impl(port_)
 }
 
 // Section: allocate functions

@@ -12,19 +12,20 @@ pub type WritePart = WriteHalf<AsyncDevice>;
 pub type ReadPart = ReadHalf<AsyncDevice>;
 pub type TunSocket = (ReadPart, WritePart,bool, String);
 
-pub fn create_async_tun(name: &str, mtu: u32, address:&[AllowedIP],
+pub fn create_async_tun(name: Option<String>, mtu: u32, address:&[AllowedIP],
 ) -> anyhow::Result<TunSocket> {
     let mut config = Configuration::default();
-
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
-    {
-        if name.starts_with("utun") {
-            config.name(name);
+    if let Some(name) = name {
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        {
+            if name.starts_with("utun") {
+                config.name(name);
+            }
         }
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
-    {
-        config.name(name);// target macos ios must be utun[0-9]+
+        #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+        {
+            config.name(name);// target macos ios must be utun[0-9]+
+        }
     }
     //config.netmask();
 
@@ -50,7 +51,7 @@ pub fn create_async_tun(name: &str, mtu: u32, address:&[AllowedIP],
         }
         #[cfg(target_os = "linux")]
         {
-            sys::set_address(&name, add)?;
+            sys::set_route(&name, add)?;
             tracing::info!("set address:{}", &add.to_string());
         }
 

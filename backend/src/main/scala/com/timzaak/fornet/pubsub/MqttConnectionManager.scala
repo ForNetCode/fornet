@@ -1,10 +1,10 @@
 package com.timzaak.fornet.pubsub
 
-import com.timzaak.fornet.mqtt.api.{PublishRequest, RMqttApiClient}
+import com.timzaak.fornet.mqtt.api.{PublishRequest, RMqttApiClient, UnsubscribeRequest}
 import com.timzaak.fornet.protobuf.config.{ClientMessage, NetworkMessage}
 import org.hashids.Hashids
 import scalapb.GeneratedMessage
-import very.util.security.IntID
+import very.util.security.{IntID, TokenID}
 import very.util.web.LogSupport
 
 import java.util.Base64
@@ -37,24 +37,31 @@ class MqttConnectionManager(
   }
   def sendClientMessage(
     networkId: IntID,
-    nodeId: IntID,
-    publicKey: String,
+    deviceId: TokenID,
     message: ClientMessage,
     retain: Option[Boolean] = Some(false),
   ): Try[Boolean] = {
-    logTry(s"send message[Client:${networkId.id}-${nodeId.id}] failure")(
+    logTry(s"send message[Client:${networkId.id}-${deviceId.id}] failure")(
       mqttApiClient.publish(
         PublishRequest(
           payload = encodeMessage(message),
-          clientId = Some(publicKey),
+          clientId = Some(deviceId.secretId),
           qos = Some(1),
           encoding = Some("base64"),
-          topic = s"client/${nodeId.secretId}",
+          topic = s"client/${deviceId.secretId}",
           retain,
         )
       )
     )
   }
 
-  def isOnline(publicKey: String): Boolean = mqttApiClient.isOnline(publicKey)
+  def isOnline(deviceToken: String): Boolean = mqttApiClient.isOnline(deviceToken)
+  
+  def kickOffNetwork(deviceToken:TokenID, networkId:IntID):Boolean = {
+    val result = mqttApiClient.unsubscribe(
+      UnsubscribeRequest(deviceToken.secretId, s"network/${networkId.secretId}")
+    )
+    logger.info(s"kick off node:${deviceToken.id} networkTopic:${networkId.id} result: $result")
+    result
+  }
 }

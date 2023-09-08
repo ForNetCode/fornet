@@ -1,8 +1,8 @@
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Duration;
 use boringtun::noise::rate_limiter::RateLimiter;
-use cfg_if::cfg_if;
 use socket2::Domain;
 use tokio::sync::{Mutex, RwLock};
 use tokio::io::{AsyncReadExt};
@@ -10,12 +10,11 @@ use tokio::task::JoinHandle;
 use crate::device;
 use crate::device::{DeviceData, Peers, HANDSHAKE_RATE_LIMIT, MAX_UDP_SIZE};
 use crate::device::peer::AllowedIP;
-use crate::device::script_run::{run_opt_script, Scripts};
+use crate::device::script_run::{run_opt_script, run_opt_script_with_param, Scripts};
 use crate::device::tun::create_async_tun;
 use crate::device::tunnel::{create_tcp_server, create_udp_socket};
 use nix::unistd::Uid;
 use crate::protobuf::config::{Protocol, NodeType};
-
 
 pub struct Device {
     pub device_data:DeviceData,
@@ -25,7 +24,7 @@ pub struct Device {
 
 impl Device {
     pub fn new(
-        name: &str,
+        name: Option<String>,
         address:&[AllowedIP],
         //allowed_ip: &[AllowedIP],
         key_pair: (x25519_dalek::StaticSecret, x25519_dalek::PublicKey),
@@ -38,7 +37,6 @@ impl Device {
         run_opt_script(&scripts.pre_up)?;
         tracing::debug!("begin to create tun");
         let (mut iface_reader, iface_writer,pi, name) = create_async_tun(name, mtu, address)?;
-
         tracing::debug!("finish to create tun");
         let iface_writer = Arc::new(Mutex::new(iface_writer));
         let rate_limiter = Arc::new(RateLimiter::new(&key_pair.1, HANDSHAKE_RATE_LIMIT));
@@ -126,9 +124,10 @@ impl Device {
             protocol,
         };
 
-        //run_opt_script(&Some("iptables -A FORWARD -i for0 -j ACCEPT".to_owned()))?;
 
-        run_opt_script(&device.scripts.post_up)?;
+        let mut script_params:HashMap<&str, String> = HashMap::new();
+        script_params.insert("tun", device.name.clone());
+        run_opt_script_with_param(&device.scripts.post_up, &script_params)?;
         Ok(device)
     }
 
@@ -157,23 +156,13 @@ impl DerefMut for Device {
 
 impl Drop for Device {
     fn drop(&mut self) {
-        self.task.abort();
+        if !self.task.is_finished() {
+            self.task.abort();
+        }
         tracing::debug!("device has been dropped");
     }
 }
 
-cfg_if!{
-    //#[cfg(any(target_os = "macos", target_os = "ios"))]
-    if #[cfg(target_os = "macos")] {
-        pub fn config_start_up(auto:bool) {
-
-        }
-    } else {
-        pub fn config_start_up(auto:bool) {
-
-        }
-    }
-}
 //auto start when server up
 pub fn check_permission() -> bool {
     Uid::effective().is_root()

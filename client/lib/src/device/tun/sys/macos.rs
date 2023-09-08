@@ -1,6 +1,5 @@
 use std::process::Command;
 use crate::device::peer::AllowedIP;
-use cmd_lib::run_cmd;
 
 
 pub fn set_alias(iface_name: &str, address: &AllowedIP) -> anyhow::Result<()> {

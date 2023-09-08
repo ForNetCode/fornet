@@ -2,13 +2,13 @@
 
 mod bridge_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 pub mod config;
-pub mod server_manager;
-mod sc_manager;
+//pub mod server_manager;
+pub mod sc_manager;
 pub mod wr_manager;
 pub mod device;
-pub mod server_api;
 pub mod api;
 pub mod flutter_api;
+pub mod client_manager;
 
 
 pub mod protobuf {
@@ -29,6 +29,7 @@ cfg_if::cfg_if! {
             dirs::home_dir().unwrap().join(format!(".{}",APP_NAME)).into_os_string().into_string().unwrap()
         }
     } else {
+        //Linux, Android, iOS does not support.
         pub fn default_config_path() -> String {
             format!("/etc/{}",APP_NAME)
         }
