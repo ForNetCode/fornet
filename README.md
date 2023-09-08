@@ -5,17 +5,17 @@ English | [中文](./README_CN.md)
 
 ForNet is another Layer3 Virtual Private Network software, built on top of [BoringTun](https://github.com/cloudflare/boringtun).
 
-Currently, it's in `beta` stage
+Currently, it's in `beta` stage.
 
 ### Feature
 - client code 100% open source, written with Rust.
 - self compile, self-hosted, easily integrated with Keycloak, provide admin web to manage clients.
 - support UDP/TCP protocol of Wireguard.
-- support macOS and Linux, more platform support is on the road.
+- support macOS, Linux and Windows, Android platform support is on the road.
 
 
 ### Document
-To check out docs, visit this [Git Page](https://doc.fornetcode.com). There is a [quick start tutorial](https://doc.fornetcode.com/guide/quick-start) for you.
+To check out docs, visit this [site](https://doc.fornetcode.com). There is a [quick start tutorial](https://doc.fornetcode.com/guide/quick-start) for you.
 
 If you are interested with the project future, please refer to [Roadmap](https://doc.fornetcode.com/plan).
 
