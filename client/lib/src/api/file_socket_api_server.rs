@@ -5,10 +5,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{RwLock, Mutex};
 use tokio::task::JoinHandle;
-use crate::api::{api_error, api_success, ApiJsonResponse, ApiResponse, JoinNetworkResult};
+use crate::api::{api_error, api_success, ApiJsonResponse, ApiResponse, JoinNetworkResult, APISocket, get_server_api_socket_path};
 use crate::client_manager::ForNetClient;
 use crate::sc_manager::ConfigSyncManager;
-use crate::server_api::{APISocket, get_server_api_socket_path};
 
 pub struct FileSocketApiServer {
     handler: JoinHandle<()>
@@ -17,7 +16,7 @@ pub struct FileSocketApiServer {
 impl FileSocketApiServer {
     pub fn start(client_manager:Arc<RwLock<ForNetClient>>,  config_sync_manager: Arc<Mutex<ConfigSyncManager>>) ->anyhow::Result<FileSocketApiServer> {
         let (sender, receiver) = tokio::sync::mpsc::channel::<APISocket>(10);
-        let handler = crate::server_api::init_api_server(
+        let handler = crate::api::init_api_server(
             sender, get_server_api_socket_path()
         ).with_context(|| "init file socket api server fail")?;
         let server = FileSocketApiServer {

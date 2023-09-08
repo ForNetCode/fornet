@@ -1,12 +1,23 @@
+use cfg_if::cfg_if;
 #[cfg(not(target_os = "android"))]
 pub mod file_socket_api_server;
 pub(crate) mod flutter_ffi;
 
+cfg_if! {
+    if #[cfg(unix)] {
+        mod unix;
+        pub use self::unix::*;
+    } else if #[cfg(windows)] {
+        mod windows;
+        pub use self::windows::*;
+    }
+}
+
+use std::path::PathBuf;
 use anyhow::anyhow;
 use tokio::io::AsyncWriteExt;
 use crate::config::{Identity, ServerInfo};
 use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
-use crate::server_api::APISocket;
 use std::time::Duration;
 use base64::Engine;
 use serde_derive::{Deserialize, Serialize};
@@ -16,6 +27,39 @@ use tonic::{
     Request,
 };
 use crate::protobuf::auth::action_response::Response;
+
+
+
+
+#[derive(Debug)]
+pub struct ApiClient {
+    client: _ApiClient
+}
+impl ApiClient {
+    pub fn new(path:PathBuf) -> Self{
+        Self {
+            client: _ApiClient::new(path)
+        }
+    }
+    pub async fn join_network(&self, invite_code:&str)->anyhow::Result<StreamResponse> {
+        self.client.send_command_stream(&format!("join {}", invite_code)).await
+    }
+
+    pub async fn list_network(&self) -> anyhow::Result<String> {
+        self.client.send_command( "list").await
+    }
+
+    pub async fn auto_launch(&self, sub_command:&str) -> anyhow::Result<String> {
+        self.client.send_command(&format!("autoLaunch {sub_command}")).await
+    }
+
+    // pub fn version(&self) -> String {
+    //     env!("CARGO_PKG_VERSION").to_owned()
+    // }
+}
+
+
+
 
 
 #[derive(Serialize, Deserialize)]

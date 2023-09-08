@@ -2,7 +2,7 @@ use std::str::FromStr;
 use clap::{Arg, Command};
 use tracing_subscriber::EnvFilter;
 use fornet_lib::api::ApiResponse;
-use fornet_lib::server_api::{ApiClient, get_server_api_socket_path};
+use fornet_lib::api::{ApiClient, get_server_api_socket_path};
 use fornet_lib::wr_manager::DeviceInfoResp;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
