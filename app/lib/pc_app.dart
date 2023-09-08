@@ -7,9 +7,9 @@ import 'dart:io';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:for_net_ui/ffi.dart';
-import 'package:for_net_ui/page/login_page.dart';
-import 'package:for_net_ui/page/welcome_page.dart';
+import 'package:for_net_ui/native/ffi.dart';
+import 'package:for_net_ui/page/pc/login_page.dart';
+import 'package:for_net_ui/page/pc/welcome_page.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -20,16 +20,29 @@ String getTrayImagePath(String imageName) {
   return Platform.isWindows ? 'assets/$imageName.ico' : 'assets/$imageName.png';
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+class PCApp extends StatefulWidget {
+  const PCApp({Key? key}) : super(key: key);
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<PCApp> createState() => _PCAppState();
 }
 
 bool initSuccess = false;
 
-class _MyAppState extends State<MyApp> {
+
+void pcRun() {
+  runApp(const PCApp());
+  doWhenWindowReady(() {
+    final win = appWindow;
+    const initialSize = Size(400, 160);
+    win.minSize = initialSize;
+    win.size = initialSize;
+    win.alignment = Alignment.center;
+    //win.show();
+    //win.hide();
+  });
+}
+class _PCAppState extends State<PCApp> {
   final AppWindow _appWindow = AppWindow();
   final SystemTray _systemTray = SystemTray();
   final Menu _menu = Menu();
@@ -45,7 +58,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> initRunTime() async {
     if (!initSuccess) {
-      await api.initRuntime(
+      await api.initRuntime(configPath: await api.getConfigPath(),
           workThread: 4, logLevel: kReleaseMode ? "info" : "debug");
       _timer = Timer(const Duration(seconds: 5), ()async{
         try {

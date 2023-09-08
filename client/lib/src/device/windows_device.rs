@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use anyhow::anyhow;
 use boringtun::noise::rate_limiter::RateLimiter;
 use socket2::Domain;
 use tokio::net::UdpSocket;
@@ -158,11 +157,6 @@ impl DerefMut for Device {
     }
 }
 
-
-//auto start when server up
-pub fn config_start_up(auto:bool) {
-
-}
 
 pub fn check_permission() -> bool {
     true

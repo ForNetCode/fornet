@@ -1,255 +1,94 @@
-use std::env;
-use std::path::PathBuf;
-use std::sync::Arc;
-use anyhow::{anyhow, bail};
-use serde_derive::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::Sender;
-use crate::config::{Config, Identity, NetworkInfo, ServerConfig};
-use crate::sc_manager::SCManager;
-use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
-use crate::server_api::APISocket;
-use crate::server_manager::{ServerManager, ServerMessage};
-use std::time::Duration;
 use cfg_if::cfg_if;
+#[cfg(not(target_os = "android"))]
+pub mod file_socket_api_server;
+pub(crate) mod flutter_ffi;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        mod unix;
+        pub use self::unix::*;
+    } else if #[cfg(windows)] {
+        mod windows;
+        pub use self::windows::*;
+    }
+}
+
+use std::path::PathBuf;
+use anyhow::anyhow;
+use tokio::io::AsyncWriteExt;
+use crate::config::{Identity, ServerInfo};
+use crate::protobuf::auth::{auth_client::AuthClient, InviteConfirmRequest, OAuthDeviceCodeRequest, SsoLoginInfoRequest, SuccessResponse};
+use std::time::Duration;
+use base64::Engine;
+use serde_derive::{Deserialize, Serialize};
+
 use tonic::{
     transport::Channel,
     Request,
 };
-use crate::{APP_NAME, MAC_OS_PACKAGE_NAME};
 use crate::protobuf::auth::action_response::Response;
 
-pub mod command_api;
 
 
-async fn join_network(server_manager: &mut ServerManager, invite_code: &str, stream: &mut APISocket, tx: Sender<ServerMessage>) -> anyhow::Result<()> {
-    let config_dir = PathBuf::from(&server_manager.config_path);
-    //TODO: remove this later to real support multiple network.
-    if ServerConfig::exits(&config_dir) {
-        bail!("config file already exists, it now do not support join multiple network");
-    }
 
-    let server_config_opt = if ServerConfig::exits(&config_dir) {
-        Some(ServerConfig::read_from_file(&config_dir)?)
-    } else {
-        None
-    };
-    let data = String::from_utf8(base64::decode(invite_code)?)?;
-    let data: Vec<&str> = data.split('|').collect();
-    let version = data[0].parse::<u32>()?;
-
-    let identity = if !Identity::exists(&config_dir) {
-        if server_config_opt.is_some() {
-            bail!("server config file exists, but identity file does not exists!");
-        }
-        let identity = Identity::new();
-        if let Ok(_) = identity.save(&config_dir) {
-            identity
-        } else {
-            bail!("write identity file error")
-        }
-    } else {
-        if let Ok(identity) = Identity::read_from_file(&config_dir) {
-            identity
-        } else {
-            bail!("read identity file error")
-
-        }
-    };
-    let change_config_and_init_sync_manger=  || {
-        let config = Config::load_config(&config_dir).unwrap().unwrap();
-        let config = Arc::new(config);
-        server_manager.config = Some(config.clone());
-        let mut sc_manager = SCManager::new(tx);
-        let _ = tokio::spawn(async move {
-            match sc_manager.mqtt_connect(config).await {
-                Ok(()) => tracing::warn!("sync config manager close, now can not receive any update from server"),
-                Err(e) => tracing::error!("sync config manager connect server result:{:?}", e),
-            };
-        });
-    };
-    if version == 1u32 {
-        let invite_token = InviteToken::new(data);
-        if server_config_opt.as_ref().is_some_and(|server_config| server_config.info.iter().find(|x| x.network_id == invite_token.network_token_id).is_some()) {
-            bail!("network has been joined");
-        }
-        let device_id_opt = server_config_opt.as_ref().map(|v|v.device_id.clone());
-        match server_invite_confirm(
-            identity,
-            &invite_token.endpoint,
-            &invite_token.network_token_id,
-            invite_token.node_id,
-            device_id_opt,
-        )
-            .await
-        {
-            Ok(resp) => {
-                let network_info = NetworkInfo {network_id: invite_token.network_token_id, tun_name: None};
-                let server_config = match server_config_opt {
-                    Some(mut server_config) => {
-                        server_config.info.push(network_info);
-                        server_config
-                    },
-                    None => ServerConfig {
-                        server: invite_token.endpoint,
-                        mqtt_url: resp.mqtt_url,
-                        device_id: resp.device_id,
-                        info: vec![network_info],
-                    }
-                };
-
-                server_config.save_config(&config_dir)?;
-                change_config_and_init_sync_manger();
-            }
-            Err(e) => {
-                tracing::warn!("connect server error!, {e}");
-                bail!("connect server error!, {e}")
-            }
-        };
-    } else if version == 2u32 { // keycloak login
-        let (mut client,sso_login) = SSOLogin::get_login_info(data).await?;
-
-        if server_config_opt.as_ref().is_some_and(|server_config| server_config.info.iter().find(|x| x.network_id == sso_login.network_token_id).is_some()) {
-            bail!("network has been joined");
-        }
-        match handle_oauth(identity, &mut client, &sso_login, stream, server_config_opt.as_ref().map(|v|v.device_id.clone())).await {
-            Ok(resp) => {
-                let network_info = NetworkInfo {network_id: sso_login.network_token_id, tun_name: None};
-                let server_config = match server_config_opt {
-                    Some(mut server_config) => {
-                        server_config.info.push(network_info);
-                        server_config
-                    },
-                    None => ServerConfig {
-                        server: sso_login.endpoint,
-                        mqtt_url: resp.mqtt_url,
-                        device_id: resp.device_id,
-                        info: vec![network_info],
-                    }
-                };
-
-                server_config.save_config(&config_dir)?;
-                change_config_and_init_sync_manger();
-            }
-            Err(e) => {
-                tracing::warn!("handle oauth error:{e}");
-                bail!("Oauth error");
-            }
-        }
-    } else {
-        bail!("can not parse invite token, please upgrade");
-    }
-    Ok(())
-
+#[derive(Debug)]
+pub struct ApiClient {
+    client: _ApiClient
 }
-pub async fn api_handler(server_manager: &mut ServerManager, command: String, stream: &mut APISocket, tx: Sender<ServerMessage>) {
-    let command:Vec<&str> = command.split(' ').collect::<Vec<&str>>();
-    match command[0] {
-        "join" => {
-            match join_network(server_manager, command[1], stream, tx).await {
-                Ok(()) => {
-                    let _ = stream.write(api_success("join success".to_owned()).to_json().as_bytes()).await;
-                }
-                Err(e) => {
-                    let _ = stream.write(api_error(e.to_string()).to_json().as_bytes()).await;
-                }
-            }
-        }
-        "list" => {
-            let data = server_manager.wr_manager.device_info();
-            let _ = stream.write(ApiResponse::boxed(data).to_json().as_bytes()).await;
-        }
-        "autoLaunch" => {
-            cfg_if! {
-                if #[cfg(target_os="macos")] {
-                    let _ = auto_launch_config(command, stream).await;
-                } else {
-                    let _ = stream.write(api_error("do not support".to_owned()).to_json().as_bytes()).await;
-                }
-            }
-        }
-        _ => {
-            tracing::error!("unknown command");
-            let _ = stream.write(b"unknown command").await;
+impl ApiClient {
+    pub fn new(path:PathBuf) -> Self{
+        Self {
+            client: _ApiClient::new(path)
         }
     }
+    pub async fn join_network(&self, invite_code:&str)->anyhow::Result<StreamResponse> {
+        self.client.send_command_stream(&format!("join {}", invite_code)).await
+    }
+
+    pub async fn list_network(&self) -> anyhow::Result<String> {
+        self.client.send_command( "list").await
+    }
+
+    pub async fn auto_launch(&self, sub_command:&str) -> anyhow::Result<String> {
+        self.client.send_command(&format!("autoLaunch {sub_command}")).await
+    }
+
+    // pub fn version(&self) -> String {
+    //     env!("CARGO_PKG_VERSION").to_owned()
+    // }
 }
 
-#[cfg(target_os="macos")]
-async fn auto_launch_config(command:Vec<&str>,  stream: &mut APISocket) {
-    match env::current_dir()  {
-        Ok(x) => {
-            let app_path = x.join(APP_NAME);
-            let auto = crate::device::auto_launch::AutoLaunch::new( MAC_OS_PACKAGE_NAME.to_owned(), app_path.to_str().unwrap().to_owned());
 
-            tracing::debug!("app name:{APP_NAME}, app path: {:?}", app_path);
-            let is_enabled = auto.is_enabled();
-            let result = match command.get(1) {
-                Some(&"enable") => {
-                    (if is_enabled.is_err() {
-                        Err(is_enabled.err().unwrap())
-                    } else if is_enabled.unwrap_or(false) {
-                        Ok(())
-                    } else {
-                        auto.enable()
-                    }).map(|_| {
-                        api_success("enable auto launch success".to_owned())
-                    })
-                }
-                Some(&"disable") => {
-                    (if is_enabled.is_err() {
-                        Err(is_enabled.err().unwrap())
-                    } else if !is_enabled.unwrap_or(false) {
-                        Ok(())
-                    } else {
-                        auto.disable()
-                    }).map(|_| {
-                        api_success("disable auto launch success".to_owned())
-                    })
-                }
-                _ => {
-                    (if is_enabled.is_err() {
-                        Err(is_enabled.err().unwrap())
-                    } else {
-                        Ok(is_enabled.unwrap_or(false))
-                    }).map(|x| {
-                        api_success(format!("{APP_NAME} auto launch: {}", if x { "enabled" } else { "disabled" }))
-                    })
-                }
-            };
-            match result {
-                Ok(response) => {
-                    let _ = stream.write(response.to_json().as_bytes()).await;
-                }
-                Err(e) => {
-                    let _ = stream.write(api_error(e.to_string()).to_json().as_bytes()).await;
-                }}
-        }
-        Err(e) => {
-            let _ = stream.write(api_error(e.to_string()).to_json().as_bytes()).await;
-        }
-    }
+
+
+
+#[derive(Serialize, Deserialize)]
+pub struct OAuthDevice {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: String,
+    pub expires_in: u32,
+    pub interval: u32,
 }
 
 #[derive(Serialize, Deserialize)]
-struct OAuthDevice {
-    device_code: String,
-    user_code: String,
-    verification_uri: String,
-    verification_uri_complete: String,
-    expires_in: u32,
-    interval: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-struct OAuthDeviceJWToken {
-    access_token: String,
-    expires_in: u32,
+pub struct OAuthDeviceJWToken {
+    pub access_token: String,
+    pub expires_in: u32,
     //...
 }
 
+pub async fn handle_oauth2(sso_login: &SSOLogin) -> anyhow::Result<OAuthDevice> {
+    let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
+        .form(&[("client_id", &sso_login.client_id)])
+        .send().await?.json::<OAuthDevice>().await?;
+
+    return Ok(response)
+}
+
 // https://github.com/keycloak/keycloak-community/blob/main/design/oauth2-device-authorization-grant.md
-async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket, device_id: Option<String>) -> anyhow::Result<SuccessResponse> {
+pub async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_login: &SSOLogin, stream: &mut APISocket, device_id: Option<String>) -> anyhow::Result<SuccessResponse> {
 
     let response = reqwest::Client::new().post(format!("{}/realms/{}/protocol/openid-connect/auth/device", &sso_login.sso_url, &sso_login.realm))
         .form(&[("client_id", &sso_login.client_id)])
@@ -296,8 +135,8 @@ async fn handle_oauth(identity: Identity, client:&mut AuthClient<Channel>, sso_l
 }
 
 
-async fn server_invite_confirm(
-    identity: Identity,
+pub async fn server_invite_confirm(
+    identity: &Identity,
     endpoint: &String,
     network_id: &String,
     node_id: Option<String>,
@@ -329,14 +168,14 @@ async fn server_invite_confirm(
     }
 }
 
-struct InviteToken {
-    endpoint: String,
-    network_token_id: String,
-    node_id: Option<String>,
+pub(crate) struct InviteToken {
+    pub endpoint: String,
+    pub network_token_id: String,
+    pub node_id: Option<String>,
 }
 
 impl InviteToken {
-    fn new(data: Vec<&str>) -> Self {
+    pub fn new(data: Vec<&str>) -> Self {
         let endpoint = data[1].to_owned();
         let network_token_id = data[2].to_owned();
         let node_id = if data.len() > 3 {
@@ -352,16 +191,16 @@ impl InviteToken {
     }
 }
 
-struct SSOLogin {
-    endpoint: String,
-    network_token_id: String,
-    sso_url: String,
-    realm: String,
-    client_id: String,
+pub struct SSOLogin {
+    pub endpoint: String,
+    pub network_token_id: String,
+    pub sso_url: String,
+    pub realm: String,
+    pub client_id: String,
 }
 
 impl SSOLogin {
-    async fn get_login_info(data: Vec<&str>) -> anyhow::Result<(AuthClient<Channel>, SSOLogin)> {
+    pub async fn get_login_info(data: Vec<&str>) -> anyhow::Result<(AuthClient<Channel>, SSOLogin)> {
         let grpc_endpoint = data[1].to_owned();
         let network_token_id = data[2].to_owned();
 
@@ -385,7 +224,7 @@ impl SSOLogin {
 }
 
 pub fn invite_token_parse(data: &str) -> anyhow::Result<(u32, String, String, Option<String>)> {
-    let data = String::from_utf8(base64::decode(data)?)?;
+    let data = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(data)?)?;
     let data: Vec<&str> = data.split('|').collect();
     let version = data[0].parse::<u32>()?;
     if version == 1u32 || version == 2u32 {
@@ -445,6 +284,15 @@ pub fn api_box_error(data:String) -> Box<dyn ApiJsonResponse> {
     Box::new(api_error(data))
 }
 
+pub enum JoinNetworkResult {
+    JoinSuccess(ServerInfo, String),
+    WaitingSSOAuth {
+        resp:OAuthDevice,
+        sso:SSOLogin,
+        client:AuthClient<Channel>,
+        device_id:Option<String>
+    }
+}
 
 #[cfg(test)]
 mod test {

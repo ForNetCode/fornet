@@ -1,5 +1,5 @@
 alter table network
-    add column token text not null default 'network_token';
+    add column token text not null default 'network-token';
 comment on column network.token is 'special token to protect from brute force';
 
 alter table node

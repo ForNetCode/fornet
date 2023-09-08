@@ -6,6 +6,10 @@ cfg_if! {
         pub use macos::{set_route,set_alias, remove_route};
     } else if #[cfg(target_os = "linux")]{
         mod linux;
-        pub use linux::{set_address};
+        pub use linux::{set_route, remove_route};
+    } else if #[cfg(target_os = "windows")] {
+        mod windows;
     }
+
 }
+

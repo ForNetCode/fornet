@@ -1,10 +1,15 @@
 use std::process::Command;
 use crate::device::peer::AllowedIP;
 
-pub fn set_address(iface_name:&str, address: &AllowedIP) -> anyhow::Result<()> {
+pub fn set_route(iface_name:&str, address: &AllowedIP) -> anyhow::Result<()> {
 
     let inet = if address.addr.is_ipv4() { "-4" } else { "-6" };
     Command::new("ip").args(&[inet, "address", "add", &address.to_string(), "dev", iface_name]).status()?;
+    Ok(())
+}
+pub fn remove_route(iface_name:&str, address: &AllowedIP) -> anyhow::Result<()> {
+    let inet = if address.addr.is_ipv4() { "-4" } else { "-6" };
+    Command::new("ip").args(&[inet, "address", "remove", &address.to_string(), "dev", iface_name]).status()?;
     Ok(())
 }
 /*

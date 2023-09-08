@@ -1,14 +1,10 @@
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
-use std::time::Duration;
-use anyhow::anyhow;
 use serde_derive::{Deserialize, Serialize};
-use crate::config::{Config, Identity, NetworkInfo};
+
 use crate::device::peer::AllowedIP;
-use crate::protobuf::config::{Protocol, WrConfig, NodeType};
 use crate::device::Device;
-use crate::device::script_run::Scripts;
 
 //WireGuard Manager
 // rewrite boring/Device, mainly change thread pool to tokio.
@@ -38,7 +34,7 @@ impl WRManager {
                           allowed_ips: &[AllowedIP],
                           ip:IpAddr,
                           keepalive: Option<u16>) {
-        if let Some(device) = &mut self.devices.get_mut(network_token_id) {
+        if let Some(device) = self.devices.get_mut(network_token_id) {
             device.update_peer(
                 pub_key,
                 false,
@@ -54,6 +50,7 @@ impl WRManager {
     }
 
 
+    /*
     pub async fn start(&mut self, network_token_id:String, config: &Config, wr_config: WrConfig) -> anyhow::Result<()> {
         let interface = wr_config.interface.unwrap();
         //let address = AllowedIP::from_str(interface.address.as_str()).map_err(|e| anyhow!(e))?;
@@ -74,8 +71,14 @@ impl WRManager {
             let sleep_time = if node_type == NodeType::NodeRelay {10} else {20};
             tokio::time::sleep(Duration::from_secs(sleep_time)).await;
         }
+        cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let tun_name = &config.get_tun_name();
+            } else {
+                let tun_name = config.get_tun_name(&network_token_id).await;
+            }
+        }
 
-        let tun_name = config.get_tun_name(&network_token_id).await;
         let protocol = Protocol::from_i32(interface.protocol).unwrap_or(Protocol::Udp);
         let node_type = NodeType::from_i32(wr_config.r#type).unwrap();
 
@@ -136,7 +139,7 @@ impl WRManager {
             tracing::debug!("peer: {} join network", peer.public_key);
         }
         Ok(())
-    }
+    }*/
 
     pub fn is_alive(&self, network_token_id:&str) -> bool { self.devices.contains_key(network_token_id) }
 

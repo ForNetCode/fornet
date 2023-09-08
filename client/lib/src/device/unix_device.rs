@@ -3,7 +3,6 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Duration;
 use boringtun::noise::rate_limiter::RateLimiter;
-use cfg_if::cfg_if;
 use socket2::Domain;
 use tokio::sync::{Mutex, RwLock};
 use tokio::io::{AsyncReadExt};
@@ -16,7 +15,6 @@ use crate::device::tun::create_async_tun;
 use crate::device::tunnel::{create_tcp_server, create_udp_socket};
 use nix::unistd::Uid;
 use crate::protobuf::config::{Protocol, NodeType};
-
 
 pub struct Device {
     pub device_data:DeviceData,
@@ -39,7 +37,6 @@ impl Device {
         run_opt_script(&scripts.pre_up)?;
         tracing::debug!("begin to create tun");
         let (mut iface_reader, iface_writer,pi, name) = create_async_tun(name, mtu, address)?;
-
         tracing::debug!("finish to create tun");
         let iface_writer = Arc::new(Mutex::new(iface_writer));
         let rate_limiter = Arc::new(RateLimiter::new(&key_pair.1, HANDSHAKE_RATE_LIMIT));
@@ -166,18 +163,6 @@ impl Drop for Device {
     }
 }
 
-cfg_if!{
-    //#[cfg(any(target_os = "macos", target_os = "ios"))]
-    if #[cfg(target_os = "macos")] {
-        pub fn config_start_up(auto:bool) {
-
-        }
-    } else {
-        pub fn config_start_up(auto:bool) {
-
-        }
-    }
-}
 //auto start when server up
 pub fn check_permission() -> bool {
     Uid::effective().is_root()

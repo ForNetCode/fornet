@@ -9,6 +9,9 @@ cfg_if! {
      if #[cfg(target_os="windows")] {
         mod windows_device;
         pub use windows_device::{Device, check_permission};
+    } else if #[cfg(target_os = "android")] {
+        mod android_device;
+        pub use android_device::Device;
     } else {
         mod unix_device;
         pub use unix_device::{Device, check_permission};
