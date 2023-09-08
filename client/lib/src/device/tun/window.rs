@@ -8,7 +8,7 @@ pub type ReadPart = fortun_cli::ReadFile;
 
 pub fn create_async_tun(guid:&str, mtu:u32, address:&[AllowedIP]) -> anyhow::Result<(ReadPart, WritePart, String)> {
 
-    let (read_part, write_part, device) = fortun_cli::create_async_tun(&GUID::from(guid), "ForTun")?;
+    let (read_part, write_part, device) = fortun_cli::create_async_tun(&GUID::from(guid), "ForTun", "TODO")?;
 
     for addr in address {
         let mask = if addr.addr.is_ipv4() {
