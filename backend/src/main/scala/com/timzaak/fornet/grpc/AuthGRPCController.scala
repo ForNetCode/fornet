@@ -1,8 +1,5 @@
 package com.timzaak.fornet.grpc
 
-import ch.qos.logback.core.joran.action.Action
-import com.google.common.base.Charsets
-import com.google.protobuf.empty.Empty
 import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthStrategyProvider
 import com.timzaak.fornet.dao.*
@@ -20,12 +17,8 @@ import very.util.keycloak.KeycloakJWTAuthStrategy
 import very.util.security.{ IntID, TokenID }
 import very.util.web.LogSupport
 import zio.json.*
-import zio.json.ast.{ Json, JsonCursor }
 
-import java.net.http.HttpRequest.BodyPublishers
-import java.net.http.{ HttpClient, HttpRequest }
-import java.net.{ URI, URLEncoder }
-import java.time.{ LocalDateTime, OffsetDateTime }
+import java.time.OffsetDateTime
 import scala.concurrent.Future
 import scala.util.{ Failure, Success, Try }
 

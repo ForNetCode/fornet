@@ -28,7 +28,7 @@ class DeviceDao(using quill: DB, hashids: Hashids) {
     if(ids.isEmpty) {
       Map.empty
     } else {
-      quill.run(quote(query[Device])).filter(v => liftQuery(ids).contains(v.id)).map(v => v.id.id -> v).toMap
+      quill.run(quote(query[Device]).filter(v => liftQuery(ids).contains(v.id))).map(v => v.id.id -> v).toMap
     }
   }
 }
