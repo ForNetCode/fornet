@@ -49,9 +49,9 @@ class AuthGRPCController(
   private def errorResponse(message: String) = ActionResponse(
     ActionResponse.Response.Error(message)
   )
-  private def successResponse(secretId: String) = ActionResponse(
+  private def successResponse(deviceId: TokenID) = ActionResponse(
     ActionResponse.Response.Success(
-      com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, secretId)
+      com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, deviceId.token)
     )
   )
 
@@ -181,7 +181,8 @@ class AuthGRPCController(
                 NodeStatus.Waiting,
                 NodeStatus.Normal
               )
-              successResponse(node.id.secretId)
+
+              successResponse(device.tokenID)
             } else {
               errorResponse("already active or error response")
             }
@@ -189,7 +190,7 @@ class AuthGRPCController(
             createNode(networkTokenId.intId, publicKey, device) match {
               case Left(value) => errorResponse(value)
               case Right(id) =>
-                successResponse(id.secretId)
+                successResponse(device.tokenID)
             }
         }
       Future.successful(response)
@@ -245,7 +246,7 @@ class AuthGRPCController(
                 )
                 createNode(networkTokenId.intId, publicKey, device) match {
                   case Left(value) => errorResponse(value)
-                  case Right(id)   => successResponse(id.secretId)
+                  case Right(id)   => successResponse(device.tokenID)
                 }
               case (_, Left(message)) => errorResponse(message)
               case _                  => errorResponse("Illegal Arguments")

@@ -1,6 +1,8 @@
+use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use anyhow::Context;
 use clap::{Arg, Command};
 use tokio::sync::{Mutex, RwLock};
 
@@ -63,10 +65,16 @@ async fn main() -> anyhow::Result<()> {
     if app_config.local_config.server_info.is_empty() {
         tracing::info!("please use `fornet-cli join $TOKEN` to join the network, the $Token can be found at admin web");
     }
+    let mqtt_urls:Vec<String> = app_config.local_config.server_info.iter().map(|info| info.mqtt_url.clone()).collect();
     let client = Arc::new(RwLock::new(ForNetClient::new(app_config)));
 
     //ConfigSyncManager
-    let (config_sync_manager,mut receiver ) = ConfigSyncManager::new(client.clone());
+    let (mut config_sync_manager,mut receiver ) = ConfigSyncManager::new(client.clone());
+
+    for mqtt_url in mqtt_urls {
+        (config_sync_manager.connect(mqtt_url).await).with_context(|| "connect server mqtt error").unwrap();
+    }
+
     let config_sync_manager = Arc::new(Mutex::new(config_sync_manager));
     FileSocketApiServer::start(client.clone(), config_sync_manager)?;
 

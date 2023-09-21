@@ -1,0 +1,6 @@
+###
+#@name mqtt auth
+POST {{mqtt}}/auth
+Content-Type: application/json
+
+{"clientid":"nqjKd_9K8yY","username":"rGgmdNOn3tO1am2mn/S/Rno5ijPOTTMK0XscDeXpZVnk3KEcGEL5Uk+gW91lM7JgK1TiBYyHt4o8xQUxkizUCw==","password": "PSIFTk6vYNyLu9ODdjoJfg==|1695308250|W5UghfFvbj7S3wDhfHSJsxOHnMhwBOuNRv/uipInHk21S2Qxthwc54iqCrjxfySl/xTpLHGQQ8mgBxUtz0HgCw=="}

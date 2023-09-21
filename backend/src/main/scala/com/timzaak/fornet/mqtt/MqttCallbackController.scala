@@ -3,11 +3,9 @@ package com.timzaak.fornet.mqtt
 import com.timzaak.fornet.dao.*
 import com.timzaak.fornet.entity.PublicKey
 import com.timzaak.fornet.grpc.convert.EntityConvert
-import com.timzaak.fornet.mqtt.api.RMqttApiClient
 import com.timzaak.fornet.protobuf.config.ClientMessage
 import com.timzaak.fornet.pubsub.MqttConnectionManager
 import com.timzaak.fornet.service.NodeService
-import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import inet.ipaddr.IPAddress.IPVersion
 import inet.ipaddr.IPAddressString
@@ -16,8 +14,7 @@ import org.hashids.Hashids
 import org.scalatra.*
 import very.util.security.ID.toIntID
 import very.util.security.TokenID
-import very.util.web.LogSupport
-import very.util.web.json.{JsonResponse, ZIOJsonSupport}
+import very.util.web.json.ZIOJsonSupport
 import very.util.web.validate.ValidationExtra
 import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
 
