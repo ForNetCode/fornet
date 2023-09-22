@@ -130,8 +130,8 @@ impl AsyncEventHandler for MqttWrapper {
                     }
                 }
             }
-            Packet::ConnAck(_) => {
-                tracing::info!("mqtt connected");
+            Packet::ConnAck(v) => {
+                tracing::info!("mqtt connected{:?}",v);
             }
             _ => {}
         }

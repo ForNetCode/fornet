@@ -12,7 +12,7 @@ import inet.ipaddr.IPAddressString
 import inet.ipaddr.ipv4.IPv4Address
 import org.hashids.Hashids
 import org.scalatra.*
-import very.util.security.ID.{toIntID, toTokenID}
+import very.util.security.ID.{ toIntID, toTokenID }
 import very.util.security.TokenID
 import very.util.web.json.ZIOJsonSupport
 import very.util.web.validate.ValidationExtra
@@ -24,7 +24,7 @@ import scala.util.{ Failure, Success, Try }
 import very.util.web.json.tokenIDDecoder
 
 case class AuthRequest(
-  @jsonField("clientid")
+  @jsonField("clientId")
   deviceTokenId: TokenID, // device tokenId
   @jsonField("username")
   publicKey: String, // public key
@@ -52,7 +52,7 @@ case class AclRequest(
   @jsonField("username")
   publicKey: String,
   ipaddr: String,
-  @jsonField("clientid")
+  @jsonField("clientId")
   deviceTokenId: TokenID,
   topic: String
 )

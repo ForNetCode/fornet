@@ -6,7 +6,6 @@ import com.timzaak.fornet.protobuf.config.{Interface, Peer, WRConfig}
 object EntityConvert {
 
   def toPeers(nodes: List[Node], network: Network, deviceMap: Map[Int, Device]) = {
-    import com.timzaak.fornet.protobuf.config.Peer
     nodes.map(node => toPeer(node, network, deviceMap(node.deviceId.id).publicKey))
   }
 
