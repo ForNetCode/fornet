@@ -163,14 +163,14 @@ class MqttCallbackController(
       if (isPrivateIP) {
         Ok("allow")
       } else {
-        Forbidden("deny")
+        Ok("deny")
       }
       // sub
     } else if (req.access == "1") {
       req.topic match {
         case networkTopicPattern(secretId) =>
           Try(secretId.toTokenID).fold(
-            _ => Forbidden("deny"),
+            _ => Ok("deny"),
             { networkId =>
               if (
                 nodeDao
@@ -179,7 +179,7 @@ class MqttCallbackController(
               ) {
                 Ok("allow")
               } else {
-                Forbidden("deny")
+                Ok("deny")
               }
             }
           )
@@ -187,10 +187,10 @@ class MqttCallbackController(
           if secretId == req.deviceTokenId.secretId =>
           Ok("allow")
         case _ =>
-          Forbidden("deny")
+          Ok("deny")
       }
     } else {
-      Forbidden("deny")
+      Ok("deny")
     }
     result
   }
