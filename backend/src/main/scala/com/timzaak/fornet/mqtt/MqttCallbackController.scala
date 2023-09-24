@@ -89,9 +89,9 @@ class MqttCallbackController(
     }
     logger.debug(s"device: ${req.deviceTokenId.id} auth ${isOk}")
     if (isOk) {
-      Ok()
+      Ok("allow")
     } else {
-      Forbidden()
+      Ok("deny")
     }
 
   }

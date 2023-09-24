@@ -28,8 +28,8 @@ node.id = 1
 log.to = "console"
 # Value: trace, debug, info, warn, error
 log.level = "debug"
-#log.dir = "/var/log"
-#log.file = "rmqtt.log"
+log.dir = "/var/log"
+log.file = "rmqtt.log"
 
 ##--------------------------------------------------------------------
 ## Plugins
