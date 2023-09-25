@@ -17,6 +17,7 @@ fornet-lib = {path = "../lib"}
 
 clap = { version = "3.2.20", features = ["env"] }
 anyhow = "1.0"
+cfg-if = "1.0"
 
 tokio = { version = "1.20.1", features = ["macros", "rt-multi-thread", "net", "signal", "tracing"] }
 tracing = "0.1.36"

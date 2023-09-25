@@ -847,6 +847,7 @@ name = "fornet"
 version = "0.0.4"
 dependencies = [
  "anyhow",
+ "cfg-if",
  "clap",
  "fornet-lib",
  "serde",

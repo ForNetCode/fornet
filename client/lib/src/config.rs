@@ -18,9 +18,12 @@ pub struct AppConfig {
     pub config_path: PathBuf,
     pub identity: Identity,
     pub local_config: LocalConfig,
+    #[cfg(target_os="windows")]
+    pub driver_path: String
 }
 impl AppConfig {
-    pub fn load_config(config_path: &PathBuf) -> anyhow::Result<Self> {
+
+    fn _load_config(config_path:&PathBuf) -> anyhow::Result<(Identity, LocalConfig)>{
         let identity = if Identity::exists(config_path) {
             Identity::read_from_file(config_path)?
         } else {
@@ -35,10 +38,26 @@ impl AppConfig {
             server_config.save_config(config_path)?;
             server_config
         };
+        Ok((identity, server_config))
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn load_config(config_path: &PathBuf, driver_path:String) -> anyhow::Result<Self> {
+        let (identity,local_config) = Self::_load_config(config_path)?;
         Ok(Self {
             config_path: config_path.clone(),
             identity,
-            local_config: server_config
+            local_config,
+            driver_path,
+        })
+    }
+    #[cfg(not(target_os = "windows"))]
+    pub fn load_config(config_path: &PathBuf) -> anyhow::Result<Self> {
+        let (identity,local_config) = Self::_load_config(config_path)?;
+        Ok(Self {
+            config_path: config_path.clone(),
+            identity,
+            local_config,
         })
     }
 }

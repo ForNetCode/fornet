@@ -31,8 +31,13 @@ async fn main() -> anyhow::Result<()> {
                 .env("FORNET_CONFIG")
                 .help("config directory path")
                 .default_value(&default_config_path),
-        ])
-        .get_matches();
+        ]);
+    #[cfg(target_os = "windows")]
+    let matches = matches.arg(Arg::new("driver").long("driver").env("FORNET_DRIVER")
+        .default_value("./driver/ForTun.inf")
+        .help("windows driver path, the driver is simple-windows-driver"));
+
+    let matches = matches.get_matches();
 
 
     let config_dir = matches.value_of("config").unwrap().to_owned();
@@ -59,7 +64,11 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let config_dir = PathBuf::from(config_dir);
-    let app_config = AppConfig::load_config(&config_dir)?;
+
+    #[cfg(target_os="windows")]
+    let app_config:AppConfig = AppConfig::load_config(&config_dir,  matches.value_of("driver").unwrap().to_owned())?;
+    #[cfg(not(target_os = "windows"))]
+    let app_config:AppConfig = AppConfig::load_config(&config_dir)?;
 
     if app_config.local_config.server_info.is_empty() {
         tracing::info!("please use `fornet-cli join $TOKEN` to join the network, the $Token can be found at admin web");

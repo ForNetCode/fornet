@@ -223,6 +223,7 @@ impl ForNetClient {
         let key_pair = (self.config.identity.x25519_sk.clone(), self.config.identity.x25519_pk.clone());
 
         tracing::debug!("begin to start device");
+        #[cfg(not(target_os = "windows"))]
         let wr_interface = Device::new(
             tun_name,
             &address,
@@ -232,6 +233,18 @@ impl ForNetClient {
             scripts,
             protocol,
             node_type,
+        )?;
+        #[cfg(target_os = "windows")]
+            let wr_interface = Device::new(
+            tun_name,
+            &address,
+            key_pair,
+            Some(interface.listen_port as u16),
+            interface.mtu.unwrap_or(1420) as u32,
+            scripts,
+            protocol,
+            node_type,
+            self.config.driver_path.clone(),
         )?;
         if Some(&wr_interface.name) != self.config.local_config.tun_name.as_ref() {
             self.config.local_config.tun_name = Some(wr_interface.name.clone());

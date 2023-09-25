@@ -86,34 +86,39 @@ pub fn init_runtime(config_path:String, work_thread:usize, log_level: String, st
     tracing::info!("init tokio runtime and log success, begin to start server");
 
     let config_dir = PathBuf::from(config_path);
-    let app_config = AppConfig::load_config(&config_dir)?;
-    let client = Arc::new(RwLock::new(ForNetClient::new(app_config)));
+    #[cfg(target_os = "windows")]
+    bail!("not support windows now");
+    #[cfg(not(target_os = "windows"))]
+    {
+        let app_config = AppConfig::load_config(&config_dir)?;
+
+        let client = Arc::new(RwLock::new(ForNetClient::new(app_config)));
 
 
-    let (config_sync_manager,mut receiver ) = ConfigSyncManager::new(client.clone());
-    let config_sync_manager = Arc::new(Mutex::new(config_sync_manager));
+        let (config_sync_manager, mut receiver) = ConfigSyncManager::new(client.clone());
+        let config_sync_manager = Arc::new(Mutex::new(config_sync_manager));
 
-    let ddl_runtime = DLLRuntime {
-        rt: tokio_runtime,
-        client: client.clone(),
-        sync_manager: config_sync_manager,
-    };
+        let ddl_runtime = DLLRuntime {
+            rt: tokio_runtime,
+            client: client.clone(),
+            sync_manager: config_sync_manager,
+        };
 
 
-    let stream = Arc::new(stream);
-    ddl_runtime.rt.spawn(async move {
-       while let Some(message) = receiver.recv().await {
-
-           cfg_if!{
+        let stream = Arc::new(stream);
+        ddl_runtime.rt.spawn(async move {
+            while let Some(message) = receiver.recv().await {
+                cfg_if! {
                if #[cfg(target_os = "android")] {
                    crate::api::flutter_ffi::flutter_handler_server_message::flutter_handler_server_message(client.clone(),message, stream.clone()).await;
                } else {
                    command_handle_server_message(client.clone(), message).await;
                }
            }
-       }
-    });
-    RT.set(ddl_runtime).unwrap();
+            }
+        });
+        RT.set(ddl_runtime).unwrap();
+    }
     //let is_root = nix::unistd::Uid::effective().is_root();
     //tracing::info!("is root, {is_root}, {}",nix::unistd::Uid::effective());
 
