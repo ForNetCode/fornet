@@ -44,7 +44,7 @@ class AuthGRPCController(
   )
   private def successResponse(deviceId: TokenID) = ActionResponse(
     ActionResponse.Response.Success(
-      com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, deviceId.token)
+      com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, deviceId.secretId)
     )
   )
 
@@ -174,7 +174,6 @@ class AuthGRPCController(
                 NodeStatus.Waiting,
                 NodeStatus.Normal
               )
-
               successResponse(device.tokenID)
             } else {
               errorResponse("already active or error response")
