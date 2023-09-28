@@ -124,7 +124,7 @@ class MqttCallbackController(
           if (node.realStatus(network.status) == NodeStatus.Normal) {
             val notifyNodes = nodeService.getAllRelativeNodes(node)
             val network = networks(node.networkId)
-            val deviceMap = deviceDao.getAllDevices(nodes.map(_.deviceId))
+            val deviceMap = deviceDao.getAllDevices(node.deviceId::notifyNodes.map(_.deviceId))
             mqttConnectionManager.sendClientMessage(
               networkId = node.networkId,
               deviceTokenId,

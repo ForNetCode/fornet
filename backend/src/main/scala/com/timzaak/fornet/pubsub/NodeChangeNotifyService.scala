@@ -134,7 +134,7 @@ class NodeChangeNotifyService(
         val peer = EntityConvert.toPeer(node, network, device.publicKey)
 
         val notifyNodes = nodeService.getAllRelativeNodes(node)
-        val deviceMap = deviceDao.getAllDevices(notifyNodes.map(_.deviceId))
+        val deviceMap = deviceDao.getAllDevices(node.deviceId::notifyNodes.map(_.deviceId))
         connectionManager.sendClientMessage(
           node.networkId,
           device.tokenID,
