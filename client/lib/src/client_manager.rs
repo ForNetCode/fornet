@@ -235,7 +235,7 @@ impl ForNetClient {
             node_type,
         )?;
         #[cfg(target_os = "windows")]
-            let wr_interface = Device::new(
+        let wr_interface = Device::new(
             tun_name,
             &address,
             key_pair,
@@ -379,7 +379,10 @@ pub async fn command_handle_server_message(client:Arc<RwLock<ForNetClient>>, mes
         ServerMessage::SyncConfig(network_token_id,wr_config) => {
             let mut client = client.write().await;
             client.stop().await;
-            let _ = client.start(network_token_id, wr_config).await;
+
+            if let Err(e) = client.start(network_token_id, wr_config).await {
+                tracing::warn!("start device error:{e}");
+            }
         }
 
         ServerMessage::SyncPeers(_network_token_id, peer_change_message) => {
