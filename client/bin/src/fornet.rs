@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
     let app_config:AppConfig = AppConfig::load_config(&config_dir)?;
 
     if app_config.local_config.server_info.is_empty() {
-        tracing::info!("please use `fornet-cli join $TOKEN` to join the network, the $Token can be found at admin web");
+        tracing::info!("please use `fornet-cli join $TOKEN` to join the network, $TOKEN can be found at admin web");
     }
     let mqtt_urls:Vec<String> = app_config.local_config.server_info.iter().map(|info| info.mqtt_url.clone()).collect();
     let client = Arc::new(RwLock::new(ForNetClient::new(app_config)));

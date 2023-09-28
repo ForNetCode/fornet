@@ -8,6 +8,7 @@ use std::fs;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use anyhow::Context;
 use cfg_if::cfg_if;
 use base64::Engine;
 use crate::protobuf::auth::EncryptRequest;
@@ -27,6 +28,7 @@ impl AppConfig {
         let identity = if Identity::exists(config_path) {
             Identity::read_from_file(config_path)?
         } else {
+            fs::create_dir(config_path).with_context(|| format!("create config path: {:?} failure", config_path))?;
             let identity = Identity::new();
             identity.save(config_path)?;
             identity
