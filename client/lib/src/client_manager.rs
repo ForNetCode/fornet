@@ -250,8 +250,8 @@ impl ForNetClient {
             self.config.local_config.tun_name = Some(wr_interface.name.clone());
             self.config.local_config.save_config(&self.config.config_path)?;
         }
-        self.add_peers(&wr_config.peers).await?;
         self.device = Some(wr_interface);
+        self.add_peers(&wr_config.peers).await?;
         Ok(())
     }
     pub async fn peer_change_sync(&mut self, peer_change_message:PeerChange) {
