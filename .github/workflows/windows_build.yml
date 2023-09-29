@@ -29,6 +29,7 @@ jobs:
           restore-keys: windows-cargo
 
       - name: build
+        shell: pwdsh
         run: ./windows-build.ps1
 
       - name: Upload artifact
