@@ -29,12 +29,12 @@ jobs:
           restore-keys: windows-cargo
 
       - name: build
-        shell: pwdsh
         run: ./build.ps1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
+          name: fornet-win11-x86_64
           path: release/*
           if-no-files-found: error  
 
