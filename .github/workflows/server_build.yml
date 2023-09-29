@@ -4,7 +4,7 @@ on:
     inputs:
       version:
         required: true
-        description: "version to release"
+        description: "docker version to release"
     
 env:
   REGISTRY: ghcr.io
