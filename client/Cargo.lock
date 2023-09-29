@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "fornet"
-version = "0.0.4"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "fornet-lib"
-version = "0.0.4"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayref",
