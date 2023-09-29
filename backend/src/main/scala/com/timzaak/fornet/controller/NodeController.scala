@@ -162,9 +162,10 @@ trait NodeController(
       .findById(networkId, nodeId)
       .filter(_.status == NodeStatus.Waiting)
       .map { _ =>
+        val networkSecretId = networkDao.findById(_networkId).get.tokenId.secretId
         String(
           Base64.getEncoder.encode(
-            s"1|${config.getString("server.grpc.endpoint")}|${networkId.secretId}|${nodeId.secretId}".getBytes
+            s"1|${config.getString("server.grpc.endpoint")}|${networkSecretId}|${nodeId.secretId}".getBytes
           )
         )
       }

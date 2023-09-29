@@ -33,10 +33,11 @@ impl Device {
         scripts:Scripts,
         protocol: Protocol,
         node_type:NodeType,
+        driver_path: String,
     ) -> anyhow::Result<Self>{
         run_opt_script(&scripts.pre_up)?;
 
-        let (iface_reader, iface_writer, name) = create_async_tun(name, mtu, address)?;
+        let (iface_reader, iface_writer, name) = create_async_tun(name, mtu, address, driver_path)?;
         let iface_writer = Arc::new(Mutex::new(iface_writer));
 
         let rate_limiter = Arc::new(RateLimiter::new(&key_pair.1, HANDSHAKE_RATE_LIMIT));

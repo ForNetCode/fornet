@@ -1,8 +1,5 @@
 package com.timzaak.fornet.grpc
 
-import ch.qos.logback.core.joran.action.Action
-import com.google.common.base.Charsets
-import com.google.protobuf.empty.Empty
 import com.timzaak.fornet.config.AppConfig
 import com.timzaak.fornet.controller.auth.AppAuthStrategyProvider
 import com.timzaak.fornet.dao.*
@@ -20,12 +17,8 @@ import very.util.keycloak.KeycloakJWTAuthStrategy
 import very.util.security.{ IntID, TokenID }
 import very.util.web.LogSupport
 import zio.json.*
-import zio.json.ast.{ Json, JsonCursor }
 
-import java.net.http.HttpRequest.BodyPublishers
-import java.net.http.{ HttpClient, HttpRequest }
-import java.net.{ URI, URLEncoder }
-import java.time.{ LocalDateTime, OffsetDateTime }
+import java.time.OffsetDateTime
 import scala.concurrent.Future
 import scala.util.{ Failure, Success, Try }
 
@@ -49,9 +42,9 @@ class AuthGRPCController(
   private def errorResponse(message: String) = ActionResponse(
     ActionResponse.Response.Error(message)
   )
-  private def successResponse(secretId: String) = ActionResponse(
+  private def successResponse(deviceId: TokenID) = ActionResponse(
     ActionResponse.Response.Success(
-      com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, secretId)
+      com.timzaak.fornet.protobuf.auth.SuccessResponse(mqttClientUrl, deviceId.secretId)
     )
   )
 
@@ -181,7 +174,7 @@ class AuthGRPCController(
                 NodeStatus.Waiting,
                 NodeStatus.Normal
               )
-              successResponse(node.id.secretId)
+              successResponse(device.tokenID)
             } else {
               errorResponse("already active or error response")
             }
@@ -189,7 +182,7 @@ class AuthGRPCController(
             createNode(networkTokenId.intId, publicKey, device) match {
               case Left(value) => errorResponse(value)
               case Right(id) =>
-                successResponse(id.secretId)
+                successResponse(device.tokenID)
             }
         }
       Future.successful(response)
@@ -245,7 +238,7 @@ class AuthGRPCController(
                 )
                 createNode(networkTokenId.intId, publicKey, device) match {
                   case Left(value) => errorResponse(value)
-                  case Right(id)   => successResponse(id.secretId)
+                  case Right(id)   => successResponse(device.tokenID)
                 }
               case (_, Left(message)) => errorResponse(message)
               case _                  => errorResponse("Illegal Arguments")

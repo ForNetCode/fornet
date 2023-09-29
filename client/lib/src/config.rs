@@ -8,6 +8,7 @@ use std::fs;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use anyhow::Context;
 use cfg_if::cfg_if;
 use base64::Engine;
 use crate::protobuf::auth::EncryptRequest;
@@ -18,12 +19,16 @@ pub struct AppConfig {
     pub config_path: PathBuf,
     pub identity: Identity,
     pub local_config: LocalConfig,
+    #[cfg(target_os="windows")]
+    pub driver_path: String
 }
 impl AppConfig {
-    pub fn load_config(config_path: &PathBuf) -> anyhow::Result<Self> {
+
+    fn _load_config(config_path:&PathBuf) -> anyhow::Result<(Identity, LocalConfig)>{
         let identity = if Identity::exists(config_path) {
             Identity::read_from_file(config_path)?
         } else {
+            fs::create_dir(config_path).with_context(|| format!("create config path: {:?} failure", config_path))?;
             let identity = Identity::new();
             identity.save(config_path)?;
             identity
@@ -35,10 +40,26 @@ impl AppConfig {
             server_config.save_config(config_path)?;
             server_config
         };
+        Ok((identity, server_config))
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn load_config(config_path: &PathBuf, driver_path:String) -> anyhow::Result<Self> {
+        let (identity,local_config) = Self::_load_config(config_path)?;
         Ok(Self {
             config_path: config_path.clone(),
             identity,
-            local_config: server_config
+            local_config,
+            driver_path,
+        })
+    }
+    #[cfg(not(target_os = "windows"))]
+    pub fn load_config(config_path: &PathBuf) -> anyhow::Result<Self> {
+        let (identity,local_config) = Self::_load_config(config_path)?;
+        Ok(Self {
+            config_path: config_path.clone(),
+            identity,
+            local_config,
         })
     }
 }

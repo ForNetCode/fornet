@@ -44,6 +44,7 @@ impl AsyncEventHandler for MqttWrapper {
     async fn handle(&mut self, event: Packet) {
         match event {
             Packet::Publish(p) => {
+                tracing::debug!("come message, topic: {}", &p.topic);
                 match &p.topic {
                     topic if topic == &self.client_topic => {
                         if let Ok(client_message) = ClientMessage::decode(p.payload) {
@@ -129,8 +130,8 @@ impl AsyncEventHandler for MqttWrapper {
                     }
                 }
             }
-            Packet::ConnAck(_) => {
-                tracing::info!("mqtt connected");
+            Packet::ConnAck(v) => {
+                tracing::debug!("mqtt {:?}",v);
             }
             _ => {}
         }

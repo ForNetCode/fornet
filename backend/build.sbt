@@ -21,7 +21,7 @@ lazy val webSugar = RootProject(file("../third/web-sugar"))
 lazy val app = project
   .in(file("."))
   .settings(
-    version := "0.0.4",
+    version := "0.1.0",
     scalaVersion := scala3Version,
     libraryDependencies ++=
       Seq(

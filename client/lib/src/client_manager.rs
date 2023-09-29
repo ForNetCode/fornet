@@ -223,6 +223,7 @@ impl ForNetClient {
         let key_pair = (self.config.identity.x25519_sk.clone(), self.config.identity.x25519_pk.clone());
 
         tracing::debug!("begin to start device");
+        #[cfg(not(target_os = "windows"))]
         let wr_interface = Device::new(
             tun_name,
             &address,
@@ -233,10 +234,23 @@ impl ForNetClient {
             protocol,
             node_type,
         )?;
+        #[cfg(target_os = "windows")]
+        let wr_interface = Device::new(
+            tun_name,
+            &address,
+            key_pair,
+            Some(interface.listen_port as u16),
+            interface.mtu.unwrap_or(1420) as u32,
+            scripts,
+            protocol,
+            node_type,
+            self.config.driver_path.clone(),
+        )?;
         if Some(&wr_interface.name) != self.config.local_config.tun_name.as_ref() {
             self.config.local_config.tun_name = Some(wr_interface.name.clone());
             self.config.local_config.save_config(&self.config.config_path)?;
         }
+        self.device = Some(wr_interface);
         self.add_peers(&wr_config.peers).await?;
         Ok(())
     }
@@ -365,7 +379,10 @@ pub async fn command_handle_server_message(client:Arc<RwLock<ForNetClient>>, mes
         ServerMessage::SyncConfig(network_token_id,wr_config) => {
             let mut client = client.write().await;
             client.stop().await;
-            let _ = client.start(network_token_id, wr_config).await;
+
+            if let Err(e) = client.start(network_token_id, wr_config).await {
+                tracing::warn!("start device error:{e}");
+            }
         }
 
         ServerMessage::SyncPeers(_network_token_id, peer_change_message) => {
