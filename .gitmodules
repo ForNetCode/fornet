@@ -11,3 +11,6 @@
 [submodule "third/simple-windows-tun"]
 	path = third/simple-windows-tun
 	url = git@github.com:ForNetCode/simple-windows-tun.git
+[submodule "third/keycloak-theme"]
+	path = third/keycloak-theme
+	url = git@github.com:ForNetCode/keycloak-theme.git
