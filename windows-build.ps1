@@ -16,4 +16,4 @@ Expand-Archive driver.zip -DestinationPath ./driver_tmp
 mkdir driver
 mv .\driver_tmp\fortun\* .\driver\
 
-Compress-Archive -P ./client/target/release/fornet.exe -P ./driver -P ./client/target/release/fornet-cli.exe -DestinationPath ./release/fornet-window64.zip
+Compress-Archive -Path ./client/target/release/fornet.exe,./driver,./client/target/release/fornet-cli.exe -DestinationPath ./release/fornet-window64.zip
