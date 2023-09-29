@@ -1,6 +1,6 @@
 val scala3Version = "3.3.0"
 
-maintainer := "timzaak<zsy.evan#gmail.com>"
+maintainer := "timzaak<zsy.evan@gmail.com>"
 
 enablePlugins(ScalatraPlugin)
 

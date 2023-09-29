@@ -4,7 +4,7 @@ on:
     inputs:
       version:
         required: true
-        description: "version to release"
+        description: "docker version to release"
 env:
   REGISTRY: ghcr.io
 jobs:
@@ -41,7 +41,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}, ${{ env.REGISTRY }}/fornetcode/fornet:latest
-  commandLine:
+  UnixCommandLine:
     strategy:
       max-parallel: 1
       fail-fast: true
@@ -52,7 +52,7 @@ jobs:
             build: make release-linux
           - host: macos-latest
             target: x86_64-apple-darwin
-            build: make release-mac-x86_64
+            build: make release-mac-x86_64            
           # - host: macos-latest # This needs aarch64 OpenSSL, will wait github action support MacOS M1(https://github.com/github/roadmap/issues/528), then run this.
           #   target: aarch64-apple-darwin
           #   build: make release-mac-aarch64
@@ -89,3 +89,37 @@ jobs:
         with:
           path: release/*
           if-no-files-found: error
+  WindowsCommandLine:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+          profile: minimal
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+              ~/.cargo/bin/
+              ~/.cargo/registry/index/
+              ~/.cargo/registry/cache/
+              ~/.cargo/git/db/
+              client/target/            
+          key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: windows-cargo
+      - name: build
+        shell: pwsh
+        run: ./windows-build.ps1
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: fornet-win11-x86_64
+          path: release/*
+          if-no-files-found: error
+
+         
