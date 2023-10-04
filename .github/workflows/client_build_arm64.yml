@@ -1,17 +1,15 @@
 name: fornet arm64 client build
-# run at self-hosted mac min M2
-# But it does not success for SSL timeout. we may try other methods to do this
 on:
   workflow_dispatch:
     inputs:
       version:
         required: true
-        description: "version to release"
+        description: "docker version to release"
 env:
   REGISTRY: ghcr.io
 jobs:
   docker-and-linux:
-    runs-on: self-hosted
+    runs-on: macos-13-xlarge
     steps:
       - uses: actions/checkout@v3
         with:
@@ -56,7 +54,7 @@ jobs:
       fail-fast: true
       matrix:
         settings:
-          - host: self-hosted
+          - host: macos-13-xlarge
             target: aarch64-apple-darwin
             build: make release-mac-aarch64
 
@@ -91,5 +89,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
+          name: fornet-macos-aarch64
           path: release/*
           if-no-files-found: error
