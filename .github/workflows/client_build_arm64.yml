@@ -45,50 +45,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: fornet-linux-aarch64.tar.gz
-          path: release/fornet-linux-aarch64.tar.gz
-          if-no-files-found: error  
-
-  mac:
-    strategy:
-      max-parallel: 1
-      fail-fast: true
-      matrix:
-        settings:
-          - host: macos-13-xlarge
-            target: aarch64-apple-darwin
-            build: make release-mac-aarch64
-
-    runs-on: ${{ matrix.settings.host }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1        
-        with:
-          toolchain: stable
-          target: ${{ matrix.settings.target }}
-          profile: minimal
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            client/target/            
-          key: ${{ matrix.settings.host }}-${{ matrix.settings.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.settings.host }}-cargo-${{ matrix.settings.target }}
-      # - name: Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
-      - name: Build
-        run: ${{ matrix.settings.build }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: fornet-macos-aarch64
-          path: release/*
+          path: release/fornet-aarch64-unknown-linux-gnu.tar.gz
           if-no-files-found: error
