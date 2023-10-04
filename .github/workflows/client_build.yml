@@ -32,7 +32,7 @@ jobs:
           #platforms: linux/amd64,linux/arm64
           push: true
           file: command/docker/client/client.Dockerfile
-          cache -from: type=gha
+          cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}, ${{ env.REGISTRY }}/fornetcode/fornet:latest
   UnixCommandLine:
