@@ -32,8 +32,8 @@ jobs:
           #platforms: linux/amd64,linux/arm64
           push: true
           file: command/docker/client/client.Dockerfile
-          cache-from: type=registry,ref=${{env.REGISTRY}}/fornetcode/fornet:lastet
-          cache-to: type=inline
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}, ${{ env.REGISTRY }}/fornetcode/fornet:latest
   UnixCommandLine:
     strategy:
@@ -49,7 +49,7 @@ jobs:
             build: make release-mac-x86_64
           - host: macos-13-xlarge
             target: aarch64-apple-darwin
-            build: make release-mac-aarch64           
+            build: make release-mac-aarch64
           # - host: macos-latest # This needs aarch64 OpenSSL, will wait github action support MacOS M1(https://github.com/github/roadmap/issues/528), then run this.
           #   target: aarch64-apple-darwin
           #   build: make release-mac-aarch64

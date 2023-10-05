@@ -8,7 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
 jobs:
-  docker-and-linux:
+  docker:
     runs-on: buildjet-2vcpu-ubuntu-2204-arm
     steps:
       - uses: actions/checkout@v3
@@ -37,19 +37,63 @@ jobs:
         with:
           context: .
           #platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           file: command/docker/client/client.Dockerfile
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{env.REGISTRY}}/fornetcode/fornet:lastet
+          cache-to: type=inline
           tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}
       - name: copy binary from docker to release directory
         run: |
           mkdir -p release 
-          docker run --rm  -v ./release:/release ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} cp /bin/fornet:/release/ && cp /bin/fornet-cli:/release          
+          docker run --rm  -v ./release:/release ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} cp /usr/bin/fornet /release/ && cp /usr/bin/fornet-cli /release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: fornet-aarch64-unknown-linux-gnu
+          path: release/*
+          if-no-files-found: error
+  command:
+    strategy:
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        settings:
+          - host: buildjet-2vcpu-ubuntu-2204-arm
+            target: aarch64-unknown-linux-gnu
+            build: make release-linux-aarch64
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1        
+        with:
+          toolchain: stable
+          target: ${{ matrix.settings.target }}
+          profile: minimal
+      - name: Set up cargo cache
+        uses: buildjet/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            client/target/            
+          key: ${{ matrix.settings.host }}-${{ matrix.settings.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.settings.host }}-cargo-${{ matrix.settings.target }}
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      - name: Build
+        run: ${{ matrix.settings.build }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: fornet-${{ matrix.settings.target }}
           path: release/*
           if-no-files-found: error
