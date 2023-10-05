@@ -1,24 +1,23 @@
 name: fornet arm64 client build
-# run at self-hosted mac min M2
-# But it does not success for SSL timeout. we may try other methods to do this
 on:
   workflow_dispatch:
     inputs:
       version:
         required: true
-        description: "version to release"
+        description: "docker version to release"
 env:
   REGISTRY: ghcr.io
 jobs:
-  docker-and-linux:
-    runs-on: self-hosted
+  docker:
+    runs-on: buildjet-2vcpu-ubuntu-2204-arm
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        #uses: crazy-max/ghaction-setup-docker@v2
+        uses: docker/setup-buildx-action@v3
       -
         name: Login to GithubPackages
         uses: docker/login-action@v2
@@ -27,39 +26,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       -
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:          
+          username: timzaak
+          password: ${{ secrets.DOCKERHUB_BUILDJET_TOKEN }}
+      -
         name: build and push docker image
         uses: docker/build-push-action@v2
         with:
           context: .
           #platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           file: command/docker/client/client.Dockerfile
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{env.REGISTRY}}/fornetcode/fornet:lastet
+          cache-to: type=inline
           tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}
       - name: copy binary from docker to release directory
         run: |
           mkdir -p release 
-          docker run --rm  -v ./release:/release ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} cp /bin/fornet:/release/ && cp /bin/fornet-cli:/release
-          cd release && tar  -czvf release/fornet-linux-aarch64.tar.gz ./fornet ./fornet-cli && rm fornet && rm fornet-cli
+          docker run --rm  -v ./release:/release ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}} cp /usr/bin/fornet /release/ && cp /usr/bin/fornet-cli /release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: fornet-linux-aarch64.tar.gz
-          path: release/fornet-linux-aarch64.tar.gz
-          if-no-files-found: error  
-
-  mac:
+          name: fornet-aarch64-unknown-linux-gnu
+          path: release/*
+          if-no-files-found: error
+  command:
     strategy:
       max-parallel: 1
       fail-fast: true
       matrix:
         settings:
-          - host: self-hosted
-            target: aarch64-apple-darwin
-            build: make release-mac-aarch64
-
+          - host: buildjet-2vcpu-ubuntu-2204-arm
+            target: aarch64-unknown-linux-gnu
+            build: make release-linux-aarch64
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
@@ -72,7 +75,7 @@ jobs:
           target: ${{ matrix.settings.target }}
           profile: minimal
       - name: Set up cargo cache
-        uses: actions/cache@v3
+        uses: buildjet/cache@v3
         continue-on-error: false
         with:
           path: |
@@ -91,5 +94,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
+          name: fornet-${{ matrix.settings.target }}
           path: release/*
           if-no-files-found: error
