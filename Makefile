@@ -58,7 +58,7 @@ release-backend:
 	cp -r admin-web/build/ command/docker/backend/web
 	cd backend && sbt universal:packageBin && cd ../
 	mkdir -p release
-	cp backend/target/universal/app-*.zip release/
+	cp backend/target/universal/app-*.zip release/app.zip && cd release && unzip app.zip && rm app.zip	
 	cp backend/target/universal/app-*.zip command/docker/backend/app.zip && cd command/docker/backend && unzip app.zip && rm app.zip && mv app-* app
 
 release-android:
