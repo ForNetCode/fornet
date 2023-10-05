@@ -26,6 +26,10 @@ jobs:
           node-version: 18
           cache: 'npm'
           cache-dependency-path: 'admin-web/package-lock.json'
+
+      - name: Set up QEMU 
+        uses: docker/setup-qemu-action@v2
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       -
@@ -42,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: command/docker/backend        
-            #platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: true        
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -51,4 +55,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           path: release/*
+          name: backend
           if-no-files-found: error
