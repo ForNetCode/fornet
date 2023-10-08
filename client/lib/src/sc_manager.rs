@@ -173,7 +173,12 @@ impl ConfigSyncManager {
         tokio::spawn(async move {
             let mut deduplication = deduplication;
             loop {
+                if !client_manager.read().await.config.local_config.server_info.iter().any(|x| &x.mqtt_url == &mqtt_url) {
+                    tracing::debug!("mqtt stop to connect");
+                    break;
+                }
                 tracing::debug!("begin to connect mqtt {}", &mqtt_url);
+
                 match ConfigSyncManager::connect_mqtt(mqtt_url.clone(), deduplication.clone(), sender.clone(), client_manager.clone(), mqtt_connections.clone()).await {
                     Ok(duplication) => {
                         let has_connection = { mqtt_connections.lock().await.contains_key(&mqtt_url) };
@@ -188,15 +193,11 @@ impl ConfigSyncManager {
                         }
                     }
                     Err(e) => {
-                        let has_connection = { mqtt_connections.lock().await.contains_key(&mqtt_url) };
                         tracing::warn!("mqtt connection: {} has failed: {e}",&mqtt_url);
+                        tokio::time::sleep(Duration::from_secs(30)).await;
                         {
                             mqtt_connections.lock().await.remove(&mqtt_url);
                         }
-                        if !has_connection {
-                            break;
-                        }
-                        tokio::time::sleep(Duration::from_secs(30)).await;
                     }
                 }
             }
