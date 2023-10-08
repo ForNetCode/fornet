@@ -68,7 +68,7 @@ impl FileSocketApiServer {
                         }
                         "autoLaunch" => {
                             cfg_if! {
-                                if #[cfg(target_os="macos")] {
+                                if #[cfg(any(target_os="macos", target_os = "windows"))] {
                                     match crate::client_manager::auto_launch(command[1]).await {
                                         Ok(resp) => {
                                             let _ = stream.write(api_success(resp).to_json().as_bytes()).await;

@@ -13,8 +13,8 @@ pub struct AutoLaunch {
 const LAUNCH_ROOT_PATH:&str = "/Library/LaunchDaemons";
 
 impl AutoLaunch {
-    pub fn new(app_name:String, path:String) -> Self {
-        AutoLaunch {app_name, path}
+    pub fn new(app_name:String, path:String) -> anyhow::Result<Self> {
+        Ok(AutoLaunch {app_name, path})
     }
     pub fn is_enabled(&self) -> anyhow::Result<bool> {
 
