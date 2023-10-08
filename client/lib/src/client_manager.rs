@@ -392,12 +392,17 @@ pub async fn command_handle_server_message(client:Arc<RwLock<ForNetClient>>, mes
     };
 }
 
-#[cfg(target_os = "macos")]
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub async fn auto_launch(param:&str)->anyhow::Result<String> {
     match std::env::current_dir() {
         Ok(x) => {
             let app_path = x.join(crate::APP_NAME);
-            let auto = crate::device::auto_launch::AutoLaunch::new( crate::MAC_OS_PACKAGE_NAME.to_owned(), app_path.to_str().unwrap().to_owned());
+            //std::env::current_exe()
+            #[cfg(target_os = "macos")]
+            let auto = crate::device::auto_launch::AutoLaunch::new(crate::MAC_OS_PACKAGE_NAME.to_owned(), app_path.to_str().unwrap().to_owned())?;
+            #[cfg(target_os = "windows")]
+            let auto =crate::device::auto_launch::AutoLaunch::new(crate::APP_NAME.to_owned(),app_path.to_str().unwrap().to_owned())?;
 
             tracing::debug!("app name:{}, app path: {:?}",crate::APP_NAME, app_path);
             let is_enabled = auto.is_enabled();
@@ -448,4 +453,13 @@ pub enum ServerMessage {
     StopWR{network_id:String,reason:String, delete_network:bool, },
     SyncPeers(String, crate::protobuf::config::PeerChange),
     SyncConfig(String, WrConfig),
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_name() {
+        println!("{:?}", std::env::current_exe())
+
+    }
 }

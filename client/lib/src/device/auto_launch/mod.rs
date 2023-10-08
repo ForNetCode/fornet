@@ -10,4 +10,5 @@ cfg_if! {
 }
 
 mod windows;
+pub use self::windows::AutoLaunch;
 //TODO: test other platform with auto-launch-extra, be careful about root permission!

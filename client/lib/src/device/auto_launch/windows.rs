@@ -1,3 +1,4 @@
+use anyhow::ensure;
 use auto_launch_extra::*;
 
 pub struct AutoLaunch {
@@ -10,20 +11,20 @@ impl AutoLaunch {
             .set_app_name(&app_name)
             .set_app_path(&path)
             .set_use_launch_agent(true)
-            .build()?;
-        Ok(AutoLaunch{
+            .build().map_err(anyhow::Error::from)?;
+        Ok(AutoLaunch {
             inner:auto
         })
     }
 
     pub fn is_enabled(&self) -> anyhow::Result<bool> {
-        Ok(self.inner.is_enabled()?)
+        self.inner.is_enabled().map_err(anyhow::Error::from)
     }
     pub fn enable(&self) -> anyhow::Result<()> {
-        Ok(self.inner.enable()?)
+        self.inner.enable().map_err(anyhow::Error::from)
     }
 
     pub fn disable(&self) -> anyhow::Result<()> {
-        Ok(self.inner.disable()??)
+        self.inner.disable().map_err(anyhow::Error::from)
     }
 }
