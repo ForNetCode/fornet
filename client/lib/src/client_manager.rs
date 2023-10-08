@@ -395,16 +395,16 @@ pub async fn command_handle_server_message(client:Arc<RwLock<ForNetClient>>, mes
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub async fn auto_launch(param:&str)->anyhow::Result<String> {
-    match std::env::current_dir() {
-        Ok(x) => {
-            let app_path = x.join(crate::APP_NAME);
+    match std::env::current_exe() {
+        Ok(app_path) => {
+            let name = app_path.file_name().unwrap().to_str().unwrap().to_owned();
             //std::env::current_exe()
             #[cfg(target_os = "macos")]
             let auto = crate::device::auto_launch::AutoLaunch::new(crate::MAC_OS_PACKAGE_NAME.to_owned(), app_path.to_str().unwrap().to_owned())?;
             #[cfg(target_os = "windows")]
-            let auto =crate::device::auto_launch::AutoLaunch::new(crate::APP_NAME.to_owned(),app_path.to_str().unwrap().to_owned())?;
+            let auto =crate::device::auto_launch::AutoLaunch::new(name.clone(),app_path.to_str().unwrap().to_owned())?;
 
-            tracing::debug!("app name:{}, app path: {:?}",crate::APP_NAME, app_path);
+            tracing::debug!("app name:{}, app path: {:?}",name, app_path);
             let is_enabled = auto.is_enabled();
             match param {
                 "enable" => {
@@ -459,6 +459,10 @@ pub enum ServerMessage {
 mod test {
     #[test]
     fn test_name() {
+        println!("hello world");
+        let app_name = std::env::current_exe();
+        assert!(app_name.is_ok());
+        let app_name = app_name.unwrap().as_os_str().to_str().unwrap();
         println!("{:?}", std::env::current_exe())
 
     }

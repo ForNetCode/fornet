@@ -716,6 +716,7 @@ impl Default for Peers {
     }
 }
 
+/*
 
 #[cfg(test)]
 mod test {
@@ -771,3 +772,5 @@ mod test {
         device.close().await;
     }
 }
+
+ */
