@@ -10,7 +10,7 @@ impl AutoLaunch {
         let auto = AutoLaunchBuilder::new()
             .set_app_name(&app_name)
             .set_app_path(&path)
-            .set_use_launch_agent(true)
+            //.set_args(&["--minimized"]) // would stop self
             .build().map_err(anyhow::Error::from)?;
         Ok(AutoLaunch {
             inner:auto

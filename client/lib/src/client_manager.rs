@@ -404,7 +404,7 @@ pub async fn auto_launch(param:&str)->anyhow::Result<String> {
             #[cfg(target_os = "windows")]
             let auto =crate::device::auto_launch::AutoLaunch::new(name.clone(),app_path.to_str().unwrap().to_owned())?;
 
-            tracing::debug!("app name:{}, app path: {:?}",name, app_path);
+            tracing::debug!("auto launch app name:{}, app path: {:?} command: {}",name, app_path, param);
             let is_enabled = auto.is_enabled();
             match param {
                 "enable" => {
