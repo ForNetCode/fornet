@@ -16,7 +16,7 @@ pub async fn main() -> anyhow::Result<()> {
         Command::new("list").about("list connected network status, it now only support connect one network"),
     );
 
-    if cfg!(any(target_os = "macos", target_os = "windows")) {
+    if cfg!(any(target_os = "macos")) {
         command = command.subcommand(
             Command::new("autoLaunch")
                 .about("auto launch when os up")
