@@ -53,4 +53,4 @@ http_acl_req.url = "http://backend/mqtt/acl"
 http_acl_req.method = "post"
 http_acl_req.headers.content-type="application/json"
 ## Value: Params
-http_acl_req.params = { access = "%A", username = "%u", clientid = "%c", ipaddr = "%a", topic = "%t" }
+http_acl_req.params = { access = "%A", username = "%u", clientId = "%c", ipaddr = "%a", topic = "%t" }
