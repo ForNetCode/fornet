@@ -32,9 +32,10 @@ async fn main() -> anyhow::Result<()> {
                 .help("config directory path")
                 .default_value(&default_config_path),
         ]);
+    // windows test: FORNET_DRIVER=C:\DriverTest\Drivers\ForTun.inf
     #[cfg(target_os = "windows")]
     let matches = matches.arg(Arg::new("driver").long("driver").env("FORNET_DRIVER")
-        .default_value("./driver/ForTun.inf")
+        .default_value("./driver/fortun.inf")
         .help("windows driver path, the driver is simple-windows-driver"));
 
     let matches = matches.get_matches();

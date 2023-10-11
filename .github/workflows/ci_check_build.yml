@@ -42,6 +42,9 @@ jobs:
           - host: macos-latest
             target: x86_64-apple-darwin
             build: make release-mac-x86_64
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+            build: ./windows-ci.ps1   
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
@@ -62,9 +65,14 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            client/target/            
+            client/target/
           key: ${{ matrix.settings.host }}-${{ matrix.settings.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ matrix.settings.host }}-cargo-${{ matrix.settings.target }}
-      - name: Build
+      - if: runner.os == 'Windows'      
+        name: Build
+        shell: pwsh
         run: ${{ matrix.settings.build }}
+      - if: runner.os != 'Windows'
+        name: Build
+        run: ${{ matrix.settings.build }} 
 

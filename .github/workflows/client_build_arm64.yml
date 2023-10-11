@@ -42,7 +42,7 @@ jobs:
           file: command/docker/client/client.Dockerfile
           cache-from: type=registry,ref=${{env.REGISTRY}}/fornetcode/fornet:lastet
           cache-to: type=inline
-          tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}
+          tags: ${{ env.REGISTRY }}/fornetcode/fornet:${{github.event.inputs.version}}, ${{ env.REGISTRY }}/fornetcode/fornet:latest
       - name: copy binary from docker to release directory
         run: |
           mkdir -p release 

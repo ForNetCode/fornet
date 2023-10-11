@@ -4,11 +4,9 @@ cfg_if! {
         mod macos;
         pub use macos::AutoLaunch;
     } else if #[cfg(target_os="windows")] {
-        //mod windows;
-
+        mod windows;
+        pub use self::windows::AutoLaunch;
     }
 }
 
-mod windows;
-pub use self::windows::AutoLaunch;
 //TODO: test other platform with auto-launch-extra, be careful about root permission!

@@ -4,7 +4,7 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
-use std::fs;
+use std::{env, fs};
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -46,6 +46,13 @@ impl AppConfig {
     #[cfg(target_os = "windows")]
     pub fn load_config(config_path: &PathBuf, driver_path:String) -> anyhow::Result<Self> {
         let (identity,local_config) = Self::_load_config(config_path)?;
+        let driver_path = if PathBuf::from(&driver_path).is_relative() {
+            env::current_exe().unwrap().parent().unwrap().join(&driver_path).to_str().unwrap().to_owned()
+        } else {
+            driver_path
+        };
+
+        tracing::info!("ForTun Driver Path is: {driver_path}");
         Ok(Self {
             config_path: config_path.clone(),
             identity,

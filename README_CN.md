@@ -25,4 +25,4 @@ ForNet 基于 [BoringTun](https://github.com/cloudflare/boringtun)：WireGuard R
 ### License
 [BSL 1.1](https://github.com/fornetcode/fornet/blob/main/LICENSE)
 
-<sub>WireGuard is a registered trademark of Jason A. Donenfeld. ForNet is not sponsored or endorsed by Jason A. Donenfeld.</sub>
+WireGuard is a registered trademark of Jason A. Donenfeld. ForNet is not sponsored or endorsed by Jason A. Donenfeld.
