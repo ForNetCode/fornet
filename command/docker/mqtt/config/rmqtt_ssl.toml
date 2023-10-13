@@ -57,6 +57,7 @@ plugins.default_startups = [
 
 ##--------------------------------------------------------------------
 ## MQTT/TCP - External TCP Listener for MQTT Protocol
+listener.tcp.expternal.enable = false
 listener.tcp.external.addr = "0.0.0.0:1883"
 #Number of worker threads
 listener.tcp.external.workers = 8
