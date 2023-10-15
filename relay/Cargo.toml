@@ -1,0 +1,12 @@
+[package]
+name = "relay"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.32", features = ["macros", "rt-multi-thread", "net", "rt"] }
+clap = "4.4"
+[dev-dependencies]
+webrtc-dtls = "0.8.0"
