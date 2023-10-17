@@ -13,17 +13,24 @@ use webrtc::peer_connection::RTCPeerConnection;
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
     tracing_subscriber::fmt::init();
-    //let answer_connection = answer().await?;
+    let answer_connection = answer().await?;
 
     let offer_connection = offer().await?;
     let offer = offer_connection.create_offer(None).await?;
     tracing::info!("Offer: {offer:?}");
     offer_connection.set_local_description(offer.clone()).await?;
 
-    //answer_connection.set_remote_description(offer).await?;
-    //let answer = answer_connection.create_answer(None).await?;
-    //answer_connection.set_local_description(answer.clone()).await?;
-    //offer_connection.set_remote_description(answer).await?;
+    answer_connection.set_remote_description(offer).await?;
+    let mut gather_complete= answer_connection.gathering_complete_promise().await;
+    let answer = answer_connection.create_answer(None).await?;
+    answer_connection.set_local_description(answer.clone()).await?;
+
+    let _ = gather_complete.recv().await;
+
+    tracing::info!("answer collect Session Description finish");
+    let answer_local_description = answer_connection.local_description().await.unwrap();
+    offer_connection.set_remote_description(answer_local_description).await?;
+
 
     tokio::signal::ctrl_c().await?;
     Ok(())
@@ -37,6 +44,7 @@ async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
         }],
         ..Default::default()
     };
+    //let config = RTCConfiguration::default();
     let mut m = MediaEngine::default();
     let mut registry = Registry::new();
     //register_default_interceptors(registry, &mut m);
@@ -99,6 +107,8 @@ async fn offer() -> anyhow::Result<Arc<RTCPeerConnection>>{
         }],
         ..Default::default()
     };
+
+    //let config = RTCConfiguration::default();
     let mut m = MediaEngine::default();
     let mut registry = Registry::new();
     //register_default_interceptors(registry, &mut m);
