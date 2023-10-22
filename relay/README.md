@@ -12,3 +12,8 @@ run --package turn-server --bin turn-server -- --config=$turn_server_config.toml
 
 ```
 WebRTC 内容: https://github.com/timzaak/blog/issues/94
+
+### Turn Server Run
+```shell
+./turn-server --config=~/turn_config.toml
+```

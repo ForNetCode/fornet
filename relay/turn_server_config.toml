@@ -5,7 +5,7 @@
 # for a single node, this configuration is fixed,
 # but each node can be configured as a different domain.
 # this is a good idea to divide the nodes by namespace.
-realm = "localhost"
+realm = "fornet"
 
 # turn server listen interfaces
 #
@@ -14,19 +14,19 @@ realm = "localhost"
 # ipv4 and ipv6.
 [[turn.interfaces]]
 transport = "udp"
-bind = "127.0.0.1:3478"
+bind = "0.0.0.0:13478"
 # external address
 #
 # specify the node external address and port.
 # for the case of exposing the service to the outside,
 # you need to manually specify the server external IP
 # address and service listening port.
-external = "127.0.0.1:3478"
+external = "113.31.103.71:13478"
 
-[[turn.interfaces]]
-transport = "tcp"
-bind = "127.0.0.1:3478"
-external = "127.0.0.1:3478"
+#[[turn.interfaces]]
+#transport = "tcp"
+#bind = "127.0.0.1:3478"
+#external = "127.0.0.1:3478"
 
 [controller]
 # controller bind
@@ -46,26 +46,26 @@ listen = "127.0.0.1:3000"
 # response is shared with requesting code.
 allow_origin = "*"
 
-[hooks]
-# hooks bind uri
+#[hooks]
+## hooks bind uri
+##
+## This option is used to specify the http address of the hooks service.
+##
+## Warn: This http server does not contain any means of authentication,
+## and sensitive information and dangerous operations can be obtained
+## through this service, please do not expose it directly to an unsafe
+## environment.
+#bind = "http://127.0.0.1:8080"
 #
-# This option is used to specify the http address of the hooks service.
-#
-# Warn: This http server does not contain any means of authentication,
-# and sensitive information and dangerous operations can be obtained
-# through this service, please do not expose it directly to an unsafe
-# environment.
-bind = "http://127.0.0.1:8080"
-
-# list of events followed by hooks
-sub_events = [
-    "allocated",
-    "binding",
-    "channel_bind",
-    "create_permission",
-    "refresh",
-    "abort"
-]
+## list of events followed by hooks
+#sub_events = [
+#    "allocated",
+#    "binding",
+#    "channel_bind",
+#    "create_permission",
+#    "refresh",
+#    "abort"
+#]
 
 [log]
 # log level
@@ -81,5 +81,6 @@ level = "info"
 # The server will try to use static authentication first, and then use
 # external control service authentication.
 [auth]
-user1 = "test"
-user2 = "test"
+answer = "test"
+offer = "test"
+user = "pass"

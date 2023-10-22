@@ -1,15 +1,19 @@
 use std::sync::Arc;
+use std::time::Duration;
 use anyhow::anyhow;
 use tracing_subscriber;
 
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::APIBuilder;
 use webrtc::api::interceptor_registry::{configure_nack, configure_rtcp_reports};
+use webrtc::ice_transport::ice_credential_type::RTCIceCredentialType;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
 use webrtc::peer_connection::configuration::RTCConfiguration;
+use webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy;
 use webrtc::peer_connection::RTCPeerConnection;
 
+const TURN_SERVER:&str = "turn:113.31.103.71:13478";
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
     tracing_subscriber::fmt::init();
@@ -29,22 +33,40 @@ async fn main() -> anyhow::Result<()>{
 
     tracing::info!("answer collect Session Description finish");
     let answer_local_description = answer_connection.local_description().await.unwrap();
-    offer_connection.set_remote_description(answer_local_description).await?;
+    //tracing::info!("answer description: {answer_local_description:?}");
 
+    //let mut gather_complete = offer_connection.gathering_complete_promise().await;
+    //let _ = gather_complete.recv().await;
+
+    offer_connection.set_remote_description(answer_local_description).await?;
 
     tokio::signal::ctrl_c().await?;
     Ok(())
 }
 
 async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
+    // let config = RTCConfiguration {
+    //     ice_servers: vec![RTCIceServer {
+    //         urls: vec!["stun:stun.l.google.com:19302".to_owned()],
+    //         ..Default::default()
+    //     }],
+    //     ..Default::default()
+    // };
+    //let config = RTCConfiguration::default();
+
     let config = RTCConfiguration {
         ice_servers: vec![RTCIceServer {
-            urls: vec!["stun:stun.l.google.com:19302".to_owned()],
-            ..Default::default()
+            urls: vec![TURN_SERVER.to_owned()],
+            username: "answer".to_owned(),
+            credential: "test".to_owned(),
+
+            credential_type: RTCIceCredentialType::Password,
         }],
+        ice_transport_policy: RTCIceTransportPolicy::Relay,
+        peer_identity: "offer".to_owned(),
+        //peer_identity: "answer".to_owned(),
         ..Default::default()
     };
-    //let config = RTCConfiguration::default();
     let mut m = MediaEngine::default();
     let mut registry = Registry::new();
     //register_default_interceptors(registry, &mut m);
@@ -88,7 +110,8 @@ async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
                 Box::pin(async {  })
             }));
             d.on_message(Box::new(move |msg|{
-                tracing::info!("anwser receive data label: {d_label}:");
+                let msg_str = String::from_utf8(msg.data.to_vec()).unwrap();
+                tracing::info!("anwser receive data label: {d_label}, data: {msg_str}");
                 Box::pin(async {  })
             }));
         })
@@ -100,11 +123,23 @@ async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
 }
 async fn offer() -> anyhow::Result<Arc<RTCPeerConnection>>{
 
+    // let config = RTCConfiguration {
+    //     ice_servers: vec![RTCIceServer {
+    //         urls: vec!["stun:stun.l.google.com:19302".to_owned()],
+    //         ..Default::default()
+    //     }],
+    //     ..Default::default()
+    // };
     let config = RTCConfiguration {
         ice_servers: vec![RTCIceServer {
-            urls: vec!["stun:stun.l.google.com:19302".to_owned()],
-            ..Default::default()
+            urls: vec![TURN_SERVER.to_owned()],
+            username: "offer".to_owned(),
+            credential: "test".to_owned(),
+            credential_type: RTCIceCredentialType::Password,
         }],
+        ice_transport_policy: RTCIceTransportPolicy::Relay,
+        peer_identity: "answer".to_owned(),
+        //peer_identity: "offer".to_owned(),
         ..Default::default()
     };
 
@@ -142,11 +177,20 @@ async fn offer() -> anyhow::Result<Arc<RTCPeerConnection>>{
 
     let data_channel = peer_connection.create_data_channel("data",None).await?;
 
-    //let dc = Arc::downgrade(&data_channel);
+    let dc = Arc::downgrade(&data_channel);
     data_channel.on_open(Box::new(move || {
+        //let data_channel = data_channel.clone();
         tracing::info!(" DataChannel Open");
-        Box::pin(async {
-            //data_channel.send_text("".to_owned()).await?;
+        Box::pin(async move{
+            loop {
+                if let Some(data_channel) = dc.upgrade() {
+                    data_channel.send_text("1".to_owned()).await;
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                } else {
+                    break;
+                }
+            }
+            //
         })
     }));
     Ok(peer_connection)
