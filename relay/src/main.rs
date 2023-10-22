@@ -14,6 +14,7 @@ use webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy
 use webrtc::peer_connection::RTCPeerConnection;
 
 const TURN_SERVER:&str = "turn:113.31.103.71:13478";
+const SELF_TURN_SERVER:&str = "turn:192.168.31.37:3478";
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
     tracing_subscriber::fmt::init();
@@ -63,6 +64,11 @@ async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
     let config = RTCConfiguration {
         ice_servers: vec![RTCIceServer {
             urls: vec![TURN_SERVER.to_owned()],
+            username: "answer".to_owned(),
+            credential: "test".to_owned(),
+            credential_type: RTCIceCredentialType::Password,
+        }, RTCIceServer {
+            urls: vec![SELF_TURN_SERVER.to_owned()],
             username: "answer".to_owned(),
             credential: "test".to_owned(),
 
@@ -116,7 +122,7 @@ async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
             }));
             d.on_message(Box::new(move |msg|{
                 let msg_str = String::from_utf8(msg.data.to_vec()).unwrap();
-                tracing::info!("anwser receive data label: {d_label}, data: {msg_str}");
+                tracing::info!("answer receive data label: {d_label}, data: {msg_str}");
                 Box::pin(async {  })
             }));
         })
@@ -138,6 +144,11 @@ async fn offer() -> anyhow::Result<Arc<RTCPeerConnection>>{
     let config = RTCConfiguration {
         ice_servers: vec![RTCIceServer {
             urls: vec![TURN_SERVER.to_owned()],
+            username: "offer".to_owned(),
+            credential: "test".to_owned(),
+            credential_type: RTCIceCredentialType::Password,
+        },RTCIceServer {
+            urls: vec![SELF_TURN_SERVER.to_owned()],
             username: "offer".to_owned(),
             credential: "test".to_owned(),
             credential_type: RTCIceCredentialType::Password,
