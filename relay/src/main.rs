@@ -20,9 +20,17 @@ async fn main() -> anyhow::Result<()>{
     let answer_connection = answer().await?;
 
     let offer_connection = offer().await?;
+
+
     let offer = offer_connection.create_offer(None).await?;
-    tracing::info!("Offer: {offer:?}");
     offer_connection.set_local_description(offer.clone()).await?;
+    let mut gather_complete = offer_connection.gathering_complete_promise().await;
+    let _ = gather_complete.recv().await;
+
+
+
+    let offer = offer_connection.local_description().await.unwrap();
+    tracing::info!("Offer: {offer:?}");
 
     answer_connection.set_remote_description(offer).await?;
     let mut gather_complete= answer_connection.gathering_complete_promise().await;
@@ -35,8 +43,6 @@ async fn main() -> anyhow::Result<()>{
     let answer_local_description = answer_connection.local_description().await.unwrap();
     //tracing::info!("answer description: {answer_local_description:?}");
 
-    //let mut gather_complete = offer_connection.gathering_complete_promise().await;
-    //let _ = gather_complete.recv().await;
 
     offer_connection.set_remote_description(answer_local_description).await?;
 
@@ -63,8 +69,7 @@ async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
             credential_type: RTCIceCredentialType::Password,
         }],
         ice_transport_policy: RTCIceTransportPolicy::Relay,
-        peer_identity: "offer".to_owned(),
-        //peer_identity: "answer".to_owned(),
+        //peer_identity: "offer".to_owned(),
         ..Default::default()
     };
     let mut m = MediaEngine::default();
@@ -138,8 +143,8 @@ async fn offer() -> anyhow::Result<Arc<RTCPeerConnection>>{
             credential_type: RTCIceCredentialType::Password,
         }],
         ice_transport_policy: RTCIceTransportPolicy::Relay,
-        peer_identity: "answer".to_owned(),
-        //peer_identity: "offer".to_owned(),
+
+        //peer_identity: "answer".to_owned(),
         ..Default::default()
     };
 
