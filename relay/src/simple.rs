@@ -100,7 +100,8 @@ async fn answer() -> anyhow::Result<Arc<RTCPeerConnection>> {
 
 
     peer_connection.on_peer_connection_state_change(Box::new(move |s| {
-        tracing::info!("Answer Peer Connection State has changed: {s}");
+        tracing::info!("answer peer connection State has changed: {s}");
+
         Box::pin(async {})
     }));
 
