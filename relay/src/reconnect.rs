@@ -5,7 +5,7 @@ use tokio::sync::mpsc::Sender;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::APIBuilder;
 use webrtc::api::interceptor_registry::{configure_nack, configure_rtcp_reports};
-use webrtc::ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit};
+use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 use webrtc::ice_transport::ice_credential_type::RTCIceCredentialType;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
