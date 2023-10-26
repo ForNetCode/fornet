@@ -1216,6 +1216,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "webrtc",
+ "webrtc-ice",
+ "webrtc-util",
 ]
 
 [[package]]
