@@ -1,4 +1,4 @@
-val scala3Version = "3.3.0"
+val scala3Version = "3.3.1"
 
 maintainer := "timzaak<zsy.evan@gmail.com>"
 
@@ -26,6 +26,7 @@ lazy val app = project
     libraryDependencies ++=
       Seq(
         "org.eclipse.jetty" % "jetty-webapp" % "11.0.15" % "container;compile",
+        "org.postgresql" % "postgresql" % "42.6.0",
         "org.bouncycastle" % "bcprov-jdk18on" % "1.72", // for x25519,
         "org.scalameta" %% "munit" % "0.7.29" % Test
       )
