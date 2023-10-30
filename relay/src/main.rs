@@ -5,6 +5,8 @@ mod simple_stun;
 
 mod simple_ice_api;
 
+mod simple_tcp;
+
 
 
 
@@ -15,7 +17,8 @@ async fn main() -> anyhow::Result<()>{
     //simple_stun::simple_stun().await.unwrap();
     //reconnect::reconnect().await.unwrap();
 
-    simple_ice_api::simple_ice_api().await.unwrap();
+    //simple_ice_api::simple_ice_api().await.unwrap();
+    simple_tcp::simple_tcp().await.unwrap();
     tokio::signal::ctrl_c().await?;
     Ok(())
 }

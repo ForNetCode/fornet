@@ -14,6 +14,7 @@ realm = "localhost"
 # ipv4 and ipv6.
 [[turn.interfaces]]
 transport = "udp"
+#transport = "tcp"
 #bind = "0.0.0.0:13478"
 bind = "0.0.0.0:3478"
 # external address
