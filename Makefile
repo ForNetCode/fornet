@@ -53,6 +53,11 @@ release-linux:
 	cp client/target/x86_64-unknown-linux-gnu/release/fornet ./release
 	cp client/target/x86_64-unknown-linux-gnu/release/fornet-cli ./release
 
+#TODO
+release-windows:	
+	vcpkg install --triplet=x64-windows-static-md openssl
+
+
 release-backend:
 	cd admin-web && npm ci && npm run build:prod && cd ../
 	cp -r admin-web/build/ command/docker/backend/web
