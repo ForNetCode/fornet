@@ -8,30 +8,29 @@ option java_package = "com.timzaak.fornet.protobuf";
 
 enum Protocol {
   Protocol_TCP = 0;
-  Protocol_UDP = 1;
+  Protocol_UDP = 1; //webrtc-rs only support udp
 }
 
 message Interface {
   optional string name = 1;
-  repeated string address = 2;
-  int32 listen_port = 3;
+  repeated string address = 2; //ip
+  int32 listen_port = 3; // wirguard port, webrtc does not need it
   // optional string private_key = 4; // this is no needed now, we may support it in future version
   repeated string dns = 5;
   optional uint32 mtu = 6;
   optional string pre_up = 7;
-  optional string post_up = 8;
+  optional string post_up = 8; // wireguard relay need it
   optional string pre_down = 9;
-  optional string post_down = 10;
+  optional string post_down = 10; // wireguard relay need it
   Protocol protocol = 11;
 }
 
 message Peer {
-  optional string endpoint = 1;
-  repeated string allowed_ip = 2;
-  string public_key = 3;
-  uint32 persistence_keep_alive = 4;
-  // This is for tcp
-  repeated string address = 5;
+  optional string endpoint = 1; // wireguard relay
+  repeated string allowed_ip = 2; // ACL, but now wireguard normal node does not support this
+  string public_key = 3; 
+  uint32 persistence_keep_alive = 4; // wireguard param, can used for webrtc
+  repeated string address = 5; // ip, should be contained by allowed_ip?
 }
 
 
